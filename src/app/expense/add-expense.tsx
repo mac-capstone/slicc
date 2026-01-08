@@ -429,6 +429,8 @@ function getItemAndAmountFromTaggedWords(taggedWords: any[]): {
 function CreateItemCard() {
   const [tempItemName, setTempItemName] = useState<string>('');
   const [tempItemAmount, setTempItemAmount] = useState<string>('');
+  let defaultTaxRate = 0;
+  const [tempItemTax, setTempItemTax] = useState<number>(defaultTaxRate);
   const [recognizing, setRecognizing] = useState(false);
 
   const addItem = useExpenseCreation.use.addItem();
@@ -513,6 +515,12 @@ function CreateItemCard() {
 
           setTempItemAmount(cleaned);
         }}
+      />
+      <Input
+        placeholder="Tax"
+        keyboardType="numeric"
+        value={tempItemTax === 0 ? '' : tempItemTax.toString() + '%'}
+        onChangeText={(text) => setTempItemTax(Number(text))}
       />
       <Button
         label="Add Item"
