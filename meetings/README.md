@@ -248,3 +248,105 @@
 - Check final PoC PR by Ankush.
 - Record skit and demo video for November 21, 2025 presentation.
 - Edit the video and submit by today.
+
+---
+
+# January 8th, 2026
+
+Members: Ankush, Asad, Michael, Viransh
+
+Brief meeting to plan moving forward and discuss details of how to implement things
+
+Payment/Owed Details
+Expense creator is the only one who can tick off/track payments
+Creator would click the expense to go to the confirmation-split page
+
+- They can then click into each person to set the amount payed
+  - Clicking should create a popup with an option to add a specific number
+  - or mark as fully paid
+  - This would be reflected in the confirmation-split page with a X/total number
+
+Authed payment tracking
+
+- Users can send the Expense creator a reminder that they paid (Implement Later)
+
+Groups/Events details
+Groups have names
+Groups are a selection of people/users
+Groups have multiple Events
+Groups have a basic chat
+
+- user can send message, it is displayed
+  Events have multiple Expenses
+  Events can have a day (or days)
+- Each date can have a time range/be all day
+
+Discussed features to be implemented
+
+- TAX
+  - User sets default tax rate in preferences somehow
+  - Item creation screen assumes default tax (shows base price + taxed price + tax amount)
+  - User can manually change tax if item has custom tax rate
+- TIP
+
+  - Button at end of item creation screen somewhere
+  - Opens popup to pick flat tip amount or percentage
+    - User can input tip
+    - Users can then split the tip similar to an item in the splitting screen
+
+- Groups (Events)
+
+  - Page structure
+    - groups page (from bottom nav bar)
+      - method to create new group
+      - display user's groups
+  - by creation date - each group should display: - name - display user profiles (like expense card)
+
+    - Each group page (after clicking group card)
+
+      - Shows name
+        - Shows list of users (Like whatsapp list of users)
+          - Separate screen opened through clicking on the group name
+        - Button to invite people (creator only)
+          - Button to remove people (creator only)
+          - Button to leave group
+      - Shows Events (somehow)
+      - Shows chat (somehow)
+      - Events/chat design details to be determined by the designer
+        They will design the general placement/details and then run it by everyone else in a design review meeting
+        details will be discussed there
+
+    - Each event page (after clicking on an event)
+
+      - Shows name
+      - Displays days/times (somehow)
+      - Displays users of the event (subset of the group + pseudousers)
+        - There should be some way to add/remove group members
+        - Additionally pseudousers can be added here as well
+      - Displays expenses of the event
+        - There should be some way of adding/removing expenses (removing should have a confirm)
+
+    - Event expenses
+      Adding people to expenses needs to be changed
+      Adding a person should bring up a list of people from the Event
+      and an one option to add a pseudo person which will take a name
+
+- Backend
+  - Auth
+    - Firebase auth
+    - Each user should store bills (currently)
+
+Tasks to be delegated:
+
+- Firebase/Auth work
+  - Ankush/Michael to start working on it 08-01-2026
+- Groups design
+  - Asad starts designing (to be reviewed -> figma starts)
+- Events design
+  - Viransh starts designing (to be reviewed -> figma starts)
+- Tax & Tip
+  - Ankush/Michael to start designing (to be reviewed -> figma starts)
+
+Assistance to be granted by other members as needed so far
+
+Meeting to be held with everyone for design doc/v&v ASAP
