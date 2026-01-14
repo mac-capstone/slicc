@@ -12,6 +12,9 @@
 - [November 4, 2025 - Eighth Meeting](#november-4-2025---eighth-meeting)
 - [November 6, 2025 - Ninth Meeting](#november-6-2025---ninth-meeting)
 - [November 13, 2025 - Tenth Meeting](#november-13-2025---tenth-meeting)
+- [November 19, 2025 - Eleventh Meeting](#november-19-2025---eleventh-meeting)
+- [November 20, 2025 - Twelfth Meeting](#november-20-2025---twelfth-meeting)
+- [January 8th, 2026 - Thirteenth Meeting](#january-8th-2026---thirteenth-meeting)
 
 ---
 
@@ -251,9 +254,14 @@
 
 ---
 
-# January 8th, 2026
+# January 8th, 2026 - Thirteenth Meeting
 
-Members: Ankush, Asad, Michael, Viransh
+**Attendees:**
+
+- Ankush
+- Asad
+- Michael
+- Viransh
 
 Brief meeting to plan moving forward and discuss details of how to implement things
 
@@ -288,22 +296,18 @@ Discussed features to be implemented
   - Item creation screen assumes default tax (shows base price + taxed price + tax amount)
   - User can manually change tax if item has custom tax rate
 - TIP
-
   - Button at end of item creation screen somewhere
   - Opens popup to pick flat tip amount or percentage
     - User can input tip
     - Users can then split the tip similar to an item in the splitting screen
 
 - Groups (Events)
-
   - Page structure
     - groups page (from bottom nav bar)
       - method to create new group
       - display user's groups
   - by creation date - each group should display: - name - display user profiles (like expense card)
-
     - Each group page (after clicking group card)
-
       - Shows name
         - Shows list of users (Like whatsapp list of users)
           - Separate screen opened through clicking on the group name
@@ -317,7 +321,6 @@ Discussed features to be implemented
         details will be discussed there
 
     - Each event page (after clicking on an event)
-
       - Shows name
       - Displays days/times (somehow)
       - Displays users of the event (subset of the group + pseudousers)
@@ -350,3 +353,5 @@ Tasks to be delegated:
 Assistance to be granted by other members as needed so far
 
 Meeting to be held with everyone for design doc/v&v ASAP
+
+---
