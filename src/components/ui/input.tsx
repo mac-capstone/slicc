@@ -76,8 +76,7 @@ export type InputControllerType<T extends FieldValues> = {
 };
 
 interface ControlledInputProps<T extends FieldValues>
-  extends NInputProps,
-    InputControllerType<T> {}
+  extends NInputProps, InputControllerType<T> {}
 
 export const Input = React.forwardRef<NTextInput, NInputProps>((props, ref) => {
   const {
