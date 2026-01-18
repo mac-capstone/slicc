@@ -1,0 +1,74 @@
+import { Env } from '@env';
+// import firebaseApp from '@react-native-firebase/app'; // Deprecated - using modular Web SDK instead
+import { getApps, initializeApp } from 'firebase/app';
+import {
+  // connectAuthEmulator,
+  // @ts-ignore: getReactNativePersistence exists in the RN bundle
+  // but is often missing from public TypeScript definitions.
+  getReactNativePersistence,
+  initializeAuth,
+} from 'firebase/auth';
+import { initializeFirestore } from 'firebase/firestore';
+// import { connectFirestoreEmulator } from 'firebase/firestore';
+import { getFunctions } from 'firebase/functions';
+// import { connectFunctionsEmulator } from 'firebase/functions';
+import { getStorage } from 'firebase/storage';
+
+// import { connectStorageEmulator } from 'firebase/storage';
+// import * as Device from 'expo-device';
+// import { Platform } from 'react-native';
+import { reactNativeAsyncStorage } from '@/lib/storage';
+const firebaseConfig = {
+  apiKey: Env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: Env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: Env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: Env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: Env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: Env.EXPO_PUBLIC_FIREBASE_APP_ID,
+};
+
+// Initialize Firebase using modular Web SDK
+// Only initialize if no apps exist to prevent duplicate initialization
+export const app =
+  getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+});
+export const functions = getFunctions(app);
+export const auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(reactNativeAsyncStorage),
+});
+export const storage = getStorage(app);
+
+// Emulator connection code (commented out - always connect to production)
+// Uncomment below to enable emulator connections in development
+// 10.0.2.2 is a special IP address to connect to the 'localhost' of the host computer from an Android emulator
+// const emulatorHost = Platform.OS === 'ios' ? '127.0.0.1' : '10.0.2.2';
+// const realDeviceHost = '192.168.0.117';
+// const FIRESTORE_PORT = 8080;
+// const FUNCTIONS_PORT = 5001;
+// const AUTH_PORT = 9099;
+// const STORAGE_PORT = 9199;
+
+// export const isRealDevice = Device.isDevice;
+
+// if (__DEV__) {
+//   if (isRealDevice) {
+//     console.log('Connecting to real device');
+//     connectFirestoreEmulator(db, realDeviceHost, FIRESTORE_PORT);
+//     connectFunctionsEmulator(functions, realDeviceHost, FUNCTIONS_PORT);
+//     connectAuthEmulator(auth, `http://${realDeviceHost}:${AUTH_PORT}`);
+//     connectStorageEmulator(storage, realDeviceHost, STORAGE_PORT);
+
+//     // register for push tokens
+//     // registerForPushTokens().then((token) => {
+//     //   console.log('token', token);
+//     // });
+//   } else {
+//     console.log('Connecting to emulator');
+//     connectFirestoreEmulator(db, emulatorHost, FIRESTORE_PORT);
+//     connectFunctionsEmulator(functions, emulatorHost, FUNCTIONS_PORT);
+//     connectAuthEmulator(auth, `http://${emulatorHost}:${AUTH_PORT}`);
+//     connectStorageEmulator(storage, emulatorHost, STORAGE_PORT);
+//   }
+// }
