@@ -57,6 +57,8 @@ jobs:
           EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID: dummy
         run: |
           chmod +x .github/scripts/expo-doctor.sh
+          # Remove native folders if they exist - expo-doctor expects a Prebuild setup without native folders
+          rm -rf ios android
           .github/scripts/expo-doctor.sh
 
       - name: Add doctor report as comment on PR
