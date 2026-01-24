@@ -1,7 +1,7 @@
 import type { ConfigContext, ExpoConfig } from '@expo/config';
 import type { AppIconBadgeConfig } from 'app-icon-badge/types';
 
-import { ClientEnv, Env } from './env';
+import { Env } from './env';
 
 const appIconBadgeConfig: AppIconBadgeConfig = {
   enabled: Env.APP_ENV !== 'production',
@@ -38,6 +38,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: true,
     bundleIdentifier: Env.BUNDLE_ID,
+    googleServicesFile: './GoogleService-Info.plist',
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
     },
@@ -51,6 +52,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       backgroundColor: '#2E3C4B',
     },
     package: Env.PACKAGE,
+    googleServicesFile: './google-services.json',
   },
   web: {
     favicon: './assets/favicon.png',
@@ -97,7 +99,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
   ],
   extra: {
-    ...ClientEnv,
+    ...Env,
     eas: {
       projectId: Env.EAS_PROJECT_ID,
     },
