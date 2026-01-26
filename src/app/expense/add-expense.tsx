@@ -10,6 +10,12 @@ import {
 } from 'expo-speech-recognition';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, BackHandler } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import { v4 as uuidv4 } from 'uuid';
 
 import { queryClient } from '@/api';
@@ -41,6 +47,7 @@ export default function AddExpense() {
     getTotalAmount,
     initializeTempExpense,
     hydrate,
+    removeItem,
   } = useExpenseCreation();
 
   const handleLeave = useCallback(async () => {
@@ -182,8 +189,12 @@ export default function AddExpense() {
         <View className="flex-1 flex-col gap-4">
           <FlashList
             data={tempExpense?.items || []}
-            renderItem={({ item }) => <TempItemCard item={item} />}
+            renderItem={({ item }) => (
+              <TempItemCard item={item} onDelete={removeItem} />
+            )}
             keyExtractor={(item) => item.id}
+            // estimatedItemSize={80}
+            drawDistance={500}
             ListFooterComponent={
               <View className="pt-5">
                 <CreateItemCard />
@@ -218,22 +229,81 @@ export default function AddExpense() {
   );
 }
 
-function TempItemCard({ item }: { item: ItemWithId }) {
+const TempItemCard = React.memo(function TempItemCard({
+  item,
+  onDelete,
+}: {
+  item: ItemWithId;
+  onDelete: (itemId: string) => void;
+}) {
+  const swipe_threshold = 80;
+  const delete_button_width = 80;
+  const translateX = useSharedValue(0);
+
+  const handleDelete = useCallback(async () => {
+    if (!item) return;
+    onDelete(item.id);
+    await queryClient.invalidateQueries({
+      queryKey: ['expenses', 'expenseId', TEMP_EXPENSE_ID],
+    });
+    await queryClient.invalidateQueries({
+      queryKey: ['items', 'expenseId', TEMP_EXPENSE_ID],
+    });
+  }, [item, onDelete]);
+
+  const panGesture = Gesture.Pan()
+    .onUpdate((e) => {
+      // only allow swiping left (negative translation)
+      if (e.translationX < 0) {
+        translateX.value = Math.max(e.translationX, -delete_button_width);
+      }
+    })
+    .onEnd((e) => {
+      // if swiped past threshold, snap to delete button
+      if (e.translationX < -swipe_threshold) {
+        translateX.value = withSpring(-delete_button_width);
+      } else {
+        // else snap back to original position
+        translateX.value = withSpring(0);
+      }
+    });
+
+  const animatedCardStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
   if (!item) return null;
+
   return (
-    <View
-      key={item.id}
-      className="flex flex-row items-center justify-between rounded-xl bg-background-900 p-4"
-    >
-      <Text className="font-futuraBold text-lg dark:text-text-50">
-        {item.name}
-      </Text>
-      <Text className="font-futuraDemi text-xl dark:text-text-50">
-        ${item.amount.toFixed(2)}
-      </Text>
+    <View className="overflow-hidden rounded-xl">
+      <View
+        className="absolute right-0 h-full w-20 items-center justify-center rounded-xl bg-red-500"
+        style={{ width: delete_button_width }}
+      >
+        <Pressable
+          className="size-full items-center justify-center"
+          onPress={handleDelete}
+        >
+          <Ionicons name="trash-outline" size={24} color="white" />
+        </Pressable>
+      </View>
+
+      {/* swipeable card */}
+      <GestureDetector gesture={panGesture}>
+        <Animated.View style={animatedCardStyle}>
+          <View className="flex flex-row items-center justify-between rounded-xl bg-background-900 p-4">
+            <Text className="font-futuraBold text-lg dark:text-text-50">
+              {item.name}
+            </Text>
+            <Text className="font-futuraDemi text-xl dark:text-text-50">
+              ${item.amount.toFixed(2)}
+            </Text>
+          </View>
+        </Animated.View>
+      </GestureDetector>
     </View>
   );
-}
+});
 
 function getItemAndAmountFromTaggedWords(taggedWords: any[]): {
   itemName: string;
