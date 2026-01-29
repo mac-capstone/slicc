@@ -28,7 +28,7 @@ interface ExpenseCreationState {
   tempExpense: TempExpense | null;
   setExpenseName: (name: string) => void;
   addItem: (item: ItemWithId) => void;
-  removeItem: (itemId: string) => void;
+  removeItem: (itemId: ItemIdT) => void;
   updateItem: (itemId: string, updates: Partial<ItemWithId>) => void;
   updateItemShare: (
     itemId: ItemIdT,

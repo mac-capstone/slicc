@@ -193,7 +193,6 @@ export default function AddExpense() {
               <TempItemCard item={item} onDelete={removeItem} />
             )}
             keyExtractor={(item) => item.id}
-            // estimatedItemSize={80}
             drawDistance={500}
             ListFooterComponent={
               <View className="pt-5">
@@ -234,7 +233,7 @@ const TempItemCard = React.memo(function TempItemCard({
   onDelete,
 }: {
   item: ItemWithId;
-  onDelete: (itemId: string) => void;
+  onDelete: (itemId: ItemIdT) => void;
 }) {
   const swipe_threshold = 80;
   const delete_button_width = 80;
