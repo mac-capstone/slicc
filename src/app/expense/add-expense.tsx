@@ -11,10 +11,14 @@ import {
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, BackHandler } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { useMMKVBoolean } from 'react-native-mmkv';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
+  withSequence,
   withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -23,11 +27,13 @@ import { useExpense } from '@/api/expenses/use-expenses';
 import ExpenseCreationFooter from '@/components/expense-creation-footer';
 import { Button, Input, Pressable, Text, View } from '@/components/ui';
 import { useAuth } from '@/lib';
+import { storage } from '@/lib/storage';
 import { clearTempExpense, useExpenseCreation } from '@/lib/store';
 import { useThemeConfig } from '@/lib/use-theme-config';
 import { type ExpenseIdT, type ItemIdT, type ItemWithId } from '@/types';
 
 const TEMP_EXPENSE_ID = 'temp-expense' as ExpenseIdT;
+const SWIPE_NUDGE_SHOWN_KEY = 'swipe-nudge-shown';
 
 export default function AddExpense() {
   const theme = useThemeConfig();
@@ -41,6 +47,8 @@ export default function AddExpense() {
     variables: TEMP_EXPENSE_ID,
   });
   const [expenseName, setExpenseName] = useState<string>('');
+  const prevItemsCountRef = React.useRef<number>(0);
+  const firstItemNudgeTriggerRef = React.useRef<(() => void) | null>(null);
 
   const {
     setExpenseName: setExpenseNameInStore,
@@ -49,6 +57,21 @@ export default function AddExpense() {
     hydrate,
     removeItem,
   } = useExpenseCreation();
+
+  // Track items count and trigger nudge when adding first item (list length goes from 0 to 1)
+  useEffect(() => {
+    const currentCount = tempExpense?.items?.length || 0;
+    const prevCount = prevItemsCountRef.current;
+
+    if (prevCount === 0 && currentCount === 1) {
+      // First item added, trigger animation on first item
+      setTimeout(() => {
+        firstItemNudgeTriggerRef.current?.();
+      }, 300);
+    }
+
+    prevItemsCountRef.current = currentCount;
+  }, [tempExpense?.items?.length]);
 
   const handleLeave = useCallback(async () => {
     if (tempExpense?.items?.length && tempExpense.items.length > 0) {
@@ -189,8 +212,15 @@ export default function AddExpense() {
         <View className="flex-1 flex-col gap-4">
           <FlashList
             data={tempExpense?.items || []}
-            renderItem={({ item }) => (
-              <TempItemCard item={item} onDelete={removeItem} />
+            renderItem={({ item, index }) => (
+              <TempItemCard
+                item={item}
+                onDelete={removeItem}
+                isFirstItem={index === 0}
+                nudgeTriggerRef={
+                  index === 0 ? firstItemNudgeTriggerRef : undefined
+                }
+              />
             )}
             keyExtractor={(item) => item.id}
             drawDistance={500}
@@ -231,13 +261,21 @@ export default function AddExpense() {
 const TempItemCard = React.memo(function TempItemCard({
   item,
   onDelete,
+  isFirstItem = false,
+  nudgeTriggerRef,
 }: {
   item: ItemWithId;
   onDelete: (itemId: ItemIdT) => void;
+  isFirstItem?: boolean;
+  nudgeTriggerRef?: ReturnType<typeof React.useRef<(() => void) | null>>;
 }) {
   const swipe_threshold = 80;
   const delete_button_width = 80;
   const translateX = useSharedValue(0);
+  const [hasShownNudge, setHasShownNudge] = useMMKVBoolean(
+    SWIPE_NUDGE_SHOWN_KEY,
+    storage
+  );
 
   const handleDelete = useCallback(async () => {
     if (!item) return;
@@ -249,6 +287,41 @@ const TempItemCard = React.memo(function TempItemCard({
       queryKey: ['items', 'expenseId', TEMP_EXPENSE_ID],
     });
   }, [item, onDelete]);
+
+  const triggerNudge = useCallback(() => {
+    translateX.value = withSequence(
+      withTiming(-5, { duration: 150 }), // offset to the left 5
+      withDelay(170, withTiming(0, { duration: 150 }))
+    );
+  }, [translateX]);
+
+  // register trigger function with ref
+  useEffect(() => {
+    if (isFirstItem && nudgeTriggerRef) {
+      nudgeTriggerRef.current = triggerNudge;
+      return () => {
+        if (nudgeTriggerRef) {
+          nudgeTriggerRef.current = null;
+        }
+      };
+    }
+  }, [isFirstItem, nudgeTriggerRef, triggerNudge]);
+
+  // nudge animation when list first appears
+  useEffect(() => {
+    if (isFirstItem && hasShownNudge === undefined) {
+      // small delay to ensure list is rendered
+      const timeoutId = setTimeout(() => {
+        triggerNudge();
+        // mark as shown after animation completes (~600ms total)
+        setTimeout(() => {
+          setHasShownNudge(true);
+        }, 600);
+      }, 300);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isFirstItem, hasShownNudge, triggerNudge, setHasShownNudge]);
 
   const panGesture = Gesture.Pan()
     .onUpdate((e) => {
