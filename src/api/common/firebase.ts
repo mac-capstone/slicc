@@ -3,9 +3,9 @@ import { Env } from '@env';
 import { getApps, initializeApp } from 'firebase/app';
 import {
   // connectAuthEmulator,
+  getAuth,
   // @ts-ignore: getReactNativePersistence exists in the RN bundle
   // but is often missing from public TypeScript definitions.
-  getAuth,
   getReactNativePersistence,
   initializeAuth,
 } from 'firebase/auth';

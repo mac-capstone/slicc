@@ -207,7 +207,7 @@ export default function EditEvent() {
 
     try {
       await updateEvent.mutateAsync({
-        eventId,
+        eventId: eventId!,
         data: {
           name: eventName,
           startDate: toLocalDateString(startDate),
