@@ -31,13 +31,34 @@ const firebaseConfig = {
 // Only initialize if no apps exist to prevent duplicate initialization
 export const app =
   getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+
+// Initialize Firestore
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
 });
-export const functions = getFunctions(app);
+
+// Initialize Auth
 export const auth = initializeAuth(app, {
   persistence: getReactNativePersistence(reactNativeAsyncStorage),
 });
+
+// Lazy initialize functions to avoid errors if Functions is not enabled in Firebase project
+let functionsInstance: ReturnType<typeof getFunctions> | null = null;
+export const getFunctionsInstance = () => {
+  if (!functionsInstance) {
+    try {
+      functionsInstance = getFunctions(app);
+    } catch (error) {
+      console.warn('Firebase Functions not available:', error);
+      return null;
+    }
+  }
+  return functionsInstance;
+};
+
+// For backward compatibility, provide a functions export
+export const functions = getFunctionsInstance();
+
 export const storage = getStorage(app);
 
 // Emulator connection code (commented out - always connect to production)

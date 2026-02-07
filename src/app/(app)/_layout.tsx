@@ -1,6 +1,7 @@
 import Octicons from '@expo/vector-icons/Octicons';
-import { Redirect, SplashScreen, Tabs } from 'expo-router';
+import { Redirect, router, SplashScreen, Tabs } from 'expo-router';
 import React, { useCallback, useEffect } from 'react';
+import { TouchableOpacity } from 'react-native';
 
 import { colors } from '@/components/ui';
 import { useAuth, useIsFirstTime } from '@/lib';
@@ -37,6 +38,15 @@ export default function TabLayout() {
         headerStyle: {
           backgroundColor: colors.background[950],
         },
+        // TODO: Temporarty button to events
+        headerRight: () => (
+          <TouchableOpacity
+            onPress={() => router.push('/event/edit-event')}
+            style={{ marginRight: 16 }}
+          >
+            <Octicons name="plus" size={24} color={colors.text[800]} />
+          </TouchableOpacity>
+        ),
         tabBarStyle: {
           minHeight: 80,
           paddingTop: 10,

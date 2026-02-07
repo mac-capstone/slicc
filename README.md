@@ -54,6 +54,16 @@ rm -rf node_modules
 ```
 
 run a fresh build (android)
+**Using the automated script (recommended):**
+
+```sh
+pnpm clean:android
+# Then reinstall and rebuild:
+pnpm install
+pnpm android
+```
+
+**Or manually:**
 
 ```
 rm -rf android/.gradle android/app/.cxx android/app/build
