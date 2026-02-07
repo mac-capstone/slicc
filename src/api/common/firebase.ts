@@ -35,12 +35,22 @@ export const app =
 
 // Check if Firestore is already initialized by attempting to get it first
 let dbInstance: ReturnType<typeof getFirestore>;
+
+const isAlreadyInitializedError = (error: unknown) => {
+  const msg = String((error as { message?: string })?.message ?? '');
+  const code = String((error as { code?: string })?.code ?? '');
+  return (
+    /already.*initialized|already.*been|already.*started/i.test(msg) ||
+    code === 'failed-precondition' ||
+    code === 'auth/already-initialized'
+  );
+};
 try {
   dbInstance = initializeFirestore(app, {
     experimentalForceLongPolling: true,
   });
 } catch (_error) {
-  // Already initialized with settings, get existing instance
+  if (!isAlreadyInitializedError(_error)) throw _error;
   dbInstance = getFirestore(app);
 }
 export const db = dbInstance;
@@ -52,7 +62,7 @@ try {
     persistence: getReactNativePersistence(reactNativeAsyncStorage),
   });
 } catch (_error) {
-  // Already initialized with persistence, get existing instance
+  if (!isAlreadyInitializedError(_error)) throw _error;
   authInstance = getAuth(app);
 }
 export const auth = authInstance;

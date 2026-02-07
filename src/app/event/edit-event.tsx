@@ -234,8 +234,8 @@ export default function EditEvent() {
               : undefined,
           location,
           details,
-          groupId: event?.groupId || ('group_default' as any),
-          createdBy: event?.createdBy || ('user_default' as any),
+          groupId: event!.groupId,
+          createdBy: event!.createdBy,
           participants: event?.participants || [],
         },
       });
