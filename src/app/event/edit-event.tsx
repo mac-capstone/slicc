@@ -55,8 +55,14 @@ export default function EditEvent() {
   // Helper functions
   const parseTimeToDate = (timeString: string): Date => {
     // Parse time string (HH:MM) to Date object
-    const [hours, minutes] = timeString.split(':').map(Number);
     const date = new Date();
+    if (!timeString || !timeString.includes(':')) {
+      return date; // Return current time as fallback
+    }
+    const [hours, minutes] = timeString.split(':').map(Number);
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+      return date;
+    }
     date.setHours(hours, minutes, 0, 0);
     return date;
   };
@@ -73,12 +79,17 @@ export default function EditEvent() {
     return date.toLocaleDateString('en-CA'); // en-CA format is YYYY-MM-DD
   };
 
+  const parseLocalDate = (dateStr: string): Date => {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  };
+
   // Initialize form with event data
   useEffect(() => {
     if (event) {
       setEventName(event.name);
-      setStartDate(new Date(event.startDate));
-      setEndDate(new Date(event.endDate));
+      setStartDate(parseLocalDate(event.startDate));
+      setEndDate(parseLocalDate(event.endDate));
       // Parse time strings to Date objects
       const startTimeDate = parseTimeToDate(event.startTime);
       const endTimeDate = parseTimeToDate(event.endTime);

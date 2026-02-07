@@ -33,39 +33,29 @@ const firebaseConfig = {
 export const app =
   getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
-// Initialize Firestore with defensive pattern to prevent reinitialization errors
-let dbInstance: ReturnType<typeof getFirestore> | null = null;
-const initializeDB = () => {
-  if (!dbInstance) {
-    try {
-      dbInstance = initializeFirestore(app, {
-        experimentalForceLongPolling: true,
-      });
-    } catch (_error) {
-      // Already initialized, get existing instance
-      dbInstance = getFirestore(app);
-    }
-  }
-  return dbInstance;
-};
-export const db = initializeDB();
+// Check if Firestore is already initialized by attempting to get it first
+let dbInstance: ReturnType<typeof getFirestore>;
+try {
+  dbInstance = initializeFirestore(app, {
+    experimentalForceLongPolling: true,
+  });
+} catch (_error) {
+  // Already initialized with settings, get existing instance
+  dbInstance = getFirestore(app);
+}
+export const db = dbInstance;
 
 // Initialize Auth with defensive pattern to prevent reinitialization errors
-let authInstance: ReturnType<typeof getAuth> | null = null;
-const initializeAuthInstance = () => {
-  if (!authInstance) {
-    try {
-      authInstance = initializeAuth(app, {
-        persistence: getReactNativePersistence(reactNativeAsyncStorage),
-      });
-    } catch (_error) {
-      // Already initialized, get existing instance
-      authInstance = getAuth(app);
-    }
-  }
-  return authInstance;
-};
-export const auth = initializeAuthInstance();
+let authInstance: ReturnType<typeof getAuth>;
+try {
+  authInstance = initializeAuth(app, {
+    persistence: getReactNativePersistence(reactNativeAsyncStorage),
+  });
+} catch (_error) {
+  // Already initialized with persistence, get existing instance
+  authInstance = getAuth(app);
+}
+export const auth = authInstance;
 
 // Lazy initialize functions to avoid errors if Functions is not enabled in Firebase project
 let functionsInstance: ReturnType<typeof getFunctions> | null = null;
