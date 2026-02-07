@@ -1,5 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
+  arrayRemove,
+  arrayUnion,
   collection,
   doc,
   getDoc,
@@ -18,7 +20,7 @@ import {
   type UserIdT,
 } from '@/types';
 
-const USE_MOCK_DATA = true; // Set to false when ready to use Firestore
+const USE_MOCK_DATA = process.env.EXPO_PUBLIC_USE_MOCK_DATA === 'true'; // Set to false when ready to use Firestore
 
 // Query to get all event IDs
 type AllEventsResponse = EventIdT[];
@@ -168,14 +170,9 @@ export const useAddParticipant = () => {
         throw new Error('Event not found');
       }
 
-      const currentParticipants = (eventSnap.data().participants ||
-        []) as UserIdT[];
-
-      if (!currentParticipants.includes(userId)) {
-        await updateDoc(eventRef, {
-          participants: [...currentParticipants, userId],
-        });
-      }
+      await updateDoc(eventRef, {
+        participants: arrayUnion(userId),
+      });
 
       const updatedSnap = await getDoc(eventRef);
       return updatedSnap.data();
@@ -218,14 +215,8 @@ export const useRemoveParticipant = () => {
         throw new Error('Event not found');
       }
 
-      const currentParticipants = (eventSnap.data().participants ||
-        []) as UserIdT[];
-      const updatedParticipants = currentParticipants.filter(
-        (id) => id !== userId
-      );
-
       await updateDoc(eventRef, {
-        participants: updatedParticipants,
+        participants: arrayRemove(userId),
       });
 
       const updatedSnap = await getDoc(eventRef);

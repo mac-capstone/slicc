@@ -20,11 +20,18 @@ import type { EventIdT } from '@/types';
 
 export default function EditEvent() {
   const theme = useThemeConfig();
-  const params = useLocalSearchParams<{ id: EventIdT }>();
-  const eventId = (params.id || 'event_birthday') as EventIdT;
+  const params = useLocalSearchParams<{ id?: EventIdT }>();
+  const eventId = params.id;
 
-  // Fetch event data
-  const { data: event, isPending, isError } = useEvent({ variables: eventId });
+  const {
+    data: event,
+    isPending,
+    isError,
+  } = useEvent({
+    variables: eventId as EventIdT,
+    enabled: !!eventId,
+  });
+
   const updateEvent = useUpdateEvent();
 
   // Event form state
@@ -34,55 +41,6 @@ export default function EditEvent() {
   const [startTime, setStartTime] = useState(new Date());
   const [endTime, setEndTime] = useState(new Date());
 
-  // Validation handlers
-  const handleStartDateChange = (date: Date) => {
-    if (date > endDate) {
-      Alert.alert('Invalid Date', 'Start date cannot be after end date.');
-      return;
-    }
-    setStartDate(date);
-  };
-
-  const handleEndDateChange = (date: Date) => {
-    if (date < startDate) {
-      Alert.alert('Invalid Date', 'End date cannot be before start date.');
-      return;
-    }
-    setEndDate(date);
-  };
-
-  const handleStartTimeChange = (time: Date) => {
-    if (time > endTime) {
-      Alert.alert(
-        'Invalid Time',
-        'Start time must be before end time on the same day.'
-      );
-      return;
-    }
-    setStartTime(time);
-  };
-
-  const handleEndTimeChange = (time: Date) => {
-    if (time < startTime) {
-      Alert.alert(
-        'Invalid Time',
-        'End time must be after start time on the same day.'
-      );
-      return;
-    }
-    setEndTime(time);
-  };
-
-  const handleRecurringEndDateChange = (date: Date | undefined) => {
-    if (date && date < startDate) {
-      Alert.alert(
-        'Invalid Date',
-        'Recurring end date cannot be before start date.'
-      );
-      return;
-    }
-    setRecurringEndDate(date);
-  };
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringInterval, setRecurringInterval] = useState('1');
   const [recurringUnit, setRecurringUnit] = useState<
@@ -93,6 +51,27 @@ export default function EditEvent() {
   );
   const [location, setLocation] = useState('');
   const [details, setDetails] = useState('');
+
+  // Helper functions
+  const parseTimeToDate = (timeString: string): Date => {
+    // Parse time string (HH:MM) to Date object
+    const [hours, minutes] = timeString.split(':').map(Number);
+    const date = new Date();
+    date.setHours(hours, minutes, 0, 0);
+    return date;
+  };
+
+  const dateToTimeString = (date: Date): string => {
+    // Convert Date object to time string (HH:MM)
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
+
+  const toLocalDateString = (date: Date): string => {
+    // Convert Date to YYYY-MM-DD in local timezone
+    return date.toLocaleDateString('en-CA'); // en-CA format is YYYY-MM-DD
+  };
 
   // Initialize form with event data
   useEffect(() => {
@@ -132,6 +111,59 @@ export default function EditEvent() {
     colors
   );
 
+  // Validation handlers
+  const handleStartDateChange = (date: Date) => {
+    if (date > endDate) {
+      Alert.alert('Invalid Date', 'Start date cannot be after end date.');
+      return;
+    }
+    setStartDate(date);
+  };
+
+  const handleEndDateChange = (date: Date) => {
+    if (date < startDate) {
+      Alert.alert('Invalid Date', 'End date cannot be before start date.');
+      return;
+    }
+    setEndDate(date);
+  };
+
+  const handleStartTimeChange = (time: Date) => {
+    if (startDate.toDateString() === endDate.toDateString() && time > endTime) {
+      Alert.alert(
+        'Invalid Time',
+        'Start time must be before end time on the same day.'
+      );
+      return;
+    }
+    setStartTime(time);
+  };
+
+  const handleEndTimeChange = (time: Date) => {
+    if (
+      startDate.toDateString() === endDate.toDateString() &&
+      time < startTime
+    ) {
+      Alert.alert(
+        'Invalid Time',
+        'End time must be after start time on the same day.'
+      );
+      return;
+    }
+    setEndTime(time);
+  };
+
+  const handleRecurringEndDateChange = (date: Date | undefined) => {
+    if (date && date < startDate) {
+      Alert.alert(
+        'Invalid Date',
+        'Recurring end date cannot be before start date.'
+      );
+      return;
+    }
+    setRecurringEndDate(date);
+  };
+
   const handleSaveChanges = async () => {
     // Validate dates
     if (startDate > endDate) {
@@ -160,23 +192,34 @@ export default function EditEvent() {
       return;
     }
 
+    // Validate recurring interval
+    const interval = isRecurring ? Number(recurringInterval) : undefined;
+    if (
+      isRecurring &&
+      (!Number.isInteger(interval) || (interval as number) <= 0)
+    ) {
+      Alert.alert(
+        'Invalid Interval',
+        'Recurring interval must be a positive number.'
+      );
+      return;
+    }
+
     try {
       await updateEvent.mutateAsync({
         eventId,
         data: {
           name: eventName,
-          startDate: startDate.toISOString().split('T')[0],
-          endDate: endDate.toISOString().split('T')[0],
+          startDate: toLocalDateString(startDate),
+          endDate: toLocalDateString(endDate),
           startTime: dateToTimeString(startTime),
           endTime: dateToTimeString(endTime),
           isRecurring,
-          recurringInterval: isRecurring
-            ? parseInt(recurringInterval)
-            : undefined,
+          recurringInterval: isRecurring ? (interval as number) : undefined,
           recurringUnit: isRecurring ? recurringUnit : undefined,
           recurringEndDate:
             isRecurring && recurringEndDate
-              ? recurringEndDate.toISOString().split('T')[0]
+              ? toLocalDateString(recurringEndDate)
               : undefined,
           location,
           details,
@@ -207,9 +250,18 @@ export default function EditEvent() {
     Alert.alert('Add Person', 'This feature will be implemented soon');
   };
 
-  const handleOpenGoogleMaps = () => {
+  const handleOpenGoogleMaps = async () => {
+    if (!location.trim()) {
+      Alert.alert('Missing Location', 'Please enter a location first.');
+      return;
+    }
     const query = encodeURIComponent(location);
     const url = `https://www.google.com/maps/search/?api=1&query=${query}`;
+    const canOpen = await Linking.canOpenURL(url);
+    if (!canOpen) {
+      Alert.alert('Cannot Open Maps', 'No app available to open this link.');
+      return;
+    }
     Linking.openURL(url);
   };
 
@@ -234,20 +286,15 @@ export default function EditEvent() {
     };
     return labels[recurringUnit];
   };
-  const parseTimeToDate = (timeString: string): Date => {
-    // Parse time string (HH:MM) to Date object
-    const [hours, minutes] = timeString.split(':').map(Number);
-    const date = new Date();
-    date.setHours(hours, minutes, 0, 0);
-    return date;
-  };
 
-  const dateToTimeString = (date: Date): string => {
-    // Convert Date object to time string (HH:MM)
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    return `${hours}:${minutes}`;
-  };
+  if (!eventId) {
+    return (
+      <View className="bg-background-50 flex-1 items-center justify-center p-4 dark:bg-black">
+        <Text className="mb-4 text-lg text-red-500">Missing event id</Text>
+        <Button label="Go Back" onPress={() => router.back()} />
+      </View>
+    );
+  }
 
   if (isPending) {
     return (

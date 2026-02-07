@@ -2,7 +2,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import React, { useState } from 'react';
 import { Modal, Platform } from 'react-native';
 
-import { Button, Pressable, Text, View } from '@/components/ui';
+import { Button, colors, Pressable, Text, View } from '@/components/ui';
 
 interface DateTimePickerProps {
   value: Date;
@@ -21,6 +21,12 @@ export const DateTimePick: React.FC<DateTimePickerProps> = ({
 }) => {
   const [show, setShow] = useState(false);
   const [tempValue, setTempValue] = useState(value);
+  // Sync tempValue when value prop changes externally
+  React.useEffect(() => {
+    if (!show) {
+      setTempValue(value);
+    }
+  }, [value, show]);
 
   const handleChange = (_event: any, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
@@ -97,7 +103,7 @@ export const DateTimePick: React.FC<DateTimePickerProps> = ({
                 mode={mode}
                 display="spinner"
                 onChange={handleChange}
-                textColor="#fff"
+                textColor={colors.text[800]}
               />
             </View>
           </View>

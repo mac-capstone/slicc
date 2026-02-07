@@ -5,10 +5,11 @@ import {
   // connectAuthEmulator,
   // @ts-ignore: getReactNativePersistence exists in the RN bundle
   // but is often missing from public TypeScript definitions.
+  getAuth,
   getReactNativePersistence,
   initializeAuth,
 } from 'firebase/auth';
-import { initializeFirestore } from 'firebase/firestore';
+import { getFirestore, initializeFirestore } from 'firebase/firestore';
 // import { connectFirestoreEmulator } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
 // import { connectFunctionsEmulator } from 'firebase/functions';
@@ -32,15 +33,39 @@ const firebaseConfig = {
 export const app =
   getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
-// Initialize Firestore
-export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
-});
+// Initialize Firestore with defensive pattern to prevent reinitialization errors
+let dbInstance: ReturnType<typeof getFirestore> | null = null;
+const initializeDB = () => {
+  if (!dbInstance) {
+    try {
+      dbInstance = initializeFirestore(app, {
+        experimentalForceLongPolling: true,
+      });
+    } catch (_error) {
+      // Already initialized, get existing instance
+      dbInstance = getFirestore(app);
+    }
+  }
+  return dbInstance;
+};
+export const db = initializeDB();
 
-// Initialize Auth
-export const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(reactNativeAsyncStorage),
-});
+// Initialize Auth with defensive pattern to prevent reinitialization errors
+let authInstance: ReturnType<typeof getAuth> | null = null;
+const initializeAuthInstance = () => {
+  if (!authInstance) {
+    try {
+      authInstance = initializeAuth(app, {
+        persistence: getReactNativePersistence(reactNativeAsyncStorage),
+      });
+    } catch (_error) {
+      // Already initialized, get existing instance
+      authInstance = getAuth(app);
+    }
+  }
+  return authInstance;
+};
+export const auth = initializeAuthInstance();
 
 // Lazy initialize functions to avoid errors if Functions is not enabled in Firebase project
 let functionsInstance: ReturnType<typeof getFunctions> | null = null;
@@ -48,8 +73,8 @@ export const getFunctionsInstance = () => {
   if (!functionsInstance) {
     try {
       functionsInstance = getFunctions(app);
-    } catch (error) {
-      console.warn('Firebase Functions not available:', error);
+    } catch (_error) {
+      console.warn('Firebase Functions not available:', _error);
       return null;
     }
   }
