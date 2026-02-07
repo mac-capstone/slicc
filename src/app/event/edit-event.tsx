@@ -33,6 +33,56 @@ export default function EditEvent() {
   const [endDate, setEndDate] = useState(new Date());
   const [startTime, setStartTime] = useState(new Date());
   const [endTime, setEndTime] = useState(new Date());
+
+  // Validation handlers
+  const handleStartDateChange = (date: Date) => {
+    if (date > endDate) {
+      Alert.alert('Invalid Date', 'Start date cannot be after end date.');
+      return;
+    }
+    setStartDate(date);
+  };
+
+  const handleEndDateChange = (date: Date) => {
+    if (date < startDate) {
+      Alert.alert('Invalid Date', 'End date cannot be before start date.');
+      return;
+    }
+    setEndDate(date);
+  };
+
+  const handleStartTimeChange = (time: Date) => {
+    if (time > endTime) {
+      Alert.alert(
+        'Invalid Time',
+        'Start time must be before end time on the same day.'
+      );
+      return;
+    }
+    setStartTime(time);
+  };
+
+  const handleEndTimeChange = (time: Date) => {
+    if (time < startTime) {
+      Alert.alert(
+        'Invalid Time',
+        'End time must be after start time on the same day.'
+      );
+      return;
+    }
+    setEndTime(time);
+  };
+
+  const handleRecurringEndDateChange = (date: Date | undefined) => {
+    if (date && date < startDate) {
+      Alert.alert(
+        'Invalid Date',
+        'Recurring end date cannot be before start date.'
+      );
+      return;
+    }
+    setRecurringEndDate(date);
+  };
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringInterval, setRecurringInterval] = useState('1');
   const [recurringUnit, setRecurringUnit] = useState<
@@ -83,6 +133,33 @@ export default function EditEvent() {
   );
 
   const handleSaveChanges = async () => {
+    // Validate dates
+    if (startDate > endDate) {
+      Alert.alert('Invalid Dates', 'Start date must be before end date.');
+      return;
+    }
+
+    // Validate recurring end date
+    if (isRecurring && recurringEndDate && recurringEndDate < startDate) {
+      Alert.alert(
+        'Invalid Recurring End Date',
+        'Recurring end date must be after start date.'
+      );
+      return;
+    }
+
+    // Validate times (only if start and end dates are the same)
+    if (
+      startDate.toDateString() === endDate.toDateString() &&
+      startTime >= endTime
+    ) {
+      Alert.alert(
+        'Invalid Times',
+        'Start time must be before end time when dates are the same.'
+      );
+      return;
+    }
+
     try {
       await updateEvent.mutateAsync({
         eventId,
@@ -232,7 +309,7 @@ export default function EditEvent() {
                 <View className="mb-2">
                   <DateTimePick
                     value={startDate}
-                    onChange={setStartDate}
+                    onChange={handleStartDateChange}
                     mode="date"
                     label="Start"
                   />
@@ -240,7 +317,7 @@ export default function EditEvent() {
                 <View>
                   <DateTimePick
                     value={endDate}
-                    onChange={setEndDate}
+                    onChange={handleEndDateChange}
                     mode="date"
                     label="End"
                   />
@@ -256,13 +333,13 @@ export default function EditEvent() {
               <View className="flex-1 flex-row items-center">
                 <DateTimePick
                   value={startTime}
-                  onChange={setStartTime}
+                  onChange={handleStartTimeChange}
                   mode="time"
                 />
                 <Text className="text-text-500 mx-2 text-lg">to</Text>
                 <DateTimePick
                   value={endTime}
-                  onChange={setEndTime}
+                  onChange={handleEndTimeChange}
                   mode="time"
                 />
               </View>
@@ -321,7 +398,7 @@ export default function EditEvent() {
                   <View className="mt-2">
                     <DateTimePick
                       value={recurringEndDate || new Date()}
-                      onChange={setRecurringEndDate}
+                      onChange={handleRecurringEndDateChange}
                       mode="date"
                       label="End Date (Optional)"
                     />
