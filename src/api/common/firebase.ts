@@ -1,14 +1,6 @@
 import { Env } from '@env';
 // import firebaseApp from '@react-native-firebase/app'; // Deprecated - using modular Web SDK instead
 import { getApps, initializeApp } from 'firebase/app';
-import {
-  // connectAuthEmulator,
-  getAuth,
-  // @ts-ignore: getReactNativePersistence exists in the RN bundle
-  // but is often missing from public TypeScript definitions.
-  getReactNativePersistence,
-  initializeAuth,
-} from 'firebase/auth';
 import { getFirestore, initializeFirestore } from 'firebase/firestore';
 // import { connectFirestoreEmulator } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
@@ -18,7 +10,6 @@ import { getStorage } from 'firebase/storage';
 // import { connectStorageEmulator } from 'firebase/storage';
 // import * as Device from 'expo-device';
 // import { Platform } from 'react-native';
-import { reactNativeAsyncStorage } from '@/lib/storage';
 const firebaseConfig = {
   apiKey: Env.EXPO_PUBLIC_FIREBASE_API_KEY,
   authDomain: Env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -54,18 +45,6 @@ try {
   dbInstance = getFirestore(app);
 }
 export const db = dbInstance;
-
-// Initialize Auth with defensive pattern to prevent reinitialization errors
-let authInstance: ReturnType<typeof getAuth>;
-try {
-  authInstance = initializeAuth(app, {
-    persistence: getReactNativePersistence(reactNativeAsyncStorage),
-  });
-} catch (_error) {
-  if (!isAlreadyInitializedError(_error)) throw _error;
-  authInstance = getAuth(app);
-}
-export const auth = authInstance;
 
 // Lazy initialize functions to avoid errors if Functions is not enabled in Firebase project
 let functionsInstance: ReturnType<typeof getFunctions> | null = null;

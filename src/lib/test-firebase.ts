@@ -1,6 +1,6 @@
 import { collection, getDocs } from 'firebase/firestore';
 
-import { app, auth, db } from '@/api/common/firebase';
+import { app, db } from '@/api/common/firebase';
 
 export async function testFirebaseConnection(): Promise<boolean> {
   try {
@@ -9,7 +9,7 @@ export async function testFirebaseConnection(): Promise<boolean> {
     console.log('✅ Firebase Project ID:', app.options.projectId);
 
     // Test 2: Check if Auth is initialized (without signing in)
-    console.log('✅ Firebase Auth initialized:', auth.app.name);
+    // console.log('✅ Firebase Auth initialized:', auth.app.name);
 
     // Test 3: Test Firestore connection with a simple query
     // This will fail if Firestore rules don't allow reads, but connection is working
