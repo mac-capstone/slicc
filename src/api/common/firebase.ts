@@ -50,12 +50,7 @@ export const db = dbInstance;
 let functionsInstance: ReturnType<typeof getFunctions> | null = null;
 export const getFunctionsInstance = () => {
   if (!functionsInstance) {
-    try {
-      functionsInstance = getFunctions(app);
-    } catch (_error) {
-      console.warn('Firebase Functions not available:', _error);
-      return null;
-    }
+    functionsInstance = getFunctions(app);
   }
   return functionsInstance;
 };
