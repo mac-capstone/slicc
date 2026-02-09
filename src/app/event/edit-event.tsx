@@ -360,7 +360,7 @@ export default function EditEvent() {
           <View className="rounded-lg bg-neutral-850 p-4">
             {/* Date Section */}
             <View className="mb-4 flex-row items-center">
-              <View className="mr-3 size-10 items-center justify-center rounded-lg bg-neutral-860">
+              <View className="mr-3 size-10 items-center justify-center rounded-lg bg-neutral-750">
                 <Ionicons name="calendar-outline" size={24} color="#3EB489" />
               </View>
               <View className="flex-1">
@@ -385,7 +385,7 @@ export default function EditEvent() {
 
             {/* Time Section */}
             <View className="mb-4 flex-row items-center">
-              <View className="mr-3 size-10 items-center justify-center rounded-lg bg-neutral-860">
+              <View className="mr-3 size-10 items-center justify-center rounded-lg bg-neutral-750">
                 <Ionicons name="time-outline" size={24} color="#3EB489" />
               </View>
               <View className="flex-1 flex-row items-center">
@@ -406,7 +406,7 @@ export default function EditEvent() {
             {/* Recurring Event Section */}
             <View className="mb-4">
               <View className="flex-row items-center">
-                <View className="mr-3 size-10 items-center justify-center rounded-lg bg-neutral-860">
+                <View className="mr-3 size-10 items-center justify-center rounded-lg bg-neutral-750">
                   <Ionicons name="repeat" size={24} color="#3EB489" />
                 </View>
                 <View className="flex-1 flex-row items-center justify-between">
@@ -472,7 +472,7 @@ export default function EditEvent() {
             <View className="mb-4">
               <View className="mb-3 flex-row items-center justify-between">
                 <View className="flex-row items-center">
-                  <View className="mr-3 size-10 items-center justify-center rounded-lg bg-neutral-860">
+                  <View className="mr-3 size-10 items-center justify-center rounded-lg bg-neutral-750">
                     <Ionicons name="people-outline" size={24} color="#3EB489" />
                   </View>
                   <Text className="text-lg font-semibold text-text-800">
@@ -481,7 +481,7 @@ export default function EditEvent() {
                 </View>
                 <Pressable
                   onPress={handleAddPerson}
-                  className="flex-row items-center rounded bg-neutral-860 px-2 py-1"
+                  className="flex-row items-center rounded bg-neutral-750 px-2 py-1"
                 >
                   <Ionicons name="person-add" size={18} color="#3EB489" />
                   <Text className="ml-1 text-base font-semibold text-white">
@@ -517,7 +517,7 @@ export default function EditEvent() {
 
             {/* Location Section */}
             <View className="mb-4 flex-row items-center">
-              <View className="mr-3 size-10 items-center justify-center rounded-lg bg-neutral-860">
+              <View className="mr-3 size-10 items-center justify-center rounded-lg bg-neutral-750">
                 <Ionicons name="location-outline" size={24} color="#3EB489" />
               </View>
               <View className="flex-1">
