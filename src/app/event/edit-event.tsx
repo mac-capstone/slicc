@@ -108,7 +108,7 @@ export default function EditEvent() {
 
   // Participants - using users API
   // Color palette for participants
-  const colors = [
+  const colorsvar = [
     '#FF6B6B',
     '#FFD93D',
     '#6BCB77',
@@ -119,7 +119,7 @@ export default function EditEvent() {
 
   const { people: participants } = useUsersAsPeople(
     event?.participants || [],
-    colors
+    colorsvar
   );
 
   // Validation handlers
@@ -300,7 +300,7 @@ export default function EditEvent() {
 
   if (!eventId) {
     return (
-      <View className="bg-background-50 flex-1 items-center justify-center p-4 dark:bg-black">
+      <View className="flex-1 items-center justify-center bg-background-950 p-4">
         <Text className="mb-4 text-lg text-red-500">Missing event id</Text>
         <Button label="Go Back" onPress={() => router.back()} />
       </View>
@@ -309,7 +309,7 @@ export default function EditEvent() {
 
   if (isPending) {
     return (
-      <View className="bg-background-50 flex-1 items-center justify-center dark:bg-black">
+      <View className="flex-1 items-center justify-center bg-background-950">
         <ActivityIndicator size="large" />
       </View>
     );
@@ -317,7 +317,7 @@ export default function EditEvent() {
 
   if (isError || !event) {
     return (
-      <View className="bg-background-50 flex-1 items-center justify-center p-4 dark:bg-black">
+      <View className="flex-1 items-center justify-center bg-background-950 p-4">
         <Text className="mb-4 text-lg text-red-500">Error loading event</Text>
         <Button label="Go Back" onPress={() => router.back()} />
       </View>
@@ -345,7 +345,7 @@ export default function EditEvent() {
           ),
         }}
       />
-      <ScrollView className="bg-background-50 flex-1 dark:bg-black">
+      <ScrollView className="flex-1 bg-background-950">
         <View className="flex-1 p-4">
           {/* Event Name */}
           <Input
@@ -357,10 +357,10 @@ export default function EditEvent() {
             raw
           />
 
-          <View className="rounded-lg bg-neutral-800 p-4">
+          <View className="rounded-lg bg-neutral-850 p-4">
             {/* Date Section */}
             <View className="mb-4 flex-row items-center">
-              <View className="mr-3 size-10 items-center justify-center rounded-lg bg-zinc-900">
+              <View className="mr-3 size-10 items-center justify-center rounded-lg bg-neutral-860">
                 <Ionicons name="calendar-outline" size={24} color="#3EB489" />
               </View>
               <View className="flex-1">
@@ -385,7 +385,7 @@ export default function EditEvent() {
 
             {/* Time Section */}
             <View className="mb-4 flex-row items-center">
-              <View className="mr-3 size-10 items-center justify-center rounded-lg bg-zinc-900">
+              <View className="mr-3 size-10 items-center justify-center rounded-lg bg-neutral-860">
                 <Ionicons name="time-outline" size={24} color="#3EB489" />
               </View>
               <View className="flex-1 flex-row items-center">
@@ -406,7 +406,7 @@ export default function EditEvent() {
             {/* Recurring Event Section */}
             <View className="mb-4">
               <View className="flex-row items-center">
-                <View className="mr-3 size-10 items-center justify-center rounded-lg bg-zinc-900">
+                <View className="mr-3 size-10 items-center justify-center rounded-lg bg-neutral-860">
                   <Ionicons name="repeat" size={24} color="#3EB489" />
                 </View>
                 <View className="flex-1 flex-row items-center justify-between">
@@ -472,7 +472,7 @@ export default function EditEvent() {
             <View className="mb-4">
               <View className="mb-3 flex-row items-center justify-between">
                 <View className="flex-row items-center">
-                  <View className="mr-3 size-10 items-center justify-center rounded-lg bg-zinc-900">
+                  <View className="mr-3 size-10 items-center justify-center rounded-lg bg-neutral-860">
                     <Ionicons name="people-outline" size={24} color="#3EB489" />
                   </View>
                   <Text className="text-lg font-semibold dark:text-text-50">
@@ -481,7 +481,7 @@ export default function EditEvent() {
                 </View>
                 <Pressable
                   onPress={handleAddPerson}
-                  className="flex-row items-center rounded bg-zinc-900 px-2 py-1"
+                  className="flex-row items-center rounded bg-neutral-860 px-2 py-1"
                 >
                   <Ionicons name="person-add" size={18} color="#3EB489" />
                   <Text className="ml-1 text-base font-semibold text-accent-100">
@@ -517,7 +517,7 @@ export default function EditEvent() {
 
             {/* Location Section */}
             <View className="mb-4 flex-row items-center">
-              <View className="mr-3 size-10 items-center justify-center rounded-lg bg-zinc-900">
+              <View className="mr-3 size-10 items-center justify-center rounded-lg bg-neutral-860">
                 <Ionicons name="location-outline" size={24} color="#3EB489" />
               </View>
               <View className="flex-1">
