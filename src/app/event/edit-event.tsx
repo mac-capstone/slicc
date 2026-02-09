@@ -394,7 +394,7 @@ export default function EditEvent() {
                   onChange={handleStartTimeChange}
                   mode="time"
                 />
-                <Text className="text-text-500 mx-2 text-lg">to</Text>
+                <Text className="mx-2 text-lg text-text-800">to</Text>
                 <DateTimePick
                   value={endTime}
                   onChange={handleEndTimeChange}
@@ -411,7 +411,7 @@ export default function EditEvent() {
                 </View>
                 <View className="flex-1 flex-row items-center justify-between">
                   <View className="flex-row items-center">
-                    <Text className="text-lg font-semibold dark:text-text-50">
+                    <Text className="text-lg font-semibold text-white">
                       Recurring Event
                     </Text>
                   </View>
@@ -427,7 +427,7 @@ export default function EditEvent() {
               {isRecurring && (
                 <View className="ml-[46px] mt-3">
                   <View className="flex-row items-center">
-                    <Text className="text-text-500 text-base">
+                    <Text className="text-base text-text-800">
                       Repeat every
                     </Text>
                     <Input
@@ -442,7 +442,7 @@ export default function EditEvent() {
                       onPress={handleRecurringUnitPress}
                       className="flex-row items-center"
                     >
-                      <Text className="text-text-500 text-base">
+                      <Text className="text-base text-white">
                         {getRecurringUnitLabel()}
                       </Text>
                       <Ionicons
@@ -475,7 +475,7 @@ export default function EditEvent() {
                   <View className="mr-3 size-10 items-center justify-center rounded-lg bg-neutral-860">
                     <Ionicons name="people-outline" size={24} color="#3EB489" />
                   </View>
-                  <Text className="text-lg font-semibold dark:text-text-50">
+                  <Text className="text-lg font-semibold text-text-800">
                     {participants.length} people
                   </Text>
                 </View>
@@ -484,7 +484,7 @@ export default function EditEvent() {
                   className="flex-row items-center rounded bg-neutral-860 px-2 py-1"
                 >
                   <Ionicons name="person-add" size={18} color="#3EB489" />
-                  <Text className="ml-1 text-base font-semibold text-accent-100">
+                  <Text className="ml-1 text-base font-semibold text-white">
                     Add
                   </Text>
                 </Pressable>
@@ -507,7 +507,7 @@ export default function EditEvent() {
                           .join('')}
                       </Text>
                     </View>
-                    <Text className="text-lg dark:text-text-50">
+                    <Text className="text-lg text-white">
                       {participant.name}
                     </Text>
                   </View>
@@ -533,7 +533,7 @@ export default function EditEvent() {
                   onPress={handleOpenGoogleMaps}
                   className="mt-0 flex-row items-center"
                 >
-                  <Text className="text-base font-semibold text-accent-100">
+                  <Text className="text-base font-semibold text-text-800">
                     Open in Google Maps
                   </Text>
                   <MaterialCommunityIcons
@@ -551,7 +551,7 @@ export default function EditEvent() {
 
             {/* Details Section */}
             <View className="mb-0">
-              <Text className="mb-2 text-xl font-semibold dark:text-text-50">
+              <Text className="mb-2 text-xl font-semibold text-text-800">
                 Details
               </Text>
               <Input
