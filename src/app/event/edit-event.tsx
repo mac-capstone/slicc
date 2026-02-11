@@ -22,6 +22,7 @@ export default function EditEvent() {
   const theme = useThemeConfig();
   const params = useLocalSearchParams<{ id?: EventIdT }>();
   const eventId = params.id;
+  const isEditMode = !!eventId;
 
   const {
     data: event,
@@ -240,20 +241,31 @@ export default function EditEvent() {
         },
       });
 
-      Alert.alert('Success', 'Event updated successfully!', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      Alert.alert(
+        'Success',
+        isEditMode
+          ? 'Event updated successfully!'
+          : 'Event created successfully!',
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
     } catch (error) {
-      Alert.alert('Error', 'Failed to update event. Please try again.');
+      Alert.alert(
+        'Error',
+        `Failed to ${isEditMode ? 'update' : 'create'} event. Please try again.`
+      );
       console.error('Error updating event:', error);
     }
   };
 
   const handleCancel = () => {
-    Alert.alert('Cancel Editing', 'Are you sure you want to discard changes?', [
-      { text: 'Continue Editing', style: 'cancel' },
-      { text: 'Discard', style: 'destructive', onPress: () => router.back() },
-    ]);
+    Alert.alert(
+      isEditMode ? 'Cancel Editing' : 'Cancel Creation',
+      `Are you sure you want to discard ${isEditMode ? 'changes' : 'this event'}?`,
+      [
+        { text: isEditMode ? 'Continue Editing' : 'Continue', style: 'cancel' },
+        { text: 'Discard', style: 'destructive', onPress: () => router.back() },
+      ]
+    );
   };
 
   const handleAddPerson = () => {
@@ -268,12 +280,12 @@ export default function EditEvent() {
     }
     const query = encodeURIComponent(location);
     const url = `https://www.google.com/maps/search/?api=1&query=${query}`;
-    const canOpen = await Linking.canOpenURL(url);
-    if (!canOpen) {
+    try {
+      await Linking.openURL(url);
+    } catch {
       Alert.alert('Cannot Open Maps', 'No app available to open this link.');
       return;
     }
-    Linking.openURL(url);
   };
 
   const handleRecurringUnitPress = () => {
@@ -328,10 +340,10 @@ export default function EditEvent() {
     <>
       <Stack.Screen
         options={{
-          title: 'Edit Event',
+          title: isEditMode ? 'Edit Event' : 'Create Event',
           headerShown: true,
           headerStyle: {
-            backgroundColor: theme.dark ? '#000' : '#fff',
+            backgroundColor: theme.dark ? '#1A1A1A' : '#fff',
           },
           headerTintColor: theme.dark ? '#fff' : '#000',
           headerLeft: () => (
@@ -352,15 +364,15 @@ export default function EditEvent() {
             value={eventName}
             onChangeText={setEventName}
             placeholder="Event Name"
-            inputClassName="!text-2xl font-bold"
+            inputClassName="!text-3xl font-bold"
             containerClassName="mb-6"
             raw
           />
 
-          <View className="rounded-lg bg-neutral-850 p-4">
+          <View className="rounded-xl bg-neutral-850 p-4">
             {/* Date Section */}
             <View className="mb-4 flex-row items-center">
-              <View className="mr-3 size-10 items-center justify-center rounded-lg bg-neutral-750">
+              <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
                 <Ionicons name="calendar-outline" size={24} color="#3EB489" />
               </View>
               <View className="flex-1">
@@ -385,7 +397,7 @@ export default function EditEvent() {
 
             {/* Time Section */}
             <View className="mb-4 flex-row items-center">
-              <View className="mr-3 size-10 items-center justify-center rounded-lg bg-neutral-750">
+              <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
                 <Ionicons name="time-outline" size={24} color="#3EB489" />
               </View>
               <View className="flex-1 flex-row items-center">
@@ -394,7 +406,7 @@ export default function EditEvent() {
                   onChange={handleStartTimeChange}
                   mode="time"
                 />
-                <Text className="mx-2 text-lg text-text-800">to</Text>
+                <Text className="mx-2 text-sm text-text-800">to</Text>
                 <DateTimePick
                   value={endTime}
                   onChange={handleEndTimeChange}
@@ -406,12 +418,12 @@ export default function EditEvent() {
             {/* Recurring Event Section */}
             <View className="mb-4">
               <View className="flex-row items-center">
-                <View className="mr-3 size-10 items-center justify-center rounded-lg bg-neutral-750">
+                <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
                   <Ionicons name="repeat" size={24} color="#3EB489" />
                 </View>
                 <View className="flex-1 flex-row items-center justify-between">
                   <View className="flex-row items-center">
-                    <Text className="text-lg font-semibold text-white">
+                    <Text className="text-base font-semibold text-white">
                       Recurring Event
                     </Text>
                   </View>
@@ -427,9 +439,7 @@ export default function EditEvent() {
               {isRecurring && (
                 <View className="ml-[46px] mt-3">
                   <View className="flex-row items-center">
-                    <Text className="text-base text-text-800">
-                      Repeat every
-                    </Text>
+                    <Text className="text-sm text-text-800">Repeat every</Text>
                     <Input
                       value={recurringInterval}
                       onChangeText={setRecurringInterval}
@@ -442,7 +452,7 @@ export default function EditEvent() {
                       onPress={handleRecurringUnitPress}
                       className="flex-row items-center"
                     >
-                      <Text className="text-base text-white">
+                      <Text className="text-sm text-white">
                         {getRecurringUnitLabel()}
                       </Text>
                       <Ionicons
@@ -472,16 +482,16 @@ export default function EditEvent() {
             <View className="mb-4">
               <View className="mb-3 flex-row items-center justify-between">
                 <View className="flex-row items-center">
-                  <View className="mr-3 size-10 items-center justify-center rounded-lg bg-neutral-750">
+                  <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
                     <Ionicons name="people-outline" size={24} color="#3EB489" />
                   </View>
-                  <Text className="text-lg font-semibold text-text-800">
+                  <Text className="text-base font-semibold text-text-800">
                     {participants.length} people
                   </Text>
                 </View>
                 <Pressable
                   onPress={handleAddPerson}
-                  className="flex-row items-center rounded bg-neutral-750 px-2 py-1"
+                  className="flex-row items-center rounded-lg bg-neutral-750 px-2 py-1"
                 >
                   <Ionicons name="person-add" size={18} color="#3EB489" />
                   <Text className="ml-1 text-base font-semibold text-white">
@@ -500,14 +510,14 @@ export default function EditEvent() {
                       className="mr-3 size-10 items-center justify-center rounded-full"
                       style={{ backgroundColor: participant.color }}
                     >
-                      <Text className="text-lg font-bold text-white">
+                      <Text className="text-base font-bold text-white">
                         {participant.name
                           .split(' ')
                           .map((n) => n[0])
                           .join('')}
                       </Text>
                     </View>
-                    <Text className="text-lg text-white">
+                    <Text className="text-base text-white">
                       {participant.name}
                     </Text>
                   </View>
@@ -517,7 +527,7 @@ export default function EditEvent() {
 
             {/* Location Section */}
             <View className="mb-4 flex-row items-center">
-              <View className="mr-3 size-10 items-center justify-center rounded-lg bg-neutral-750">
+              <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
                 <Ionicons name="location-outline" size={24} color="#3EB489" />
               </View>
               <View className="flex-1">
@@ -533,7 +543,7 @@ export default function EditEvent() {
                   onPress={handleOpenGoogleMaps}
                   className="mt-0 flex-row items-center"
                 >
-                  <Text className="text-base font-semibold text-text-800">
+                  <Text className="text-sm font-semibold text-text-800">
                     Open in Google Maps
                   </Text>
                   <MaterialCommunityIcons
@@ -551,7 +561,7 @@ export default function EditEvent() {
 
             {/* Details Section */}
             <View className="mb-0">
-              <Text className="mb-2 text-xl font-semibold text-text-800">
+              <Text className="mb-2 text-lg font-semibold text-text-800">
                 Details
               </Text>
               <Input
@@ -571,17 +581,17 @@ export default function EditEvent() {
           </View>
 
           {/* Action Buttons */}
-          <View className="mt-6 flex-row gap-4">
+          <View className="mx-6 mt-6 flex-row gap-24">
             <Button
               label="Cancel"
               variant="outline"
               onPress={handleCancel}
-              className="h-14 flex-1 border-2 !border-red-500"
+              className="h-12 flex-1 border-2 !border-red-500"
             />
             <Button
-              label="Save Changes"
+              label={isEditMode ? 'Save Changes' : 'Create Event'}
               onPress={handleSaveChanges}
-              className="h-14 flex-1"
+              className="h-12 flex-1"
             />
           </View>
         </View>

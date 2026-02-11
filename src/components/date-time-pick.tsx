@@ -69,7 +69,7 @@ export const DateTimePick: React.FC<DateTimePickerProps> = ({
   return (
     <>
       <Pressable onPress={() => !disabled && setShow(true)}>
-        {label && <Text className="text-text-500 mb-1 text-sm">{label}</Text>}
+        {label && <Text className="mb-1 text-sm text-text-800">{label}</Text>}
         <Text className="text-base font-semibold dark:text-text-50">
           {formatValue()}
         </Text>
