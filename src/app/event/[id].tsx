@@ -26,7 +26,9 @@ const formatTimeAmPm = (timeString: string): string => {
 
 // Helper function to format date
 const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
+  // Parse date in local timezone to avoid timezone offset issues
+  const [year, month, day] = dateString.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
   const options: Intl.DateTimeFormatOptions = {
     weekday: 'long',
     month: 'long',
