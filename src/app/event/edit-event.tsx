@@ -241,13 +241,8 @@ export default function EditEvent() {
         },
       });
 
-      Alert.alert(
-        'Success',
-        isEditMode
-          ? 'Event updated successfully!'
-          : 'Event created successfully!',
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
+      // Navigate to event details screen after creation/update
+      router.replace(`/event/${eventId}` as any);
     } catch (error) {
       Alert.alert(
         'Error',
