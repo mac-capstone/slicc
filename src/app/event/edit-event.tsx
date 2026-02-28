@@ -322,6 +322,9 @@ export default function EditEvent() {
     );
   }
 
+  console.log('Event:', event);
+  console.log('Error:', isError);
+
   if (isError || !event) {
     return (
       <View className="flex-1 items-center justify-center bg-background-950 p-4">
