@@ -2,6 +2,8 @@ export type UserIdT = string & { readonly __brand: unique symbol };
 export type ExpenseIdT = string & { readonly __brand: unique symbol };
 export type ItemIdT = string & { readonly __brand: unique symbol };
 export type PersonIdT = string & { readonly __brand: unique symbol };
+export type EventIdT = string & { readonly __brand: unique symbol };
+export type GroupIdT = string & { readonly __brand: unique symbol };
 
 export type Expense = {
   name: string;
@@ -29,6 +31,25 @@ export type Person = {
   subtotal: number;
 };
 
+export type Event = {
+  name: string;
+  startDate: string;
+  endDate: string;
+  startTime: string;
+  endTime: string;
+  isRecurring: boolean;
+  recurringInterval?: number;
+  recurringUnit?: 'day' | 'week' | 'month' | 'year';
+  recurringEndDate?: string;
+  groupId: GroupIdT;
+  location?: string;
+  locationUrl?: string;
+  details?: string;
+  createdBy: UserIdT;
+  participants: UserIdT[];
+};
+
 export type ExpenseWithId = Expense & { id: ExpenseIdT };
 export type ItemWithId = Item & { id: ItemIdT };
 export type PersonWithId = Person & { id: PersonIdT };
+export type EventWithId = Event & { id: EventIdT };

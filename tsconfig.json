@@ -27,6 +27,7 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     "__mocks__/**/*.ts",
+    "scripts/**/*.ts",
     "app.config.ts",
     "jest-setup.ts",
     ".expo/types/**/*.ts",

@@ -43,11 +43,18 @@ const inputTv = tv({
         input: 'bg-neutral-200',
       },
     },
+    raw: {
+      true: {
+        input:
+          'm-0 rounded-none bg-transparent p-0 text-center dark:bg-transparent',
+      },
+    },
   },
   defaultVariants: {
     focused: false,
     error: false,
     disabled: false,
+    raw: false,
   },
 });
 
@@ -55,6 +62,8 @@ export interface NInputProps extends TextInputProps {
   label?: string;
   disabled?: boolean;
   error?: string;
+  /** Use raw style - no background, borders, or padding */
+  raw?: boolean;
   /** Tailwind classes for the outer container (View) */
   containerClassName?: string;
   /** Tailwind classes for the TextInput itself */
@@ -85,6 +94,7 @@ export const Input = React.forwardRef<NTextInput, NInputProps>((props, ref) => {
     testID,
     containerClassName,
     inputClassName,
+    raw,
     ...inputProps
   } = props;
   const [isFocussed, setIsFocussed] = React.useState(false);
@@ -97,8 +107,9 @@ export const Input = React.forwardRef<NTextInput, NInputProps>((props, ref) => {
         error: Boolean(error),
         focused: isFocussed,
         disabled: Boolean(props.disabled),
+        raw: Boolean(raw),
       }),
-    [error, isFocussed, props.disabled]
+    [error, isFocussed, props.disabled, raw]
   );
 
   return (

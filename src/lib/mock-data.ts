@@ -8,6 +8,22 @@ export const mockData = {
         photoURL: null,
       },
     },
+    {
+      id: 'user_michael',
+      doc: {
+        displayName: 'Michael Jordan',
+        email: 'michael@example.com',
+        photoURL: null,
+      },
+    },
+    {
+      id: 'user_sarah',
+      doc: {
+        displayName: 'Sarah Avery',
+        email: 'sarah@example.com',
+        photoURL: null,
+      },
+    },
   ],
 
   expenses: [
@@ -218,6 +234,30 @@ export const mockData = {
           },
         },
       ],
+    },
+  ],
+
+  events: [
+    {
+      id: 'event_birthday',
+      doc: {
+        name: 'Twink Birthday',
+        startDate: '2026-02-15',
+        endDate: '2026-02-16',
+        startTime: '18:00',
+        endTime: '22:00',
+        isRecurring: true,
+        recurringInterval: 1,
+        recurringUnit: 'day' as const,
+        recurringEndDate: '2026-02-20',
+        groupId: 'group_friends',
+        location: 'Place Name',
+        locationUrl: 'https://maps.google.com/?q=Place+Name',
+        details:
+          'Join us for a birthday celebration with cake, games, and great company!',
+        createdBy: 'user_ankush',
+        participants: ['user_ankush', 'user_michael', 'user_sarah'],
+      },
     },
   ],
 };
