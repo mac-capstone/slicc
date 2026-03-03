@@ -6,6 +6,7 @@ import React from 'react';
 import { ActivityIndicator, Linking, ScrollView } from 'react-native';
 
 import { useEvent } from '@/api/events/use-events';
+import { PersonAvatar } from '@/components/person-avatar';
 import { Button, Pressable, Text, View } from '@/components/ui';
 import { useThemeConfig } from '@/lib/use-theme-config';
 import type { EventIdT } from '@/types';
@@ -232,16 +233,19 @@ export default function EventDetails() {
                 <View className="flex-row items-center">
                   {/* Display participant avatars */}
                   <View className="flex-row">
-                    {event.participants.slice(0, 3).map((_, index) => (
+                    {event.participants.slice(0, 3).map((userId, index) => (
                       <View
-                        key={index}
-                        className="mr-1 size-8 items-center justify-center rounded-full bg-avatar-red"
+                        key={userId}
                         style={{
                           marginLeft: index > 0 ? -8 : 0,
                           zIndex: event.participants.length - index,
                         }}
                       >
-                        <Ionicons name="person" size={16} color="#fff" />
+                        <PersonAvatar
+                          eventId={eventId as EventIdT}
+                          userId={userId}
+                          size="md"
+                        />
                       </View>
                     ))}
                     {event.participants.length > 3 && (

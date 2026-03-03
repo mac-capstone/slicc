@@ -2,26 +2,65 @@ import Octicons from '@expo/vector-icons/Octicons';
 import { ActivityIndicator } from 'react-native';
 import { Circle, Path, Svg } from 'react-native-svg';
 
+import { useEventParticipant } from '@/api/events/use-events';
 import { usePerson } from '@/api/people/use-people';
 import { colors, Text, View } from '@/components/ui';
 import { cn } from '@/lib/utils';
-import { type ExpenseIdT, type PersonIdT } from '@/types';
+import {
+  type EventIdT,
+  type ExpenseIdT,
+  type PersonIdT,
+  type UserIdT,
+} from '@/types';
+
+type PersonAvatarPropsWithExpense = {
+  size?: 'sm' | 'md' | 'lg';
+  personId: PersonIdT;
+  expenseId: ExpenseIdT;
+  eventId?: never;
+  userId?: never;
+  inSplitView?: boolean;
+  isSelected?: boolean;
+};
+
+type PersonAvatarPropsWithEvent = {
+  size?: 'sm' | 'md' | 'lg';
+  userId: UserIdT;
+  eventId: EventIdT;
+  personId?: never;
+  expenseId?: never;
+  inSplitView?: boolean;
+  isSelected?: boolean;
+};
+
+type PersonAvatarProps =
+  | PersonAvatarPropsWithExpense
+  | PersonAvatarPropsWithEvent;
+
 export const PersonAvatar = ({
   size = 'md',
   personId,
   expenseId,
+  eventId,
+  userId,
   isSelected = false,
   inSplitView = false,
-}: {
-  size?: 'sm' | 'md' | 'lg';
-  personId: PersonIdT;
-  expenseId: ExpenseIdT;
-  inSplitView?: boolean;
-  isSelected?: boolean;
-}) => {
-  const { data, isPending, isError } = usePerson({
-    variables: { expenseId, personId },
+}: PersonAvatarProps) => {
+  // Use the appropriate hook based on whether we have expenseId or eventId
+  const personQuery = usePerson({
+    variables: expenseId && personId ? { expenseId, personId } : undefined,
+    enabled: !!expenseId && !!personId,
   });
+
+  const participantQuery = useEventParticipant({
+    variables: eventId && userId ? { eventId, userId } : undefined,
+    enabled: !!eventId && !!userId,
+  });
+
+  const { data, isPending, isError } = expenseId
+    ? personQuery
+    : participantQuery;
+
   if (isPending) {
     return <ActivityIndicator />;
   }

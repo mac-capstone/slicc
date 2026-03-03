@@ -14,6 +14,7 @@ import {
 import { useEvent, useUpdateEvent } from '@/api/events/use-events';
 import { useUsersAsPeople } from '@/api/people/use-users';
 import { DateTimePick } from '@/components/date-time-pick';
+import { PersonAvatar } from '@/components/person-avatar';
 import { Button, Input, Pressable, Text, View } from '@/components/ui';
 import { useThemeConfig } from '@/lib/use-theme-config';
 import type { EventIdT } from '@/types';
@@ -322,9 +323,6 @@ export default function EditEvent() {
     );
   }
 
-  console.log('Event:', event);
-  console.log('Error:', isError);
-
   if (isError || !event) {
     return (
       <View className="flex-1 items-center justify-center bg-background-950 p-4">
@@ -499,27 +497,46 @@ export default function EditEvent() {
               </View>
 
               <View className="ml-0">
-                {participants.map((participant) => (
-                  <View
-                    key={participant.id}
-                    className="mb-3 flex-row items-center"
-                  >
+                {eventId &&
+                  participants.map((participant) => (
                     <View
-                      className="mr-3 size-10 items-center justify-center rounded-full"
-                      style={{ backgroundColor: participant.color }}
+                      key={participant.id}
+                      className="mb-3 flex-row items-center"
                     >
-                      <Text className="text-base font-bold text-white">
-                        {participant.name
-                          .split(' ')
-                          .map((n) => n[0])
-                          .join('')}
+                      <View className="mr-3">
+                        <PersonAvatar
+                          eventId={eventId as EventIdT}
+                          userId={participant.id}
+                          size="md"
+                        />
+                      </View>
+                      <Text className="text-base text-white">
+                        {participant.name}
                       </Text>
                     </View>
-                    <Text className="text-base text-white">
-                      {participant.name}
-                    </Text>
-                  </View>
-                ))}
+                  ))}
+                {!eventId &&
+                  participants.map((participant) => (
+                    <View
+                      key={participant.id}
+                      className="mb-3 flex-row items-center"
+                    >
+                      <View
+                        className="mr-3 size-8 items-center justify-center rounded-full"
+                        style={{ backgroundColor: participant.color }}
+                      >
+                        <Text className="text-base font-bold text-white">
+                          {participant.name
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')}
+                        </Text>
+                      </View>
+                      <Text className="text-base text-white">
+                        {participant.name}
+                      </Text>
+                    </View>
+                  ))}
               </View>
             </View>
 
