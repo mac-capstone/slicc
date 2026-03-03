@@ -20,7 +20,7 @@ import {
   type UserIdT,
 } from '@/types';
 
-const USE_MOCK_DATA = process.env.EXPO_PUBLIC_USE_MOCK_DATA === 'true'; // Set to false when ready to use Firestore
+const USE_MOCK_DATA = true; // Set to false when ready to use Firestore
 
 // Query to get all event IDs
 type AllEventsResponse = EventIdT[];
