@@ -365,7 +365,7 @@ export default function EditEvent() {
             {/* Date Section */}
             <View className="mb-4 flex-row items-center">
               <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
-                <Ionicons name="calendar-outline" size={24} color="#3EB489" />
+                <Ionicons name="calendar-outline" size={24} color="#00C8B3" />
               </View>
               <View className="flex-1">
                 <View className="mb-2">
@@ -390,7 +390,7 @@ export default function EditEvent() {
             {/* Time Section */}
             <View className="mb-4 flex-row items-center">
               <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
-                <Ionicons name="time-outline" size={24} color="#3EB489" />
+                <Ionicons name="time-outline" size={24} color="#00C8B3" />
               </View>
               <View className="flex-1 flex-row items-center">
                 <DateTimePick
@@ -411,7 +411,7 @@ export default function EditEvent() {
             <View className="mb-4">
               <View className="flex-row items-center">
                 <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
-                  <Ionicons name="repeat" size={24} color="#3EB489" />
+                  <Ionicons name="repeat" size={24} color="#00C8B3" />
                 </View>
                 <View className="flex-1 flex-row items-center justify-between">
                   <View className="flex-row items-center">
@@ -422,7 +422,7 @@ export default function EditEvent() {
                   <Switch
                     value={isRecurring}
                     onValueChange={setIsRecurring}
-                    trackColor={{ false: '#767577', true: '#3EB489' }}
+                    trackColor={{ false: '#767577', true: '#00C8B3' }}
                     thumbColor={isRecurring ? '#fff' : '#f4f3f4'}
                   />
                 </View>
@@ -440,7 +440,7 @@ export default function EditEvent() {
                       containerClassName="mx-2 my-2 items-center"
                       raw
                     />
-                    <View className="w-24">
+                    <View className="relative w-24">
                       <Select
                         value={recurringUnit}
                         options={recurringUnitOptions}
@@ -449,6 +449,13 @@ export default function EditEvent() {
                         }}
                         placeholder="Select unit"
                       />
+                      <View className="pointer-events-none absolute right-1 top-1/2 -translate-y-2/3">
+                        <Ionicons
+                          name="chevron-down"
+                          size={16}
+                          color="#00C8B3"
+                        />
+                      </View>
                     </View>
                   </View>
                   <View className="mt-2">
@@ -471,7 +478,7 @@ export default function EditEvent() {
               <View className="mb-3 flex-row items-center justify-between">
                 <View className="flex-row items-center">
                   <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
-                    <Ionicons name="people-outline" size={24} color="#3EB489" />
+                    <Ionicons name="people-outline" size={24} color="#00C8B3" />
                   </View>
                   <Text className="text-base font-semibold text-text-800">
                     {participants.length} people
@@ -481,7 +488,7 @@ export default function EditEvent() {
                   onPress={handleAddPerson}
                   className="flex-row items-center rounded-lg bg-neutral-750 px-2 py-1"
                 >
-                  <Ionicons name="person-add" size={18} color="#3EB489" />
+                  <Ionicons name="person-add" size={18} color="#00C8B3" />
                   <Text className="ml-1 text-base font-semibold text-white">
                     Add
                   </Text>
@@ -535,7 +542,7 @@ export default function EditEvent() {
             {/* Location Section */}
             <View className="mb-4 flex-row items-center">
               <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
-                <Ionicons name="location-outline" size={24} color="#3EB489" />
+                <Ionicons name="location-outline" size={24} color="#00C8B3" />
               </View>
               <View className="flex-1">
                 <Input
@@ -556,7 +563,7 @@ export default function EditEvent() {
                   <MaterialCommunityIcons
                     name="open-in-new"
                     size={16}
-                    color="#3EB489"
+                    color="#00C8B3"
                     style={{ marginLeft: 4 }}
                   />
                 </Pressable>

@@ -169,7 +169,7 @@ export default function EventDetails() {
               {/* Date Section */}
               <View className="mb-4 flex-row items-start">
                 <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
-                  <Ionicons name="calendar-outline" size={24} color="#3EB489" />
+                  <Ionicons name="calendar-outline" size={24} color="#00C8B3" />
                 </View>
                 <View className="flex-1">
                   {event.startDate === event.endDate ? (
@@ -197,7 +197,7 @@ export default function EventDetails() {
               {/* Time Section */}
               <View className="mb-4 flex-row items-start">
                 <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
-                  <Ionicons name="time-outline" size={24} color="#3EB489" />
+                  <Ionicons name="time-outline" size={24} color="#00C8B3" />
                 </View>
                 <View className="flex-1">
                   <Text className="text-base font-medium text-white">
@@ -230,7 +230,7 @@ export default function EventDetails() {
               {/* People Section */}
               <View className="mb-4 flex-row items-start">
                 <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
-                  <Ionicons name="people-outline" size={24} color="#3EB489" />
+                  <Ionicons name="people-outline" size={24} color="#00C8B3" />
                 </View>
                 <View className="flex-1">
                   <View className="flex-row items-center">
@@ -283,7 +283,7 @@ export default function EventDetails() {
                       <Ionicons
                         name="location-outline"
                         size={24}
-                        color="#3EB489"
+                        color="#00C8B3"
                       />
                     </View>
                     <View className="flex-1">
@@ -300,7 +300,7 @@ export default function EventDetails() {
                         <MaterialCommunityIcons
                           name="open-in-new"
                           size={16}
-                          color="#3EB489"
+                          color="#00C8B3"
                           style={{ marginLeft: 4 }}
                         />
                       </Pressable>
