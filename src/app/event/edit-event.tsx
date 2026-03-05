@@ -15,7 +15,7 @@ import { useEvent, useUpdateEvent } from '@/api/events/use-events';
 import { useUsersAsPeople } from '@/api/people/use-users';
 import { DateTimePick } from '@/components/date-time-pick';
 import { PersonAvatar } from '@/components/person-avatar';
-import { Button, Input, Pressable, Text, View } from '@/components/ui';
+import { Button, Input, Pressable, Select, Text, View } from '@/components/ui';
 import { useThemeConfig } from '@/lib/use-theme-config';
 import type { EventIdT } from '@/types';
 
@@ -284,27 +284,12 @@ export default function EditEvent() {
     }
   };
 
-  const handleRecurringUnitPress = () => {
-    const units: ('day' | 'week' | 'month' | 'year')[] = [
-      'day',
-      'week',
-      'month',
-      'year',
-    ];
-    const currentIndex = units.indexOf(recurringUnit);
-    const nextIndex = (currentIndex + 1) % units.length;
-    setRecurringUnit(units[nextIndex]);
-  };
-
-  const getRecurringUnitLabel = () => {
-    const labels = {
-      day: 'day(s)',
-      week: 'week(s)',
-      month: 'month(s)',
-      year: 'year(s)',
-    };
-    return labels[recurringUnit];
-  };
+  const recurringUnitOptions = [
+    { label: 'day(s)', value: 'day' },
+    { label: 'week(s)', value: 'week' },
+    { label: 'month(s)', value: 'month' },
+    { label: 'year(s)', value: 'year' },
+  ];
 
   if (!eventId) {
     return (
@@ -444,20 +429,18 @@ export default function EditEvent() {
                       containerClassName="mx-2 my-2 items-center"
                       raw
                     />
-                    <Pressable
-                      onPress={handleRecurringUnitPress}
-                      className="flex-row items-center"
-                    >
-                      <Text className="text-sm text-white">
-                        {getRecurringUnitLabel()}
-                      </Text>
-                      <Ionicons
-                        name="chevron-down"
-                        size={16}
-                        color={theme.dark ? '#3EB489' : '#000'}
-                        style={{ marginLeft: 4 }}
+                    <View className="w-24">
+                      <Select
+                        value={recurringUnit}
+                        options={recurringUnitOptions}
+                        onSelect={(value) =>
+                          setRecurringUnit(
+                            value as 'day' | 'week' | 'month' | 'year'
+                          )
+                        }
+                        placeholder="Select unit"
                       />
-                    </Pressable>
+                    </View>
                   </View>
                   <View className="mt-2">
                     <DateTimePick
@@ -601,12 +584,13 @@ export default function EditEvent() {
               label="Cancel"
               variant="outline"
               onPress={handleCancel}
-              className="h-12 flex-1 border-2 !border-red-500"
+              className="h-12 flex-1 border !border-red-500"
             />
             <Button
               label={isEditMode ? 'Save Changes' : 'Create Event'}
               onPress={handleSaveChanges}
-              className="h-12 flex-1"
+              className="h-12 flex-1 border !border-text-800 !bg-background-950"
+              textClassName="!text-white"
             />
           </View>
         </View>
