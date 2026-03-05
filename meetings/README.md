@@ -14,7 +14,9 @@
 - [November 13, 2025 - Tenth Meeting](#november-13-2025---tenth-meeting)
 - [November 19, 2025 - Eleventh Meeting](#november-19-2025---eleventh-meeting)
 - [November 20, 2025 - Twelfth Meeting](#november-20-2025---twelfth-meeting)
-- [January 8th, 2026 - Thirteenth Meeting](#january-8th-2026---thirteenth-meeting)
+- [January 7th, 2026 - Thirteenth Meeting](#january-7th-2026---thirteenth-meeting)
+- [January 14th, 2026 - Fourteenth Meeting](#january-14th-2026---fourteenth-meeting)
+- [March 4th, 2026 - Fifteenth Meeting](#march-4th-2026---fifteenth-meeting)
 
 ---
 
@@ -254,7 +256,7 @@
 
 ---
 
-# January 8th, 2026 - Thirteenth Meeting
+# January 7th, 2026 - Thirteenth Meeting
 
 **Attendees:**
 
@@ -263,7 +265,7 @@
 - Michael
 - Viransh
 
-Brief meeting to plan moving forward and discuss details of how to implement things
+**Brief meeting to plan moving forward and discuss details of how to implement things**
 
 Payment/Owed Details
 Expense creator is the only one who can tick off/track payments
@@ -274,7 +276,7 @@ Creator would click the expense to go to the confirmation-split page
   - or mark as fully paid
   - This would be reflected in the confirmation-split page with a X/total number
 
-Authed payment tracking
+**Authed payment tracking**
 
 - Users can send the Expense creator a reminder that they paid (Implement Later)
 
@@ -289,7 +291,7 @@ Groups have a basic chat
   Events can have a day (or days)
 - Each date can have a time range/be all day
 
-Discussed features to be implemented
+**Discussed features to be implemented**
 
 - TAX
   - User sets default tax rate in preferences somehow
@@ -339,7 +341,7 @@ Discussed features to be implemented
     - Firebase auth
     - Each user should store bills (currently)
 
-Tasks to be delegated:
+**Tasks to be delegated:**
 
 - Firebase/Auth work
   - Ankush/Michael to start working on it 08-01-2026
@@ -353,5 +355,138 @@ Tasks to be delegated:
 Assistance to be granted by other members as needed so far
 
 Meeting to be held with everyone for design doc/v&v ASAP
+
+---
+
+# January 14th, 2026 - Fourteenth Meeting
+
+**Attendees:**
+
+- Michael
+- Asad
+- Viransh
+- Jayesh
+- Abdul-Hadi
+- Eduardo
+- Ankush
+
+**Topic:** Design doc/V&V
+
+**Agenda:**
+
+Reviewed last meeting with missing members.
+
+**Design review for groups/events:**
+
+- Groups
+  - No invitations to groups, just added directly.
+- Events
+  - Events will have invitations.
+  - Invites will show up in the event/notifs tab.
+- Designs posted in <#1433529264187248650> channel.
+
+**Design Doc/V&V:**
+
+Design Doc:
+
+Part 4 is mostly done, we will use our existing diagram and modify it to fit our existing design/the requirements of the doc.
+
+- Went over what changes need to be made.
+- The updated version will be added to the design doc.
+
+Parts 5-7 will be split and done by the team. Work on the doc will be done according to the SRS formatting.
+
+**MEETING WITH INSTRUCTOR on FRI 16th 10:15AM**
+
+V&V:
+
+Hadi and Eduardo will be working on the V&V.
+
+---
+
+# March 4th, 2026 - Fifteenth Meeting
+
+**Attendees:**
+
+- Michael
+- Asad
+- Viransh
+- Jayesh
+- Abdul-Hadi
+- Eduardo
+- Ankush
+
+**NOTES:**
+
+All PRs should include a WIP/unfinished notes, to be referred back to. PRs without this should not be merged, unfinished features will be forgotten if not tracked.
+
+Now using react native reusable component library. All components should use existing components from this library if possible, then custom will be created.
+
+**Meeting Topics:**
+
+- Review current events/groups work.
+- Decide priorities.
+- Delegate tasks.
+- Decide deadlines.
+
+**TASKS AND DEADLINES:**
+
+**Events - Viransh - SUNDAY 03/08**
+
+- Implement Firebase.
+  - Use react query for this.
+  - When getting data, use zod to verify format.
+- Events title should look like an input box, currently can't tell you can click on it (use RN reusable input component).
+- Start and End should be inline and be darkened (follow figma).
+- Fix view expenses button to bottom of screen.
+- View expenses button should lead unique view expenses page specific to the event.
+- Move edit button to be in line with the Title, not back button.
+- Exit button should be back (pop from routing stack, not home page).
+  - This can be implemented after groups are implemented.
+- Events (day/year/month) dropdown is currently toggling instead of dropdown.
+- Saving edit event led to Invalid Recurring Start Date (cannot recreate, low prio).
+
+**Groups - Asad & Jayesh - DEADLINE TBD, talk on campus when possible, but try to be ASAP to discuss progress on groups**
+
+- Frontend adjustments.
+  - Adjust add button to be more clear (use floating circular + button [bottom middle of screen]).
+- Implement frontend -> needs to be reviewed asap to start working on data calls.
+- Implement Firebase features.
+  - Use react query for this.
+  - When getting data, use zod to verify format.
+
+**Michael - FRIDAY 03/06**
+
+- Show/edit how much is paid for expenses (LOOK AT FIGMA / ATTACHED IMAGE).
+  - Edit button top right in line with title.
+    - Button opens up edit page, with list of people and their owed amounts and remaining.
+    - Buttons to mark all as paid and button to open input box for custom amount.
+  - Update split page to show paid, remaining.
+
+**Hadi - SUNDAY 03/08**
+
+- Fix NAN bug ASAP (issue has been assigned for a long time).
+  - Needs to have money input (floats, nums, etc).
+  - Test before PR.
+- Expense page.
+  - Use RN reusable input component instead.
+  - Expense name gets removed when going next page then prev page, fix that.
+- Fix bug with expense page subtotal, issue [CAP-61].
+
+**Eduardo - TUES 03/10**
+
+- Adding people to expenses needs to be changed.
+  - (Quick figma or sketch NEEDED by FRIDAY 03/06, once figma or sketch call DESIGN REV ASAP PLS TO START CODE).
+  - Adding a person should bring up a list of people.
+  - List has your friends and one option to add a pseudo person.
+    - Pseudo person option opens modal which will take a name.
+  - This needs to be an alternate version of the expense page vs the default expense page where you add people.
+    - So make a flag to tell what type to render.
+    - The only difference is whether adding a person pulls up a list of all friends (default behaviour) or the list containing people from the event (event behaviour).
+
+**Ankush**
+
+- Auth google - SUNDAY 03/08.
+- Expenses firebase integration - FRIDAY 03/06.
 
 ---
