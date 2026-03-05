@@ -284,7 +284,18 @@ export default function EditEvent() {
     }
   };
 
-  const recurringUnitOptions = [
+  type RecurringUnit = 'day' | 'week' | 'month' | 'year';
+
+  function isRecurringUnit(value: string | number): value is RecurringUnit {
+    return (
+      value === 'day' ||
+      value === 'week' ||
+      value === 'month' ||
+      value === 'year'
+    );
+  }
+
+  const recurringUnitOptions: { label: string; value: RecurringUnit }[] = [
     { label: 'day(s)', value: 'day' },
     { label: 'week(s)', value: 'week' },
     { label: 'month(s)', value: 'month' },
@@ -433,11 +444,9 @@ export default function EditEvent() {
                       <Select
                         value={recurringUnit}
                         options={recurringUnitOptions}
-                        onSelect={(value) =>
-                          setRecurringUnit(
-                            value as 'day' | 'week' | 'month' | 'year'
-                          )
-                        }
+                        onSelect={(value) => {
+                          if (isRecurringUnit(value)) setRecurringUnit(value);
+                        }}
                         placeholder="Select unit"
                       />
                     </View>
