@@ -3,6 +3,7 @@ import { createQuery } from 'react-query-kit';
 
 import { getTempExpense } from '@/lib/store';
 import {
+  type EventIdT,
   type Expense,
   type ExpenseIdT,
   type ItemIdT,
@@ -25,11 +26,27 @@ type ExpenseResponse = Expense & {
 
 const expensesRef = collection(db, 'expenses').withConverter(expenseConverter);
 
-export const useExpenseIds = createQuery<ExpenseIdT[], void, Error>({
+export const useExpenseeIds = createQuery<ExpenseIdT[], void, Error>({
   queryKey: ['expenses'],
   fetcher: async () => {
     const snapshot = await getDocs(expensesRef);
     return snapshot.docs.map((d) => d.id as ExpenseIdT);
+  },
+});
+
+type ExpenseIdsByEventResponse = ExpenseIdT[];
+type ExpenseIdsByEventVariables = EventIdT;
+
+export const useExpenseIdsByEvent = createQuery<
+  ExpenseIdsByEventResponse,
+  ExpenseIdsByEventVariables,
+  Error
+>({
+  queryKey: ['expenses', 'eventId'],
+  fetcher: async (_eventId) => {
+    // TODO: Filter expenses by eventId once the Expense model includes an eventId field
+    // For now, returning all expenses as a placeholder
+    return mockData.expenses.map((e) => e.id as ExpenseIdT);
   },
 });
 

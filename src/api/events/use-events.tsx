@@ -37,7 +37,7 @@ const EventSchema = z.object({
   locationUrl: z.string().optional(),
   details: z.string().optional(),
   createdBy: z.string(),
-  participants: z.array(z.string()),
+  participants: z.array(z.string()).default([]),
 });
 
 const USE_MOCK_DATA = true; // Set to false when ready to use Firestore
@@ -73,7 +73,12 @@ export const useEvent = createQuery<EventWithId, EventIdT, Error>({
       if (!event) throw new Error('Event not found');
 
       // Validate with Zod
-      const validatedEvent = EventSchema.parse(event.doc);
+      const parsedEvent = EventSchema.safeParse(event.doc);
+      if (!parsedEvent.success) {
+        console.error('Invalid event structure:', parsedEvent.error.flatten());
+        throw new Error('Unable to load event data.');
+      }
+      const validatedEvent = parsedEvent.data;
 
       return { id: event.id as EventIdT, ...validatedEvent } as EventWithId;
     }
@@ -87,7 +92,12 @@ export const useEvent = createQuery<EventWithId, EventIdT, Error>({
     }
 
     // Validate with Zod
-    const validatedEvent = EventSchema.parse(eventSnap.data());
+    const parsedEvent = EventSchema.safeParse(eventSnap.data());
+    if (!parsedEvent.success) {
+      console.error('Invalid event structure:', parsedEvent.error.flatten());
+      throw new Error('Unable to load event data.');
+    }
+    const validatedEvent = parsedEvent.data;
 
     return { id: eventSnap.id as EventIdT, ...validatedEvent } as EventWithId;
   },
