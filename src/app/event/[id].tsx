@@ -4,6 +4,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, Linking, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useEvent } from '@/api/events/use-events';
 import { PersonAvatar } from '@/components/person-avatar';
@@ -60,6 +61,7 @@ const getRecurringText = (
 };
 
 export default function EventDetails() {
+  const { bottom } = useSafeAreaInsets();
   const theme = useThemeConfig();
   const params = useLocalSearchParams<{ id: EventIdT }>();
   const eventId = params.id;
@@ -333,7 +335,10 @@ export default function EventDetails() {
         </ScrollView>
 
         {/* View Expenses Button - Sticky at bottom */}
-        <View className="border-t border-neutral-800 bg-background-950 p-4">
+        <View
+          className="border-t border-neutral-800 bg-background-950 p-4"
+          style={{ paddingBottom: bottom + 16 }}
+        >
           <Pressable
             onPress={handleViewExpenses}
             className="flex-row items-center justify-between rounded-xl bg-neutral-850 p-4"
