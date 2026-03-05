@@ -10,6 +10,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { createQuery } from 'react-query-kit';
+import { z } from 'zod';
 
 import { db } from '@/api/common/firebase';
 import { mockData } from '@/lib/mock-data';
@@ -19,6 +20,25 @@ import {
   type EventWithId,
   type UserIdT,
 } from '@/types';
+
+// Zod schema for Event validation
+const EventSchema = z.object({
+  name: z.string(),
+  startDate: z.string(),
+  endDate: z.string(),
+  startTime: z.string(),
+  endTime: z.string(),
+  isRecurring: z.boolean(),
+  recurringInterval: z.number().optional(),
+  recurringUnit: z.enum(['day', 'week', 'month', 'year']).optional(),
+  recurringEndDate: z.string().optional(),
+  groupId: z.string(),
+  location: z.string().optional(),
+  locationUrl: z.string().optional(),
+  details: z.string().optional(),
+  createdBy: z.string(),
+  participants: z.array(z.string()),
+});
 
 const USE_MOCK_DATA = true; // Set to false when ready to use Firestore
 
@@ -51,10 +71,11 @@ export const useEvent = createQuery<EventWithId, EventIdT, Error>({
     if (USE_MOCK_DATA) {
       const event = mockData.events.find((e) => e.id === eventId);
       if (!event) throw new Error('Event not found');
-      return {
-        id: event.id as EventIdT,
-        ...event.doc,
-      } as unknown as EventWithId;
+
+      // Validate with Zod
+      const validatedEvent = EventSchema.parse(event.doc);
+
+      return { id: event.id as EventIdT, ...validatedEvent } as EventWithId;
     }
 
     // Firestore implementation
@@ -65,7 +86,10 @@ export const useEvent = createQuery<EventWithId, EventIdT, Error>({
       throw new Error('Event not found');
     }
 
-    return { id: eventSnap.id as EventIdT, ...eventSnap.data() } as EventWithId;
+    // Validate with Zod
+    const validatedEvent = EventSchema.parse(eventSnap.data());
+
+    return { id: eventSnap.id as EventIdT, ...validatedEvent } as EventWithId;
   },
 });
 
