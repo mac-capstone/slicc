@@ -358,7 +358,6 @@ export default function EditEvent() {
             placeholder="Event Name"
             inputClassName="!text-3xl font-bold"
             containerClassName="mb-6"
-            raw
           />
 
           <View className="rounded-xl bg-neutral-850 p-4">
@@ -368,21 +367,25 @@ export default function EditEvent() {
                 <Ionicons name="calendar-outline" size={24} color="#00C8B3" />
               </View>
               <View className="flex-1">
-                <View className="mb-2">
-                  <DateTimePick
-                    value={startDate}
-                    onChange={handleStartDateChange}
-                    mode="date"
-                    label="Start"
-                  />
+                <View className="mb-2 flex-row items-baseline">
+                  <Text className="w-12 text-base !text-gray-400">Start</Text>
+                  <View className="flex-1">
+                    <DateTimePick
+                      value={startDate}
+                      onChange={handleStartDateChange}
+                      mode="date"
+                    />
+                  </View>
                 </View>
-                <View>
-                  <DateTimePick
-                    value={endDate}
-                    onChange={handleEndDateChange}
-                    mode="date"
-                    label="End"
-                  />
+                <View className="flex-row items-baseline">
+                  <Text className="w-12 text-base !text-gray-400">End</Text>
+                  <View className="flex-1">
+                    <DateTimePick
+                      value={endDate}
+                      onChange={handleEndDateChange}
+                      mode="date"
+                    />
+                  </View>
                 </View>
               </View>
             </View>

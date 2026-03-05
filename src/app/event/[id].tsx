@@ -89,7 +89,7 @@ export default function EventDetails() {
 
   const handleViewExpenses = () => {
     // Navigate to expenses filtered by this event
-    router.push(`/(app)` as any);
+    router.push(`/event/${eventId}/expenses`);
   };
 
   const handleEdit = () => {
@@ -145,24 +145,24 @@ export default function EventDetails() {
               />
             </Pressable>
           ),
-          headerRight: () => (
-            <Pressable onPress={handleEdit} className="px-2">
-              <Ionicons
-                name="create-outline"
-                size={24}
-                color={theme.dark ? '#fff' : '#000'}
-              />
-            </Pressable>
-          ),
         }}
       />
       <View className="flex-1 bg-background-950">
         <ScrollView className="flex-1">
           <View className="p-6">
-            {/* Event Title */}
-            <Text className="mb-8 text-3xl font-bold text-white">
-              {event.name}
-            </Text>
+            {/* Event Title and Edit Button */}
+            <View className="mb-8 flex-row items-center justify-between">
+              <Text className="flex-1 text-3xl font-bold text-white">
+                {event.name}
+              </Text>
+              <Pressable onPress={handleEdit} className="ml-2 p-2">
+                <Ionicons
+                  name="create-outline"
+                  size={24}
+                  color={theme.dark ? '#fff' : '#000'}
+                />
+              </Pressable>
+            </View>
 
             {/* Event Details Card */}
             <View className="rounded-2xl bg-neutral-850 p-5">
@@ -178,14 +178,22 @@ export default function EventDetails() {
                     </Text>
                   ) : (
                     <>
-                      <Text className="text-sm text-text-800">Start</Text>
-                      <Text className="mb-2 text-base font-medium text-white">
-                        {formatDate(event.startDate)}
-                      </Text>
-                      <Text className="text-sm text-text-800">End</Text>
-                      <Text className="text-base font-medium text-white">
-                        {formatDate(event.endDate)}
-                      </Text>
+                      <View className="mb-2 flex-row items-baseline">
+                        <Text className="w-12 text-base !text-gray-400">
+                          Start
+                        </Text>
+                        <Text className="flex-1 text-base font-medium text-text-800">
+                          {formatDate(event.startDate)}
+                        </Text>
+                      </View>
+                      <View className="flex-row items-baseline">
+                        <Text className="w-12 text-base !text-gray-400">
+                          End
+                        </Text>
+                        <Text className="flex-1 text-base font-medium text-text-800">
+                          {formatDate(event.endDate)}
+                        </Text>
+                      </View>
                     </>
                   )}
                 </View>
