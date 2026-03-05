@@ -239,50 +239,52 @@ export default function EventDetails() {
               {/* Divider */}
               <View className="mb-4 mt-0 h-px bg-gray-500" />
 
-            {/* People Section */}
-            <View className="mb-4 flex-row items-start">
-              <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
-                <Ionicons name="people-outline" size={24} color="#3EB489" />
-              </View>
-              <View className="flex-1">
-                <View className="flex-row items-center">
-                  {/* Display participant avatars */}
-                  <View className="flex-row">
-                    {event.participants.slice(0, 3).map((userId, index) => (
-                      <View
-                        key={userId}
-                        style={{
-                          marginLeft: index > 0 ? -8 : 0,
-                          zIndex: event.participants.length - index,
-                        }}
-                      >
-                        <PersonAvatar
-                          eventId={eventId as EventIdT}
-                          userId={userId}
-                          size="md"
-                        />
-                      </View>
-                    ))}
-                    {event.participants.length > 3 && (
-                      <View
-                        className="size-8 items-center justify-center rounded-full bg-neutral-750"
-                        style={{
-                          marginLeft: -8,
-                          zIndex: 0,
-                        }}
-                      >
-                        <Text className="text-xs font-semibold text-white">
-                          +{event.participants.length - 3}
-                        </Text>
-                      </View>
-                    )}
+              {/* People Section */}
+              <View className="mb-4 flex-row items-start">
+                <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
+                  <Ionicons name="people-outline" size={24} color="#3EB489" />
+                </View>
+                <View className="flex-1">
+                  <View className="flex-row items-center">
+                    {/* Display participant avatars */}
+                    <View className="flex-row">
+                      {event.participants.slice(0, 3).map((userId, index) => (
+                        <View
+                          key={userId}
+                          style={{
+                            marginLeft: index > 0 ? -8 : 0,
+                            zIndex: event.participants.length - index,
+                          }}
+                        >
+                          <PersonAvatar
+                            userId={userId as UserIdT}
+                            color={
+                              avatarColorKeys[index % avatarColorKeys.length]
+                            }
+                            size="md"
+                          />
+                        </View>
+                      ))}
+                      {event.participants.length > 3 && (
+                        <View
+                          className="size-8 items-center justify-center rounded-full bg-neutral-750"
+                          style={{
+                            marginLeft: -8,
+                            zIndex: 0,
+                          }}
+                        >
+                          <Text className="text-xs font-semibold text-white">
+                            +{event.participants.length - 3}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text className="ml-3 text-base font-medium text-white">
+                      {event.participants.length} people
+                    </Text>
                   </View>
-                  <Text className="ml-3 text-base font-medium text-white">
-                    {event.participants.length} people
-                  </Text>
                 </View>
               </View>
-            </View>
 
               {/* Divider */}
               <View className="mb-4 mt-0 h-px bg-gray-500" />
