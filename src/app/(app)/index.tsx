@@ -1,13 +1,13 @@
 import { FlashList } from '@shopify/flash-list';
 import React from 'react';
 
-import { useExpensIds } from '@/api/expenses/use-expenses';
+import { useExpenseIds } from '@/api/expenses/use-expenses';
 import { DottedAddButton } from '@/components/dotted-add-button';
 import { ExpenseCard } from '@/components/expense-card';
 import { ActivityIndicator, Text, View } from '@/components/ui';
 
 export default function Feed() {
-  const { data, isPending, isError } = useExpensIds();
+  const { data, isPending, isError } = useExpenseIds();
   if (isPending) {
     return <ActivityIndicator />;
   }

@@ -5,7 +5,7 @@ import React from 'react';
 import { Pressable } from 'react-native';
 
 import { useEvent } from '@/api/events/use-events';
-import { useExpensIds } from '@/api/expenses/use-expenses';
+import { useExpenseIdsByEvent } from '@/api/expenses/use-expenses';
 import { DottedAddButton } from '@/components/dotted-add-button';
 import { ExpenseCard } from '@/components/expense-card';
 import { ActivityIndicator, Text, View } from '@/components/ui';
@@ -30,7 +30,10 @@ export default function EventExpenses() {
     data: expenseIds,
     isPending: expensesPending,
     isError: expensesError,
-  } = useExpensIds();
+  } = useExpenseIdsByEvent({
+    variables: eventId as EventIdT,
+    enabled: !!eventId,
+  });
 
   const handleClose = () => {
     router.back();
@@ -72,7 +75,7 @@ export default function EventExpenses() {
 
   // TODO: Filter expenses by event ID when the expense model includes eventId
   // For now, showing all expenses as placeholder
-  const filteredExpenses = expenseIds || [];
+  const filteredExpenses = expenseIds ?? [];
 
   return (
     <>
