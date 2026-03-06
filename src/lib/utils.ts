@@ -48,6 +48,7 @@ export const mapMockPersonToPerson = (
     color: person.doc.color,
     userRef: person.doc.userRef,
     subtotal: person.doc.subtotal,
+    paid: person.doc.paid,
   };
 };
 
@@ -60,6 +61,7 @@ export const mapMockPersonToPersonWithId = (
     color: person.doc.color,
     userRef: person.doc.userRef,
     subtotal: person.doc.subtotal,
+    paid: person.doc.paid,
   };
 };
 

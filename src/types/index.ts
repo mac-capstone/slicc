@@ -29,6 +29,7 @@ export type Person = {
   color: string;
   userRef: string | null;
   subtotal: number;
+  paid: number;
 };
 
 export type Event = {
