@@ -1,7 +1,7 @@
 import Octicons from '@expo/vector-icons/Octicons';
 import { Redirect, router, SplashScreen, Tabs } from 'expo-router';
 import React, { useCallback, useEffect } from 'react';
-import { TouchableOpacity } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
 
 import { colors } from '@/components/ui';
 import { useAuth, useIsFirstTime } from '@/lib';
