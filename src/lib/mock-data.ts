@@ -292,16 +292,15 @@ export const mockData = {
     {
       id: 'event_birthday',
       doc: {
-        name: 'Twink Birthday',
-        startDate: Timestamp.fromDate(new Date(2026, 1, 15, 18, 0)), // Feb 15, 2026 at 6:00 PM
-        endDate: Timestamp.fromDate(new Date(2026, 1, 16, 22, 0)), // Feb 16, 2026 at 10:00 PM
-        isRecurring: true,
-        recurringInterval: 1,
-        recurringUnit: 'day' as const,
-        recurringEndDate: '2026-02-20',
+        name: 'Tink birthday',
+        startDate: '2026-04-08',
+        endDate: '2026-04-08',
+        startTime: '18:00',
+        endTime: '22:00',
+        isRecurring: false,
         groupId: 'group_tea_party',
-        location: 'Place Name',
-        locationUrl: 'https://maps.google.com/?q=Place+Name',
+        location: 'Hai Di Lao',
+        locationUrl: 'https://maps.google.com/?q=Hai+Di+Lao',
         details:
           'Join us for a birthday celebration with cake, games, and great company!',
         createdBy: 'user_ankush',
@@ -310,10 +309,26 @@ export const mockData = {
           'user_michael',
           'user_sarah',
           'user_jane',
-          'user_omar',
-          'user_ryan',
-          'user_emma',
-          'user_alex',
+        ],
+      },
+    },
+    {
+      id: 'event_birthday_2',
+      doc: {
+        name: 'Birthday 2 Electric Boogaloo',
+        startDate: '2026-04-09',
+        endDate: '2026-04-09',
+        startTime: '18:00',
+        endTime: '22:00',
+        isRecurring: false,
+        groupId: 'group_tea_party',
+        location: 'Hai Di Lao',
+        createdBy: 'user_ankush',
+        participants: [
+          'user_ankush',
+          'user_michael',
+          'user_sarah',
+          'user_jane',
         ],
       },
     },
@@ -345,7 +360,7 @@ export const mockData = {
       id: 'group_tea_party',
       doc: {
         title: 'Tea Party',
-        eventIds: ['event_birthday'],
+        eventIds: ['event_birthday', 'event_birthday_2'],
         memberIds: [
           'user_ankush',
           'user_michael',
