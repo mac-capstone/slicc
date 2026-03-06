@@ -1,15 +1,15 @@
 import Feather from '@expo/vector-icons/Feather';
-import Octicons from '@expo/vector-icons/Octicons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { Keyboard, Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import { AddButton } from '@/components/add-button';
 import {
   GroupEventCard,
   type GroupEventCardData,
 } from '@/components/group-event-card';
-import { colors, Input, Text } from '@/components/ui';
+import { SearchableSectionHeader } from '@/components/searchable-section-header';
+import { colors, Text } from '@/components/ui';
 import { mockData } from '@/lib/mock-data';
 import { useThemeConfig } from '@/lib/use-theme-config';
 import type { GroupIdT, UserIdT } from '@/types';
@@ -61,13 +61,6 @@ export default function GroupDetailScreen() {
 
   const handleBack = () => router.back();
   const handleSettings = () => {};
-  const handleSearchPress = () => setIsSearchInputVisible(true);
-  const handleClearSearch = () => {
-    setSearchQuery('');
-    setIsSearchInputVisible(false);
-    Keyboard.dismiss();
-  };
-  const showClearButton = isSearchInputVisible || searchQuery.length > 0;
   const handleEventPress = (eventId: string) =>
     router.push(`/event/${eventId}` as const);
   const handleNewEvent = () =>
@@ -121,55 +114,16 @@ export default function GroupDetailScreen() {
           className="flex-1 px-4"
           contentContainerStyle={{ paddingBottom: 24 }}
         >
-          <View className="h-14 flex-row items-center overflow-hidden">
-            <View className="flex-1" />
-            <View className="min-w-0 flex-[2] items-center justify-center self-stretch px-2">
-              {isSearchInputVisible ? (
-                <Input
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  onBlur={() => setIsSearchInputVisible(false)}
-                  placeholder="Search events..."
-                  autoFocus
-                  style={{
-                    color: colors.white,
-                    borderColor: colors.neutral[600],
-                    fontSize: 18,
-                  }}
-                  containerClassName="w-full mb-0"
-                  inputClassName="min-h-[36px] border py-1 text-center text-2xl font-interSemiBold dark:text-white"
-                  raw
-                />
-              ) : (
-                <Text
-                  className="font-interSemiBold text-center text-2xl"
-                  style={{ color: colors.text[800] }}
-                >
-                  {searchQuery.trim()
-                    ? `"${searchQuery.trim()}"`
-                    : 'Upcoming Events'}
-                </Text>
-              )}
-            </View>
-            <View className="flex-1 flex-row justify-end">
-              <Pressable
-                onPress={
-                  showClearButton ? handleClearSearch : handleSearchPress
-                }
-                className="p-2"
-                accessibilityLabel={
-                  showClearButton ? 'Clear search' : 'Search events'
-                }
-                accessibilityRole="button"
-              >
-                {showClearButton ? (
-                  <Octicons name="x" size={20} color={colors.text[800]} />
-                ) : (
-                  <Octicons name="search" size={20} color={colors.text[800]} />
-                )}
-              </Pressable>
-            </View>
-          </View>
+          <SearchableSectionHeader
+            title="Upcoming Events"
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            isSearchInputVisible={isSearchInputVisible}
+            onSearchInputVisibleChange={setIsSearchInputVisible}
+            placeholder="Search events..."
+            searchLabel="Search events"
+            clearSearchLabel="Clear search"
+          />
           <View className="mb-4 h-px bg-neutral-700" />
 
           {upcomingEvents.map((event) => (

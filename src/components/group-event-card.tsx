@@ -2,7 +2,7 @@ import Feather from '@expo/vector-icons/Feather';
 import React from 'react';
 import { Pressable, View } from 'react-native';
 
-import { PersonAvatar } from '@/components/person-avatar';
+import { StackedAvatars } from '@/components/stacked-avatars';
 import { colors, Text } from '@/components/ui';
 import type { EventIdT, UserIdT } from '@/types';
 
@@ -24,8 +24,6 @@ function formatMonthDay(dateStr: string): { month: string; day: string } {
   return { month, day };
 }
 
-const VISIBLE_AVATAR_COUNT = 4;
-
 type Props = {
   event: GroupEventCardData;
   onPress: () => void;
@@ -34,8 +32,6 @@ type Props = {
 export function GroupEventCard({ event, onPress }: Props) {
   const { month, day } = formatMonthDay(event.startDate);
   const participantCount = event.participants.length;
-  const visibleParticipants = event.participants.slice(0, VISIBLE_AVATAR_COUNT);
-  const additionalCount = Math.max(0, participantCount - VISIBLE_AVATAR_COUNT);
 
   return (
     <Pressable onPress={onPress} className="mb-4">
@@ -89,34 +85,12 @@ export function GroupEventCard({ event, onPress }: Props) {
               </>
             )}
           </View>
-          <View className="mt-2 flex-row items-center">
-            {visibleParticipants.map((userId, index) => (
-              <View
-                key={userId}
-                className="rounded-full border-2 border-neutral-850"
-                style={index > 0 ? { marginLeft: -8 } : undefined}
-              >
-                <PersonAvatar
-                  userId={userId}
-                  eventId={event.id as EventIdT}
-                  size="sm"
-                />
-              </View>
-            ))}
-            {additionalCount > 0 && (
-              <View
-                className="size-6 items-center justify-center rounded-full border-2 border-background-950 bg-neutral-850"
-                style={{ marginLeft: -8 }}
-              >
-                <Text className="text-xs font-medium text-neutral-900">
-                  +{additionalCount}
-                </Text>
-              </View>
-            )}
-            <Text className="ml-2 text-sm" style={{ color: colors.text[800] }}>
-              {participantCount} people
-            </Text>
-          </View>
+          <StackedAvatars
+            userIds={event.participants}
+            eventId={event.id as EventIdT}
+            avatarBorderClassName="border-2 border-neutral-850"
+            suffixText={`${participantCount} people`}
+          />
         </View>
       </View>
     </Pressable>

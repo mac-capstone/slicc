@@ -11,7 +11,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { PersonAvatar } from '@/components/person-avatar';
+import { StackedAvatars } from '@/components/stacked-avatars';
 import { colors, Text, View } from '@/components/ui';
 import type { EventIdT, UserIdT } from '@/types';
 
@@ -57,12 +57,6 @@ export function GroupItem({ group, onPinToggle, onPress }: Props) {
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
   }));
-  const visibleMembers = group.memberIds.slice(0, VISIBLE_AVATAR_COUNT);
-  const additionalCount = Math.max(
-    0,
-    group.memberIds.length - VISIBLE_AVATAR_COUNT
-  );
-
   const content = (
     <View className="bg-background-950 py-2">
       <View className="flex-row items-start">
@@ -83,31 +77,11 @@ export function GroupItem({ group, onPinToggle, onPress }: Props) {
               <Text className="text-xs" style={{ color: colors.text[800] }}>
                 {group.displayDate}
               </Text>
-              <View className="flex-row items-center">
-                {visibleMembers.map((userId, index) => (
-                  <View
-                    key={userId}
-                    className="rounded-full border-2 border-background-950"
-                    style={index > 0 ? { marginLeft: -8 } : undefined}
-                  >
-                    <PersonAvatar
-                      userId={userId as UserIdT}
-                      eventId={group.primaryEventId}
-                      size="sm"
-                    />
-                  </View>
-                ))}
-                {additionalCount > 0 && (
-                  <View
-                    className="size-6 items-center justify-center rounded-full border-2 border-background-950 bg-neutral-850"
-                    style={{ marginLeft: -8 }}
-                  >
-                    <Text className="text-xs font-medium text-neutral-900">
-                      +{additionalCount}
-                    </Text>
-                  </View>
-                )}
-              </View>
+              <StackedAvatars
+                userIds={group.memberIds}
+                eventId={group.primaryEventId}
+                maxCount={VISIBLE_AVATAR_COUNT}
+              />
             </View>
           </View>
           <View className="mt-1 flex-row items-center gap-2">
