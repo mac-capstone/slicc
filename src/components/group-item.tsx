@@ -1,6 +1,8 @@
 import Feather from '@expo/vector-icons/Feather';
 import Octicons from '@expo/vector-icons/Octicons';
+import { router } from 'expo-router';
 import React from 'react';
+import { Pressable } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
@@ -30,9 +32,10 @@ const SWIPE_THRESHOLD = 60;
 type Props = {
   group: GroupItemData;
   onPinToggle?: (groupId: string) => void;
+  onPress?: (groupId: string) => void;
 };
 
-export function GroupItem({ group, onPinToggle }: Props) {
+export function GroupItem({ group, onPinToggle, onPress }: Props) {
   const translateX = useSharedValue(0);
 
   const ACTION_PANEL_WIDTH = 80;
@@ -123,27 +126,41 @@ export function GroupItem({ group, onPinToggle }: Props) {
     </View>
   );
 
+  const handlePress = () => {
+    if (onPress) {
+      onPress(group.id);
+    } else {
+      router.push(`/group/${group.id}` as const);
+    }
+  };
+
   if (onPinToggle) {
     const actionLabel = group.isPinned ? 'Unpin' : 'Pin';
     return (
-      <View className="overflow-hidden border-b border-neutral-700">
-        <View
-          className="absolute right-0 top-0 h-full items-center justify-center bg-neutral-800"
-          style={{ width: ACTION_PANEL_WIDTH }}
-        >
-          <Text
-            className="text-sm font-medium"
-            style={{ color: colors.text[800] }}
+      <Pressable onPress={handlePress}>
+        <View className="overflow-hidden border-b border-neutral-700">
+          <View
+            className="absolute right-0 top-0 h-full items-center justify-center bg-neutral-800"
+            style={{ width: ACTION_PANEL_WIDTH }}
           >
-            {actionLabel}
-          </Text>
+            <Text
+              className="text-sm font-medium"
+              style={{ color: colors.text[800] }}
+            >
+              {actionLabel}
+            </Text>
+          </View>
+          <GestureDetector gesture={panGesture}>
+            <Animated.View style={animatedStyle}>{content}</Animated.View>
+          </GestureDetector>
         </View>
-        <GestureDetector gesture={panGesture}>
-          <Animated.View style={animatedStyle}>{content}</Animated.View>
-        </GestureDetector>
-      </View>
+      </Pressable>
     );
   }
 
-  return <View className="border-b border-neutral-700">{content}</View>;
+  return (
+    <Pressable onPress={handlePress}>
+      <View className="border-b border-neutral-700">{content}</View>
+    </Pressable>
+  );
 }
