@@ -1,15 +1,15 @@
 import Feather from '@expo/vector-icons/Feather';
 import Octicons from '@expo/vector-icons/Octicons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import React, { useMemo } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Keyboard, Pressable, ScrollView, View } from 'react-native';
 
 import { AddButton } from '@/components/add-button';
 import {
   GroupEventCard,
   type GroupEventCardData,
 } from '@/components/group-event-card';
-import { colors, Text } from '@/components/ui';
+import { colors, Input, Text } from '@/components/ui';
 import { mockData } from '@/lib/mock-data';
 import { useThemeConfig } from '@/lib/use-theme-config';
 import type { GroupIdT, UserIdT } from '@/types';
@@ -24,7 +24,10 @@ export default function GroupDetailScreen() {
     [groupId]
   );
 
-  const upcomingEvents = useMemo((): GroupEventCardData[] => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchInputVisible, setIsSearchInputVisible] = useState(false);
+
+  const allUpcomingEvents = useMemo((): GroupEventCardData[] => {
     if (!group) return [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -48,12 +51,27 @@ export default function GroupDetailScreen() {
       }));
   }, [group]);
 
+  const upcomingEvents = useMemo(() => {
+    if (!searchQuery.trim()) return allUpcomingEvents;
+    const query = searchQuery.trim().toLowerCase();
+    return allUpcomingEvents.filter((e) =>
+      e.name.toLowerCase().includes(query)
+    );
+  }, [allUpcomingEvents, searchQuery]);
+
   const handleBack = () => router.back();
   const handleSettings = () => {};
-  const handleSearch = () => {};
+  const handleSearchPress = () => setIsSearchInputVisible(true);
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setIsSearchInputVisible(false);
+    Keyboard.dismiss();
+  };
+  const showClearButton = isSearchInputVisible || searchQuery.length > 0;
   const handleEventPress = (eventId: string) =>
     router.push(`/event/${eventId}` as const);
-  const handleNewEvent = () => {};
+  const handleNewEvent = () =>
+    router.push(`/event/edit-event?groupId=${groupId}` as const);
 
   if (!group) {
     return (
@@ -103,22 +121,52 @@ export default function GroupDetailScreen() {
           className="flex-1 px-4"
           contentContainerStyle={{ paddingBottom: 24 }}
         >
-          <View className="flex-row items-center py-3">
+          <View className="h-14 flex-row items-center overflow-hidden">
             <View className="flex-1" />
-            <Text
-              className="font-futuraDemi text-lg"
-              style={{ color: colors.text[800] }}
-            >
-              Upcoming Events
-            </Text>
+            <View className="min-w-0 flex-[2] items-center justify-center self-stretch px-2">
+              {isSearchInputVisible ? (
+                <Input
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  onBlur={() => setIsSearchInputVisible(false)}
+                  placeholder="Search events..."
+                  autoFocus
+                  style={{
+                    color: colors.white,
+                    borderColor: colors.neutral[600],
+                    fontSize: 18,
+                  }}
+                  containerClassName="w-full mb-0"
+                  inputClassName="min-h-[36px] border py-1 text-center text-2xl font-interSemiBold dark:text-white"
+                  raw
+                />
+              ) : (
+                <Text
+                  className="font-interSemiBold text-center text-2xl"
+                  style={{ color: colors.text[800] }}
+                >
+                  {searchQuery.trim()
+                    ? `"${searchQuery.trim()}"`
+                    : 'Upcoming Events'}
+                </Text>
+              )}
+            </View>
             <View className="flex-1 flex-row justify-end">
               <Pressable
-                onPress={handleSearch}
+                onPress={
+                  showClearButton ? handleClearSearch : handleSearchPress
+                }
                 className="p-2"
-                accessibilityLabel="Search events"
+                accessibilityLabel={
+                  showClearButton ? 'Clear search' : 'Search events'
+                }
                 accessibilityRole="button"
               >
-                <Octicons name="search" size={20} color={colors.text[800]} />
+                {showClearButton ? (
+                  <Octicons name="x" size={20} color={colors.text[800]} />
+                ) : (
+                  <Octicons name="search" size={20} color={colors.text[800]} />
+                )}
               </Pressable>
             </View>
           </View>
