@@ -261,6 +261,7 @@ export const useEventParticipant = createQuery<
         color: color,
         userRef: userId,
         subtotal: 0, // Not relevant for events
+        paid: 0,
       };
     }
 
@@ -291,6 +292,7 @@ export const useEventParticipant = createQuery<
       color: color,
       userRef: userId,
       subtotal: 0,
+      paid: 0,
     };
   },
 });

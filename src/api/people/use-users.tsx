@@ -81,6 +81,7 @@ export const useUsersAsPeople = (userIds: UserIdT[], colors: string[]) => {
       color: color,
       userRef: userId,
       subtotal: 0, // Not relevant for events
+      paid: 0,
     };
   });
 
