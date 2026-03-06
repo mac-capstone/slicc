@@ -482,7 +482,9 @@ export default function EditEvent() {
                         </>
                       ) : (
                         <Pressable
-                          onPress={() => setRecurringEndDate(new Date())}
+                          onPress={() =>
+                            handleRecurringEndDateChange(new Date(startDate))
+                          }
                           className="rounded-lg bg-neutral-750 px-3 py-2"
                         >
                           <Text className="text-sm text-text-800">

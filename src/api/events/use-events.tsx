@@ -23,17 +23,23 @@ import {
   type UserIdT,
 } from '@/types';
 
+const localDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+const localTimePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
+
 // Zod schema for Event validation
 const EventSchema = z.object({
   name: z.string(),
-  startDate: z.string(),
-  endDate: z.string(),
-  startTime: z.string(),
-  endTime: z.string(),
+  startDate: z.string().regex(localDatePattern),
+  endDate: z.string().regex(localDatePattern),
+  startTime: z.string().regex(localTimePattern),
+  endTime: z.string().regex(localTimePattern),
   isRecurring: z.boolean(),
-  recurringInterval: z.number().optional(),
+  recurringInterval: z.number().int().positive().optional(),
   recurringUnit: z.enum(['day', 'week', 'month', 'year']).optional(),
-  recurringEndDate: z.string().optional(),
+  recurringEndDate: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.string().regex(localDatePattern).optional()
+  ),
   groupId: z.string(),
   location: z.string().optional(),
   locationUrl: z.string().optional(),
