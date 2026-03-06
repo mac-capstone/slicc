@@ -82,6 +82,7 @@ export const useUsersAsPeople = (userIds: UserIdT[], colors: string[]) => {
         color: color,
         userRef: userId,
         subtotal: 0,
+        paid: 0,
       };
     }
   );

@@ -42,6 +42,11 @@ export const PersonCard = ({
     const share = calculatePersonShare(item, personId);
     return Number.isFinite(share) ? sum + share : sum;
   }, 0);
+
+  const paid = data.paid ?? 0;
+  const remaining = Math.max(data.subtotal - paid, 0);
+  const progress = data.subtotal > 0 ? Math.min(paid / data.subtotal, 1) : 0;
+
   return (
     <View className="flex min-h-20 w-full flex-col gap-2 rounded-xl bg-background-900 p-3">
       <View className="flex w-full flex-row justify-between gap-2">
@@ -54,6 +59,25 @@ export const PersonCard = ({
         <Text className="font-futuraDemi text-xl dark:text-accent-100">
           ${subtotal.toFixed(2)}
         </Text>
+      </View>
+      <View className="flex w-full flex-col gap-1">
+        <View className="flex flex-row items-center justify-between">
+          <Text className="text-sm dark:text-text-800">
+            Paid{' '}
+            <Text className="font-futuraDemi text-sm dark:text-text-50">
+              ${paid.toFixed(2)}
+            </Text>
+          </Text>
+          <Text className="text-sm font-semibold dark:text-danger-500">
+            ${remaining.toFixed(2)} remaining
+          </Text>
+        </View>
+        <View className="h-2 w-full overflow-hidden rounded-full bg-charcoal-700">
+          <View
+            className="h-full rounded-full bg-accent-100"
+            style={{ width: `${progress * 100}%` }}
+          />
+        </View>
       </View>
       <View className="ml-6 mt-1 border-l border-white/15 pl-4">
         <PersonItemList personId={personId} expenseId={expenseId} />
@@ -96,7 +120,7 @@ export const PersonItemList = ({
               <Text className="text-text-300 text-sm dark:text-text-800">
                 {item.name}
               </Text>
-              <Text className="text-sm font-semibold text-text-50 dark:text-text-50">
+              <Text className="text-sm font-bold text-text-50 dark:text-text-50">
                 ${share.toFixed(2)}
               </Text>
             </View>

@@ -259,6 +259,7 @@ export const useEventParticipant = createQuery<
       return {
         name: user.doc.displayName,
         userRef: userId,
+        paid: 0,
       };
     }
 
@@ -279,6 +280,7 @@ export const useEventParticipant = createQuery<
     return {
       name: userSnap.data().displayName,
       userRef: userId,
+      paid: 0,
     };
   },
 });
