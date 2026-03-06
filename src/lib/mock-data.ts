@@ -249,7 +249,7 @@ export const mockData = {
         isRecurring: true,
         recurringInterval: 1,
         recurringUnit: 'day' as const,
-        recurringEndDate: '2026-02-20',
+        recurringEndDate: '',
         groupId: 'group_friends',
         location: 'Place Name',
         locationUrl: 'https://maps.google.com/?q=Place+Name',

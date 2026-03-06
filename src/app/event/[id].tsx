@@ -51,13 +51,38 @@ const toDateString = (value: string | Date | undefined): string => {
   return value;
 };
 
-// Helper function to get recurring text
-const getRecurringText = (
-  isRecurring: boolean,
-  interval?: number,
-  unit?: string
-): string => {
+// Helper function to format date short (for "until" display)
+const formatDateShort = (dateString: string): string => {
+  const [year, month, day] = dateString.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  const options: Intl.DateTimeFormatOptions = {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  };
+  return date.toLocaleDateString('en-US', options);
+};
+
+// Helper function to get recurring text with calendar day
+const getRecurringText = ({
+  isRecurring,
+  startDateString,
+  interval,
+  unit,
+  recurringEndDate,
+}: {
+  isRecurring: boolean;
+  startDateString: string;
+  interval?: number;
+  unit?: string;
+  recurringEndDate?: string;
+}): string => {
   if (!isRecurring) return '';
+
+  // Parse start date to get day info
+  const [year, month, day] = startDateString.split('-').map(Number);
+  const startDate = new Date(year, month - 1, day);
+
   const unitText =
     unit === 'year'
       ? 'year'
@@ -66,10 +91,55 @@ const getRecurringText = (
         : unit === 'week'
           ? 'week'
           : 'day';
+
+  let baseText = '';
   if (interval === 1) {
-    return `Repeats every ${unitText}`;
+    baseText = `Repeats every ${unitText}`;
+  } else {
+    baseText = `Repeats every ${interval} ${unitText}s`;
   }
-  return `Repeats every ${interval} ${unitText}s`;
+
+  // Add specific day information
+  let dayInfo = '';
+  if (unit === 'week') {
+    const dayName = startDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+    });
+    dayInfo = ` on ${dayName}`;
+  } else if (unit === 'month') {
+    const dayOfMonth = startDate.getDate();
+    const suffix = getDaySuffix(dayOfMonth);
+    dayInfo = ` on the ${dayOfMonth}${suffix}`;
+  } else if (unit === 'year') {
+    const monthDay = startDate.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+    });
+    dayInfo = ` on ${monthDay}`;
+  }
+
+  // Add "until" information if end date exists
+  let untilText = '';
+  if (recurringEndDate) {
+    untilText = ` until ${formatDateShort(recurringEndDate)}`;
+  }
+
+  return baseText + dayInfo + untilText;
+};
+
+// Helper function to get ordinal suffix for day
+const getDaySuffix = (day: number): string => {
+  if (day > 3 && day < 21) return 'th';
+  switch (day % 10) {
+    case 1:
+      return 'st';
+    case 2:
+      return 'nd';
+    case 3:
+      return 'rd';
+    default:
+      return 'th';
+  }
 };
 
 export default function EventDetails() {
@@ -233,11 +303,13 @@ export default function EventDetails() {
                         style={{ marginRight: 4 }}
                       />
                       <Text className="text-sm text-text-800">
-                        {getRecurringText(
-                          event.isRecurring,
-                          event.recurringInterval,
-                          event.recurringUnit
-                        )}
+                        {getRecurringText({
+                          isRecurring: event.isRecurring,
+                          startDateString: event.startDate,
+                          interval: event.recurringInterval,
+                          unit: event.recurringUnit,
+                          recurringEndDate: event.recurringEndDate,
+                        })}
                       </Text>
                     </View>
                   )}

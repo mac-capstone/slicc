@@ -471,12 +471,35 @@ export default function EditEvent() {
                     </View>
                   </View>
                   <View className="mt-2">
-                    <DateTimePick
-                      value={recurringEndDate || new Date()}
-                      onChange={handleRecurringEndDateChange}
-                      mode="date"
-                      label="End Date (Optional)"
-                    />
+                    <Text className="mb-1 text-sm text-text-800">
+                      Recurring End Date (Optional)
+                    </Text>
+                    <View className="flex-row items-center">
+                      {recurringEndDate ? (
+                        <>
+                          <DateTimePick
+                            value={recurringEndDate}
+                            onChange={handleRecurringEndDateChange}
+                            mode="date"
+                          />
+                          <Pressable
+                            onPress={() => setRecurringEndDate(undefined)}
+                            className="ml-2 rounded-lg bg-neutral-750 p-2"
+                          >
+                            <Ionicons name="close" size={18} color="#FF6B6B" />
+                          </Pressable>
+                        </>
+                      ) : (
+                        <Pressable
+                          onPress={() => setRecurringEndDate(new Date())}
+                          className="rounded-lg bg-neutral-750 px-3 py-2"
+                        >
+                          <Text className="text-sm text-text-800">
+                            Set End Date
+                          </Text>
+                        </Pressable>
+                      )}
+                    </View>
                   </View>
                 </View>
               )}
