@@ -1,7 +1,7 @@
 import Octicons from '@expo/vector-icons/Octicons';
 import { Redirect, router, SplashScreen, Tabs } from 'expo-router';
 import React, { useCallback, useEffect } from 'react';
-import { TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity } from 'react-native';
 
 import { colors } from '@/components/ui';
 import { useAuth, useIsFirstTime } from '@/lib';
@@ -80,22 +80,14 @@ export default function TabLayout() {
           ),
           tabBarButtonTestID: 'groups-tab',
           headerRight: () => (
-            <View style={{ flexDirection: 'row', marginRight: 16, gap: 16 }}>
-              <TouchableOpacity
-                onPress={() => {}}
-                accessibilityLabel="Search groups"
-                accessibilityRole="button"
-              >
-                <Octicons name="search" size={24} color={colors.text[800]} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => {}}
-                accessibilityLabel="Add group"
-                accessibilityRole="button"
-              >
-                <Octicons name="plus" size={24} color={colors.text[800]} />
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              onPress={() => {}}
+              style={{ marginRight: 16 }}
+              accessibilityLabel="Add group"
+              accessibilityRole="button"
+            >
+              <Octicons name="plus" size={24} color={colors.text[800]} />
+            </TouchableOpacity>
           ),
         }}
       />

@@ -1,3 +1,4 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { FlashList } from '@shopify/flash-list';
 import React, { useCallback, useMemo, useState } from 'react';
 import { View } from 'react-native';
@@ -82,8 +83,22 @@ function getMostUpcomingEventId(eventIds: string[]): string | null {
   return past[0]?.id ?? null;
 }
 
+const PIN_LAYOUT_TRANSITION = LinearTransition.springify()
+  .damping(40)
+  .stiffness(200)
+  .overshootClamping(200);
+
 export default function Groups() {
   const [refreshKey, setRefreshKey] = useState(0);
+  const [isLayoutAnimationReady, setIsLayoutAnimationReady] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      setIsLayoutAnimationReady(false);
+      const id = setTimeout(() => setIsLayoutAnimationReady(true), 250);
+      return () => clearTimeout(id);
+    }, [])
+  );
 
   const handlePinToggle = useCallback((groupId: string) => {
     const group = mockData.groups.find((g) => g.id === groupId);
@@ -129,10 +144,7 @@ export default function Groups() {
         data={groups}
         renderItem={({ item }) => (
           <Animated.View
-            layout={LinearTransition.springify()
-              .damping(40)
-              .stiffness(200)
-              .overshootClamping(200)}
+            layout={isLayoutAnimationReady ? PIN_LAYOUT_TRANSITION : undefined}
           >
             <GroupItem group={item} onPinToggle={handlePinToggle} />
           </Animated.View>
