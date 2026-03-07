@@ -542,33 +542,50 @@ function CreateItemCard() {
       </View>
       <Input
         placeholder="Enter Item Amount"
-        keyboardType="numeric"
-        value={tempItemAmount === 0 ? '' : tempItemAmount.toString()}
-        onChangeText={(text) => setTempItemAmount(Number(text))}
+        keyboardType="decimal-pad"
+        value={tempItemAmount}
+        onChangeText={(text) => {
+          let cleaned = text.replace(/[^0-9.]/g, '');
+
+          const firstDot = cleaned.indexOf('.');
+          if (firstDot !== -1) {
+            cleaned =
+              cleaned.slice(0, firstDot + 1) +
+              cleaned.slice(firstDot + 1).replace(/\./g, '');
+          }
+
+          setTempItemAmount(cleaned);
+        }}
       />
       <Button
         label="Add Item"
         onPress={async () => {
+          const amount = Number(tempItemAmount);
+
+          if (Number.isNaN(amount)) return;
+
           addItem({
             id: uuidv4() as ItemIdT,
-            name: tempItemName,
-            amount: tempItemAmount,
+            name: tempItemName.trim(),
+            amount,
             split: {
               mode: 'equal',
               shares: {},
             },
             assignedPersonIds: [],
           });
+
           await queryClient.invalidateQueries({
             queryKey: ['expenses', 'expenseId', TEMP_EXPENSE_ID],
           });
           await queryClient.invalidateQueries({
             queryKey: ['items', 'expenseId', TEMP_EXPENSE_ID],
           });
+
           setTempItemName('');
           setTempItemAmount(0);
         }}
-        disabled={!tempItemName || !tempItemAmount}
+        disabled={!tempItemName.trim() || !tempItemAmount}
       />
     </View>
   );
