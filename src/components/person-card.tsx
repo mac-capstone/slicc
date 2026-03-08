@@ -15,15 +15,30 @@ export const PersonCard = ({
   personId: PersonIdT;
   expenseId: ExpenseIdT;
 }) => {
-  const { data, isPending, isError } = usePerson({
+  const {
+    data,
+    isPending: isPersonPending,
+    isError: isPersonError,
+  } = usePerson({
     variables: { expenseId, personId },
   });
-  if (isPending) {
+  const {
+    data: personItems,
+    isPending: isItemsPending,
+    isError: isItemsError,
+  } = usePersonItems({
+    variables: { expenseId, personId },
+  });
+  if (isPersonPending || isItemsPending) {
     return <ActivityIndicator />;
   }
-  if (isError) {
+  if (isPersonError || isItemsError || !data || !personItems) {
     return <Text>Error loading person</Text>;
   }
+  const subtotal = personItems.reduce(
+    (sum, item) => sum + calculatePersonShare(item, personId),
+    0
+  );
   return (
     <View className="flex min-h-20 w-full flex-col gap-2 rounded-xl bg-background-900 p-3">
       <View className="flex w-full flex-row justify-between gap-2">
@@ -34,7 +49,7 @@ export const PersonCard = ({
           </Text>
         </View>
         <Text className="font-futuraDemi text-xl dark:text-accent-100">
-          ${data.subtotal?.toFixed(2)}
+          ${subtotal.toFixed(2)}
         </Text>
       </View>
       <View className="ml-6 mt-1 border-l border-white/15 pl-4">
