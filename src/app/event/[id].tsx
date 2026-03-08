@@ -2,6 +2,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { type Timestamp } from 'firebase/firestore';
 import React from 'react';
 import { ActivityIndicator, Linking, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,25 +17,19 @@ const avatarColorKeys = Object.keys(
   colors.avatar ?? {}
 ) as (keyof typeof colors.avatar)[];
 
-// Helper function to format time in AM/PM format
-const formatTimeAmPm = (timeString: string): string => {
-  if (!timeString || !timeString.includes(':')) {
-    return timeString;
-  }
-  const [hours, minutes] = timeString.split(':').map(Number);
-  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
-    return timeString;
-  }
+// Helper function to format time in AM/PM format from Timestamp
+const formatTimeAmPm = (timestamp: Timestamp): string => {
+  const date = timestamp.toDate();
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
   const period = hours >= 12 ? 'PM' : 'AM';
   const displayHours = hours % 12 || 12;
   return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
 };
 
-// Helper function to format date
-const formatDate = (dateString: string): string => {
-  // Parse date in local timezone to avoid timezone offset issues
-  const [year, month, day] = dateString.split('-').map(Number);
-  const date = new Date(year, month - 1, day);
+// Helper function to format date from Timestamp
+const formatDate = (timestamp: Timestamp): string => {
+  const date = timestamp.toDate();
   const options: Intl.DateTimeFormatOptions = {
     weekday: 'long',
     month: 'long',
@@ -52,9 +47,8 @@ const toDateString = (value: string | Date | undefined): string => {
 };
 
 // Helper function to format date short (for "until" display)
-const formatDateShort = (dateString: string): string => {
-  const [year, month, day] = dateString.split('-').map(Number);
-  const date = new Date(year, month - 1, day);
+const formatDateShort = (timestamp: Timestamp): string => {
+  const date = timestamp.toDate();
   const options: Intl.DateTimeFormatOptions = {
     month: 'short',
     day: 'numeric',
@@ -66,22 +60,21 @@ const formatDateShort = (dateString: string): string => {
 // Helper function to get recurring text with calendar day
 const getRecurringText = ({
   isRecurring,
-  startDateString,
+  startDate,
   interval,
   unit,
   recurringEndDate,
 }: {
   isRecurring: boolean;
-  startDateString: string;
+  startDate: Timestamp;
   interval?: number;
   unit?: string;
-  recurringEndDate?: string;
+  recurringEndDate?: Timestamp;
 }): string => {
   if (!isRecurring) return '';
 
-  // Parse start date to get day info
-  const [year, month, day] = startDateString.split('-').map(Number);
-  const startDate = new Date(year, month - 1, day);
+  // Convert Timestamp to Date
+  const startDateObj = startDate.toDate();
 
   const unitText =
     unit === 'year'
@@ -102,16 +95,16 @@ const getRecurringText = ({
   // Add specific day information
   let dayInfo = '';
   if (unit === 'week') {
-    const dayName = startDate.toLocaleDateString('en-US', {
+    const dayName = startDateObj.toLocaleDateString('en-US', {
       weekday: 'long',
     });
     dayInfo = ` on ${dayName}`;
   } else if (unit === 'month') {
-    const dayOfMonth = startDate.getDate();
+    const dayOfMonth = startDateObj.getDate();
     const suffix = getDaySuffix(dayOfMonth);
     dayInfo = ` on the ${dayOfMonth}${suffix}`;
   } else if (unit === 'year') {
-    const monthDay = startDate.toLocaleDateString('en-US', {
+    const monthDay = startDateObj.toLocaleDateString('en-US', {
       month: 'long',
       day: 'numeric',
     });
@@ -254,7 +247,7 @@ export default function EventDetails() {
                   <Ionicons name="calendar-outline" size={24} color="#3EB489" />
                 </View>
                 <View className="flex-1">
-                  {event.startDate === event.endDate ? (
+                  {event.startDate.isEqual(event.endDate) ? (
                     <Text className="text-base font-medium text-white">
                       {formatDate(event.startDate)}
                     </Text>
@@ -305,7 +298,7 @@ export default function EventDetails() {
                       <Text className="text-sm text-text-800">
                         {getRecurringText({
                           isRecurring: event.isRecurring,
-                          startDateString: event.startDate,
+                          startDate: event.startDate,
                           interval: event.recurringInterval,
                           unit: event.recurringUnit,
                           recurringEndDate: event.recurringEndDate,

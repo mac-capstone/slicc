@@ -2,6 +2,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { deleteField, Timestamp } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -44,8 +45,6 @@ export default function EditEvent() {
   const [eventName, setEventName] = useState('');
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
-  const [startTime, setStartTime] = useState(new Date());
-  const [endTime, setEndTime] = useState(new Date());
 
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringInterval, setRecurringInterval] = useState('1');
@@ -58,36 +57,13 @@ export default function EditEvent() {
   const [location, setLocation] = useState('');
   const [details, setDetails] = useState('');
 
-  // Helper functions
-  const parseTimeToDate = (timeString: string): Date => {
-    // Parse time string (HH:MM) to Date object
-    const date = new Date();
-    if (!timeString || !timeString.includes(':')) {
-      return date; // Return current time as fallback
-    }
-    const [hours, minutes] = timeString.split(':').map(Number);
-    if (Number.isNaN(hours) || Number.isNaN(minutes)) {
-      return date;
-    }
-    date.setHours(hours, minutes, 0, 0);
-    return date;
+  // Helper functions to convert between Timestamp and Date
+  const timestampToDate = (timestamp: Timestamp): Date => {
+    return timestamp.toDate();
   };
 
-  const dateToTimeString = (date: Date): string => {
-    // Convert Date object to time string (HH:MM)
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    return `${hours}:${minutes}`;
-  };
-
-  // const toLocalDateString = (date: Date): string => {
-  //   // Convert Date to YYYY-MM-DD in local timezone
-  //   return date.toLocaleDateString('en-CA'); // en-CA format is YYYY-MM-DD
-  // };
-
-  const parseLocalDate = (dateStr: string): Date => {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    return new Date(year, month - 1, day);
+  const dateToTimestamp = (date: Date): Timestamp => {
+    return Timestamp.fromDate(date);
   };
 
   const toDateString = (value: string | Date | undefined): string => {
@@ -100,19 +76,13 @@ export default function EditEvent() {
   useEffect(() => {
     if (event) {
       setEventName(event.name);
-      const start = toDateString(event.startDate);
-      const end = toDateString(event.endDate);
-      if (start) setStartDate(parseLocalDate(start));
-      if (end) setEndDate(parseLocalDate(end));
-      const startTimeDate = parseTimeToDate(event.startTime ?? '');
-      const endTimeDate = parseTimeToDate(event.endTime ?? '');
-      setStartTime(startTimeDate);
-      setEndTime(endTimeDate);
-      setIsRecurring(event.isRecurring ?? false);
+      setStartDate(timestampToDate(event.startDate ?? ''));
+      setEndDate(timestampToDate(event.endDate ?? ''));
+      setIsRecurring(event.isRecurring);
       setRecurringInterval(event.recurringInterval?.toString() || '1');
       setRecurringUnit(event.recurringUnit || 'day');
       if (event.recurringEndDate) {
-        setRecurringEndDate(new Date(event.recurringEndDate));
+        setRecurringEndDate(timestampToDate(event.recurringEndDate));
       }
       setLocation(event.location || '');
       setDetails(event.details || '');
@@ -137,44 +107,63 @@ export default function EditEvent() {
 
   // Validation handlers
   const handleStartDateChange = (date: Date) => {
-    if (date > endDate) {
-      Alert.alert('Invalid Date', 'Start date cannot be after end date.');
+    // Preserve the time from current startDate
+    const newDate = new Date(date);
+    newDate.setHours(startDate.getHours(), startDate.getMinutes(), 0, 0);
+
+    if (newDate > endDate) {
+      Alert.alert(
+        'Invalid Date',
+        'Start date/time cannot be after end date/time.'
+      );
       return;
     }
-    setStartDate(date);
+    setStartDate(newDate);
   };
 
   const handleEndDateChange = (date: Date) => {
-    if (date < startDate) {
-      Alert.alert('Invalid Date', 'End date cannot be before start date.');
+    // Preserve the time from current endDate
+    const newDate = new Date(date);
+    newDate.setHours(endDate.getHours(), endDate.getMinutes(), 0, 0);
+
+    if (newDate < startDate) {
+      Alert.alert(
+        'Invalid Date',
+        'End date/time cannot be before start date/time.'
+      );
       return;
     }
-    setEndDate(date);
+    setEndDate(newDate);
   };
 
   const handleStartTimeChange = (time: Date) => {
-    if (startDate.toDateString() === endDate.toDateString() && time > endTime) {
+    // Update the time on startDate
+    const newDate = new Date(startDate);
+    newDate.setHours(time.getHours(), time.getMinutes(), 0, 0);
+
+    if (newDate >= endDate) {
       Alert.alert(
         'Invalid Time',
-        'Start time must be before end time on the same day.'
+        'Start date/time must be before end date/time.'
       );
       return;
     }
-    setStartTime(time);
+    setStartDate(newDate);
   };
 
   const handleEndTimeChange = (time: Date) => {
-    if (
-      startDate.toDateString() === endDate.toDateString() &&
-      time < startTime
-    ) {
+    // Update the time on endDate
+    const newDate = new Date(endDate);
+    newDate.setHours(time.getHours(), time.getMinutes(), 0, 0);
+
+    if (newDate <= startDate) {
       Alert.alert(
         'Invalid Time',
-        'End time must be after start time on the same day.'
+        'End date/time must be after start date/time.'
       );
       return;
     }
-    setEndTime(time);
+    setEndDate(newDate);
   };
 
   const handleRecurringEndDateChange = (date: Date | undefined) => {
@@ -190,8 +179,11 @@ export default function EditEvent() {
 
   const handleSaveChanges = async () => {
     // Validate dates
-    if (startDate > endDate) {
-      Alert.alert('Invalid Dates', 'Start date must be before end date.');
+    if (startDate >= endDate) {
+      Alert.alert(
+        'Invalid Dates',
+        'Start date/time must be before end date/time.'
+      );
       return;
     }
 
@@ -200,18 +192,6 @@ export default function EditEvent() {
       Alert.alert(
         'Invalid Recurring End Date',
         'Recurring end date must be after start date.'
-      );
-      return;
-    }
-
-    // Validate times (only if start and end dates are the same)
-    if (
-      startDate.toDateString() === endDate.toDateString() &&
-      startTime >= endTime
-    ) {
-      Alert.alert(
-        'Invalid Times',
-        'Start time must be before end time when dates are the same.'
       );
       return;
     }
@@ -230,25 +210,36 @@ export default function EditEvent() {
     }
 
     try {
+      // Build update data, using deleteField() for fields that should be removed
+      const updateData: any = {
+        name: eventName,
+        startDate: dateToTimestamp(startDate),
+        endDate: dateToTimestamp(endDate),
+        isRecurring,
+        location,
+        details,
+        groupId: event!.groupId,
+        createdBy: event!.createdBy,
+        participants: event?.participants || [],
+      };
+
+      // Handle recurring fields - either set or delete
+      if (isRecurring) {
+        updateData.recurringInterval = interval as number;
+        updateData.recurringUnit = recurringUnit;
+        updateData.recurringEndDate = recurringEndDate
+          ? dateToTimestamp(recurringEndDate)
+          : deleteField();
+      } else {
+        // Delete recurring fields when not recurring
+        updateData.recurringInterval = deleteField();
+        updateData.recurringUnit = deleteField();
+        updateData.recurringEndDate = deleteField();
+      }
+
       await updateEvent.mutateAsync({
         eventId: eventId!,
-        data: {
-          name: eventName,
-          startDate,
-          endDate,
-          startTime: dateToTimeString(startTime),
-          endTime: dateToTimeString(endTime),
-          isRecurring,
-          recurringInterval: isRecurring ? (interval as number) : undefined,
-          recurringUnit: isRecurring ? recurringUnit : undefined,
-          recurringEndDate:
-            isRecurring && recurringEndDate ? recurringEndDate : undefined,
-          location,
-          details,
-          groupId: event!.groupId,
-          createdBy: event!.createdBy,
-          participants: event?.participants || [],
-        },
+        data: updateData,
       });
 
       // Navigate to event details screen after creation/update
@@ -406,13 +397,13 @@ export default function EditEvent() {
               </View>
               <View className="flex-1 flex-row items-center">
                 <DateTimePick
-                  value={startTime}
+                  value={startDate}
                   onChange={handleStartTimeChange}
                   mode="time"
                 />
                 <Text className="mx-2 text-sm text-text-800">to</Text>
                 <DateTimePick
-                  value={endTime}
+                  value={endDate}
                   onChange={handleEndTimeChange}
                   mode="time"
                 />
@@ -607,24 +598,23 @@ export default function EditEvent() {
             {/* Divider */}
             <View className="my-4 h-px bg-gray-500" />
           </View>
-
-          {/* Action Buttons */}
-          <View className="mx-6 mt-6 flex-row gap-24">
-            <Button
-              label="Cancel"
-              variant="outline"
-              onPress={handleCancel}
-              className="h-12 flex-1 border !border-red-500"
-            />
-            <Button
-              label={isEditMode ? 'Save Changes' : 'Create Event'}
-              onPress={handleSaveChanges}
-              className="h-12 flex-1 border !border-text-800 !bg-background-950"
-              textClassName="!text-white"
-            />
-          </View>
         </View>
       </ScrollView>
+      {/* Action Buttons */}
+      <View className="mx-6 mt-6 flex-row gap-24">
+        <Button
+          label="Cancel"
+          variant="outline"
+          onPress={handleCancel}
+          className="h-12 flex-1 border !border-red-500"
+        />
+        <Button
+          label={isEditMode ? 'Save Changes' : 'Create Event'}
+          onPress={handleSaveChanges}
+          className="h-12 flex-1 border !border-text-800 !bg-background-950"
+          textClassName="!text-white"
+        />
+      </View>
     </>
   );
 }

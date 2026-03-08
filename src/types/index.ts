@@ -1,3 +1,5 @@
+import type { Timestamp } from 'firebase/firestore';
+
 import { type z } from 'zod';
 
 import {
@@ -52,6 +54,22 @@ export type Item = ExpenseItem;
 export type UserWithId = User & { id: UserIdT };
 export type GroupWithId = Group & { id: GroupIdT };
 export type EventWithId = Event & { id: EventIdT };
+export type Event = {
+  name: string;
+  startDate: Timestamp;
+  endDate: Timestamp;
+  isRecurring: boolean;
+  recurringInterval?: number;
+  recurringUnit?: 'day' | 'week' | 'month' | 'year';
+  recurringEndDate?: Timestamp;
+  groupId: GroupIdT;
+  location?: string;
+  locationUrl?: string;
+  details?: string;
+  createdBy: UserIdT;
+  participants: UserIdT[];
+};
+
 export type ExpenseWithId = Expense & { id: ExpenseIdT };
 export type ExpensePersonWithId = ExpensePerson & { id: UserIdT };
 export type ExpenseItemWithId = ExpenseItem & { id: ItemIdT };
