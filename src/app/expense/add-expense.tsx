@@ -471,7 +471,7 @@ function getItemAndAmountFromTaggedWords(taggedWords: any[]): {
 
 function CreateItemCard() {
   const [tempItemName, setTempItemName] = useState<string>('');
-  const [tempItemAmount, setTempItemAmount] = useState<number>(0);
+  const [tempItemAmount, setTempItemAmount] = useState<string>('');
   const [recognizing, setRecognizing] = useState(false);
 
   const addItem = useExpenseCreation.use.addItem();
@@ -492,7 +492,7 @@ function CreateItemCard() {
         getItemAndAmountFromTaggedWords(taggedWords);
 
       setTempItemName(itemName);
-      setTempItemAmount(itemAmount);
+      setTempItemAmount(String(itemAmount));
     }
   });
   useSpeechRecognitionEvent('error', (event) => {
@@ -583,7 +583,7 @@ function CreateItemCard() {
           });
 
           setTempItemName('');
-          setTempItemAmount(0);
+          setTempItemAmount('');
         }}
         disabled={!tempItemName.trim() || !tempItemAmount}
       />
