@@ -7,6 +7,7 @@ import {
   getDoc,
   getDocs,
   setDoc,
+  Timestamp,
   updateDoc,
 } from 'firebase/firestore';
 import { createQuery } from 'react-query-kit';
@@ -23,23 +24,20 @@ import {
   type UserIdT,
 } from '@/types';
 
-const localDatePattern = /^\d{4}-\d{2}-\d{2}$/;
-const localTimePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
+// Zod schema for Timestamp validation
+const TimestampSchema = z.custom<Timestamp>((val) => val instanceof Timestamp, {
+  message: 'Must be a Timestamp object',
+});
 
 // Zod schema for Event validation
 const EventSchema = z.object({
   name: z.string(),
-  startDate: z.string().regex(localDatePattern),
-  endDate: z.string().regex(localDatePattern),
-  startTime: z.string().regex(localTimePattern),
-  endTime: z.string().regex(localTimePattern),
+  startDate: TimestampSchema,
+  endDate: TimestampSchema,
   isRecurring: z.boolean(),
   recurringInterval: z.number().int().positive().optional(),
   recurringUnit: z.enum(['day', 'week', 'month', 'year']).optional(),
-  recurringEndDate: z.preprocess(
-    (value) => (value === '' ? undefined : value),
-    z.string().regex(localDatePattern).optional()
-  ),
+  recurringEndDate: TimestampSchema.optional(),
   groupId: z.string(),
   location: z.string().optional(),
   locationUrl: z.string().optional(),
@@ -48,7 +46,7 @@ const EventSchema = z.object({
   participants: z.array(z.string()).default([]),
 });
 
-const USE_MOCK_DATA = true; // Set to false when ready to use Firestore
+const USE_MOCK_DATA = false; // Set to false when ready to use Firestore
 
 // Query to get all event IDs
 type AllEventsResponse = EventIdT[];
@@ -81,6 +79,7 @@ export const useEvent = createQuery<EventWithId, EventIdT, Error>({
       if (!event) throw new Error('Event not found');
 
       // Validate with Zod
+      console.log(typeof event.doc.startDate, event.doc.startDate);
       const parsedEvent = EventSchema.safeParse(event.doc);
       if (!parsedEvent.success) {
         console.error('Invalid event structure:', parsedEvent.error.flatten());

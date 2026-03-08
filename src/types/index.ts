@@ -1,3 +1,5 @@
+import type { Timestamp } from 'firebase/firestore';
+
 export type UserIdT = string & { readonly __brand: unique symbol };
 export type ExpenseIdT = string & { readonly __brand: unique symbol };
 export type ItemIdT = string & { readonly __brand: unique symbol };
@@ -33,14 +35,12 @@ export type Person = {
 
 export type Event = {
   name: string;
-  startDate: string;
-  endDate: string;
-  startTime: string;
-  endTime: string;
+  startDate: Timestamp;
+  endDate: Timestamp;
   isRecurring: boolean;
   recurringInterval?: number;
   recurringUnit?: 'day' | 'week' | 'month' | 'year';
-  recurringEndDate?: string;
+  recurringEndDate?: Timestamp;
   groupId: GroupIdT;
   location?: string;
   locationUrl?: string;
