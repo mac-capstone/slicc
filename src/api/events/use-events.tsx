@@ -7,9 +7,11 @@ import {
   getDoc,
   getDocs,
   setDoc,
+  Timestamp,
   updateDoc,
 } from 'firebase/firestore';
 import { createQuery } from 'react-query-kit';
+import { z } from 'zod';
 
 import { db } from '@/api/common/firebase';
 import colors from '@/components/ui/colors';
@@ -22,7 +24,29 @@ import {
   type UserIdT,
 } from '@/types';
 
-const USE_MOCK_DATA = true; // Set to false when ready to use Firestore
+// Zod schema for Timestamp validation
+const TimestampSchema = z.custom<Timestamp>((val) => val instanceof Timestamp, {
+  message: 'Must be a Timestamp object',
+});
+
+// Zod schema for Event validation
+const EventSchema = z.object({
+  name: z.string(),
+  startDate: TimestampSchema,
+  endDate: TimestampSchema,
+  isRecurring: z.boolean(),
+  recurringInterval: z.number().int().positive().optional(),
+  recurringUnit: z.enum(['day', 'week', 'month', 'year']).optional(),
+  recurringEndDate: TimestampSchema.optional(),
+  groupId: z.string(),
+  location: z.string().optional(),
+  locationUrl: z.string().optional(),
+  details: z.string().optional(),
+  createdBy: z.string(),
+  participants: z.array(z.string()).default([]),
+});
+
+const USE_MOCK_DATA = false; // Set to false when ready to use Firestore
 
 // Query to get all event IDs
 type AllEventsResponse = EventIdT[];
@@ -53,7 +77,17 @@ export const useEvent = createQuery<EventWithId, EventIdT, Error>({
     if (USE_MOCK_DATA) {
       const event = mockData.events.find((e) => e.id === eventId);
       if (!event) throw new Error('Event not found');
-      return { id: event.id as EventIdT, ...event.doc } as EventWithId;
+
+      // Validate with Zod
+      console.log(typeof event.doc.startDate, event.doc.startDate);
+      const parsedEvent = EventSchema.safeParse(event.doc);
+      if (!parsedEvent.success) {
+        console.error('Invalid event structure:', parsedEvent.error.flatten());
+        throw new Error('Unable to load event data.');
+      }
+      const validatedEvent = parsedEvent.data;
+
+      return { id: event.id as EventIdT, ...validatedEvent } as EventWithId;
     }
 
     // Firestore implementation
@@ -64,7 +98,15 @@ export const useEvent = createQuery<EventWithId, EventIdT, Error>({
       throw new Error('Event not found');
     }
 
-    return { id: eventSnap.id as EventIdT, ...eventSnap.data() } as EventWithId;
+    // Validate with Zod
+    const parsedEvent = EventSchema.safeParse(eventSnap.data());
+    if (!parsedEvent.success) {
+      console.error('Invalid event structure:', parsedEvent.error.flatten());
+      throw new Error('Unable to load event data.');
+    }
+    const validatedEvent = parsedEvent.data;
+
+    return { id: eventSnap.id as EventIdT, ...validatedEvent } as EventWithId;
   },
 });
 
