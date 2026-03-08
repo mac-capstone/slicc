@@ -126,6 +126,12 @@ export default function AddExpense() {
   }, [userId, tempExpense, initializeTempExpense, isError]);
 
   useEffect(() => {
+    if (tempExpense?.name) {
+      setExpenseName(tempExpense.name);
+    }
+  }, [tempExpense?.name]);
+
+  useEffect(() => {
     const backHandler = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
@@ -245,7 +251,6 @@ export default function AddExpense() {
         nextDisabled={getTotalAmount() === 0 || expenseName === ''}
         onNextPress={async () => {
           setExpenseNameInStore(expenseName);
-          setExpenseName('');
           await queryClient.invalidateQueries({
             queryKey: ['expenses', 'expenseId', TEMP_EXPENSE_ID],
           });
