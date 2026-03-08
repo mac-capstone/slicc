@@ -35,10 +35,10 @@ export const PersonCard = ({
   if (isPersonError || isItemsError || !data || !personItems) {
     return <Text>Error loading person</Text>;
   }
-  const subtotal = personItems.reduce(
-    (sum, item) => sum + calculatePersonShare(item, personId),
-    0
-  );
+  const subtotal = personItems.reduce((sum, item) => {
+    const share = calculatePersonShare(item, personId);
+    return Number.isFinite(share) ? sum + share : sum;
+  }, 0);
   return (
     <View className="flex min-h-20 w-full flex-col gap-2 rounded-xl bg-background-900 p-3">
       <View className="flex w-full flex-row justify-between gap-2">
