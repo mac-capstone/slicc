@@ -11,14 +11,20 @@ import {
   ScrollView,
   Switch,
 } from 'react-native';
+import { v4 as uuidv4 } from 'uuid';
 
-import { useEvent, useUpdateEvent } from '@/api/events/use-events';
+import {
+  useCreateEvent,
+  useEvent,
+  useUpdateEvent,
+} from '@/api/events/use-events';
 import { useUsersAsPeople } from '@/api/people/use-users';
 import { DateTimePick } from '@/components/date-time-pick';
 import { PersonAvatar } from '@/components/person-avatar';
 import { Button, colors, Input, Pressable, Select, Text, View } from '@/components/ui';
+import { getUserId } from '@/lib';
 import { useThemeConfig } from '@/lib/use-theme-config';
-import type { EventIdT, UserIdT } from '@/types';
+import type { EventIdT, UserIdT, GroupIdT } from '@/types';
 
 const avatarColorKeys = Object.keys(
   colors.avatar ?? {}
@@ -26,9 +32,15 @@ const avatarColorKeys = Object.keys(
 
 export default function EditEvent() {
   const theme = useThemeConfig();
-  const params = useLocalSearchParams<{ id?: EventIdT }>();
-  const eventId = params.id;
-  const isEditMode = !!eventId;
+  const params = useLocalSearchParams<{ id?: EventIdT; groupId?: GroupIdT }>();
+
+  // Generate a new eventId if not provided
+  const [eventId] = useState<EventIdT>(() => {
+    return (params.id || uuidv4()) as EventIdT;
+  });
+
+  const groupId = params.groupId;
+  const isEditMode = !!params.id;
 
   const {
     data: event,
@@ -36,9 +48,10 @@ export default function EditEvent() {
     isError,
   } = useEvent({
     variables: eventId as EventIdT,
-    enabled: !!eventId,
+    enabled: !!params.id, // Only fetch if we're editing
   });
 
+  const createEvent = useCreateEvent();
   const updateEvent = useUpdateEvent();
 
   // Event form state
@@ -210,37 +223,71 @@ export default function EditEvent() {
     }
 
     try {
-      // Build update data, using deleteField() for fields that should be removed
-      const updateData: any = {
-        name: eventName,
-        startDate: dateToTimestamp(startDate),
-        endDate: dateToTimestamp(endDate),
-        isRecurring,
-        location,
-        details,
-        groupId: event!.groupId,
-        createdBy: event!.createdBy,
-        participants: event?.participants || [],
-      };
+      if (isEditMode) {
+        // Update existing event
+        const updateData: any = {
+          name: eventName,
+          startDate: dateToTimestamp(startDate),
+          endDate: dateToTimestamp(endDate),
+          isRecurring,
+          location,
+          details,
+          groupId: event!.groupId,
+          createdBy: event!.createdBy,
+          participants: event?.participants || [],
+        };
 
-      // Handle recurring fields - either set or delete
-      if (isRecurring) {
-        updateData.recurringInterval = interval as number;
-        updateData.recurringUnit = recurringUnit;
-        updateData.recurringEndDate = recurringEndDate
-          ? dateToTimestamp(recurringEndDate)
-          : deleteField();
+        // Handle recurring fields - either set or delete
+        if (isRecurring) {
+          updateData.recurringInterval = interval as number;
+          updateData.recurringUnit = recurringUnit;
+          updateData.recurringEndDate = recurringEndDate
+            ? dateToTimestamp(recurringEndDate)
+            : deleteField();
+        } else {
+          // Delete recurring fields when not recurring
+          updateData.recurringInterval = deleteField();
+          updateData.recurringUnit = deleteField();
+          updateData.recurringEndDate = deleteField();
+        }
+
+        await updateEvent.mutateAsync({
+          eventId: eventId!,
+          data: updateData,
+        });
       } else {
-        // Delete recurring fields when not recurring
-        updateData.recurringInterval = deleteField();
-        updateData.recurringUnit = deleteField();
-        updateData.recurringEndDate = deleteField();
-      }
+        // Create new event
+        if (!groupId) {
+          Alert.alert('Error', 'Group ID is required to create an event.');
+          return;
+        }
 
-      await updateEvent.mutateAsync({
-        eventId: eventId!,
-        data: updateData,
-      });
+        const createData: any = {
+          name: eventName,
+          startDate: dateToTimestamp(startDate),
+          endDate: dateToTimestamp(endDate),
+          isRecurring,
+          location,
+          details,
+          groupId: groupId as GroupIdT,
+          createdBy: getUserId(),
+          participants: [],
+        };
+
+        // Handle recurring fields
+        if (isRecurring) {
+          createData.recurringInterval = interval as number;
+          createData.recurringUnit = recurringUnit;
+          if (recurringEndDate) {
+            createData.recurringEndDate = dateToTimestamp(recurringEndDate);
+          }
+        }
+
+        await createEvent.mutateAsync({
+          eventId: eventId!,
+          data: createData,
+        });
+      }
 
       // Navigate to event details screen after creation/update
       router.replace(`/event/${eventId}` as any);
@@ -249,7 +296,10 @@ export default function EditEvent() {
         'Error',
         `Failed to ${isEditMode ? 'update' : 'create'} event. Please try again.`
       );
-      console.error('Error updating event:', error);
+      console.error(
+        `Error ${isEditMode ? 'updating' : 'creating'} event:`,
+        error
+      );
     }
   };
 
@@ -302,16 +352,8 @@ export default function EditEvent() {
     { label: 'year(s)', value: 'year' },
   ];
 
-  if (!eventId) {
-    return (
-      <View className="flex-1 items-center justify-center bg-background-950 p-4">
-        <Text className="mb-4 text-lg text-red-500">Missing event id</Text>
-        <Button label="Go Back" onPress={() => router.back()} />
-      </View>
-    );
-  }
-
-  if (isPending) {
+  // Only show loading/error states in edit mode
+  if (isEditMode && isPending) {
     return (
       <View className="flex-1 items-center justify-center bg-background-950">
         <ActivityIndicator size="large" />
@@ -319,10 +361,22 @@ export default function EditEvent() {
     );
   }
 
-  if (isError || !event) {
+  if (isEditMode && (isError || !event)) {
     return (
       <View className="flex-1 items-center justify-center bg-background-950 p-4">
         <Text className="mb-4 text-lg text-red-500">Error loading event</Text>
+        <Button label="Go Back" onPress={() => router.back()} />
+      </View>
+    );
+  }
+
+  // In create mode, validate groupId
+  if (!isEditMode && !groupId) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background-950 p-4">
+        <Text className="mb-4 text-lg text-red-500">
+          Group ID is required to create an event
+        </Text>
         <Button label="Go Back" onPress={() => router.back()} />
       </View>
     );
@@ -524,23 +578,46 @@ export default function EditEvent() {
               </View>
 
               <View className="ml-0">
-                {participants.map((participant, index) => (
-                  <View
-                    key={participant.id}
-                    className="mb-3 flex-row items-center"
-                  >
-                    <View className="mr-3">
-                      <PersonAvatar
-                        userId={participant.id}
-                        color={avatarColorKeys[index % avatarColorKeys.length]}
-                        size="md"
-                      />
+                {isEditMode &&
+                  participants.map((participant, index) => (
+                    <View
+                      key={participant.id}
+                      className="mb-3 flex-row items-center"
+                    >
+                      <View className="mr-3">
+                        <PersonAvatar
+                          userId={participant.id}
+                          color={avatarColorKeys[index % avatarColorKeys.length]}
+                          size="md"
+                        />
+                      </View>
+                      <Text className="text-base text-white">
+                        {participant.name}
+                      </Text>
                     </View>
-                    <Text className="text-base text-white">
-                      {participant.name}
-                    </Text>
-                  </View>
-                ))}
+                  ))}
+                {!isEditMode &&
+                  participants.map((participant, index) => (
+                    <View
+                      key={participant.id}
+                      className="mb-3 flex-row items-center"
+                    >
+                      <View
+                        className="mr-3 size-8 items-center justify-center rounded-full"
+                        style={{ backgroundColor: participant.color }}
+                      >
+                        <Text className="text-base font-bold text-white">
+                          {participant.name
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')}
+                        </Text>
+                      </View>
+                      <Text className="text-base text-white">
+                        {participant.name}
+                      </Text>
+                    </View>
+                  ))}
               </View>
             </View>
 
@@ -599,22 +676,22 @@ export default function EditEvent() {
             <View className="my-4 h-px bg-gray-500" />
           </View>
         </View>
+        {/* Action Buttons */}
+        <View className="mx-6 mt-6 flex-row gap-24">
+          <Button
+            label="Cancel"
+            variant="outline"
+            onPress={handleCancel}
+            className="h-12 flex-1 border !border-red-500"
+          />
+          <Button
+            label={isEditMode ? 'Save Changes' : 'Create Event'}
+            onPress={handleSaveChanges}
+            className="h-12 flex-1 border !border-text-800 !bg-background-950"
+            textClassName="!text-white"
+          />
+        </View>
       </ScrollView>
-      {/* Action Buttons */}
-      <View className="mx-6 mt-6 flex-row gap-24">
-        <Button
-          label="Cancel"
-          variant="outline"
-          onPress={handleCancel}
-          className="h-12 flex-1 border !border-red-500"
-        />
-        <Button
-          label={isEditMode ? 'Save Changes' : 'Create Event'}
-          onPress={handleSaveChanges}
-          className="h-12 flex-1 border !border-text-800 !bg-background-950"
-          textClassName="!text-white"
-        />
-      </View>
     </>
   );
 }
