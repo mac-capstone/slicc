@@ -17,8 +17,8 @@ import { mockData } from '@/lib/mock-data';
 import {
   type Event,
   type EventIdT,
+  type EventPerson,
   type EventWithId,
-  type Person,
   type UserIdT,
 } from '@/types';
 
@@ -237,7 +237,7 @@ export const useRemoveParticipant = () => {
 const avatarColors = Object.keys(colors.avatar || {});
 
 export const useEventParticipant = createQuery<
-  Person,
+  EventPerson,
   { eventId: EventIdT; userId: UserIdT },
   Error
 >({
@@ -254,7 +254,7 @@ export const useEventParticipant = createQuery<
       if (!user) throw new Error('User not found');
 
       // Assign color based on participant index
-      const color = avatarColors[participantIndex % avatarColors.length];
+      const color = avatarColors[participantIndex % avatarColors.length]; // TODO: this logic needs to be moved out to where u call this func, pass in a color
 
       return {
         name: user.doc.displayName,

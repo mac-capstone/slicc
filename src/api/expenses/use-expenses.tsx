@@ -1,42 +1,60 @@
+import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { createQuery } from 'react-query-kit';
 
-import { mockData } from '@/lib/mock-data';
-import { getTempExpense } from '@/lib/store';
 import {
   type Expense,
   type ExpenseIdT,
-  type ItemWithId,
-  type PersonWithId,
+  type ExpenseItem,
+  type ExpensePerson,
 } from '@/types';
+import {
+  expenseConverter,
+  expenseItemConverter,
+  expensePersonConverter,
+} from '@/types/schema';
 
-type AllExpensesResponse = ExpenseIdT[];
-type AllExpensesVariables = void;
-export const useExpensIds = createQuery<
-  AllExpensesResponse,
-  AllExpensesVariables,
-  Error
->({
+import { db } from '../common/firebase';
+
+type ExpenseResponse = Expense & {
+  id: ExpenseIdT;
+  items: (ExpenseItem & { id: string })[];
+  people: (ExpensePerson & { id: string })[];
+};
+
+const expensesRef = collection(db, 'expenses').withConverter(expenseConverter);
+
+export const useExpenseIds = createQuery<ExpenseIdT[], void, Error>({
   queryKey: ['expenses'],
-  fetcher: () => {
-    return mockData.expenses.map((e) => e.id as ExpenseIdT);
+  fetcher: async () => {
+    const snapshot = await getDocs(expensesRef);
+    return snapshot.docs.map((d) => d.id as ExpenseIdT);
   },
 });
 
-type ExpenseResponse = Expense & {
-  id?: ExpenseIdT;
-  items?: ItemWithId[];
-  people?: PersonWithId[];
-};
 export const useExpense = createQuery<ExpenseResponse, ExpenseIdT, Error>({
   queryKey: ['expenses', 'expenseId'],
   fetcher: async (expenseId) => {
-    if (expenseId === 'temp-expense') {
-      const tempExpense = getTempExpense();
-      if (!tempExpense) throw new Error('Temp expense not found');
-      return tempExpense as ExpenseResponse;
+    const expenseRef = doc(expensesRef, expenseId);
+    const expenseSnap = await getDoc(expenseRef);
+
+    if (!expenseSnap.exists()) {
+      throw new Error(`Expense ${expenseId} not found`);
     }
-    const expense = mockData.expenses.find((e) => e.id === expenseId);
-    if (!expense) throw new Error('Expense not found');
-    return expense.doc as Expense;
+
+    const expense = expenseSnap.data();
+
+    const [peopleSnap, itemsSnap] = await Promise.all([
+      getDocs(
+        collection(expenseRef, 'people').withConverter(expensePersonConverter)
+      ),
+      getDocs(
+        collection(expenseRef, 'items').withConverter(expenseItemConverter)
+      ),
+    ]);
+
+    const people = peopleSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const items = itemsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    return { id: expenseId, ...expense, people, items };
   },
 });

@@ -92,11 +92,7 @@ export const ItemCard = ({
                 .slice(0, 4)
                 .map((person: PersonWithId, index: number) => (
                   <View key={person.id} className={index > 0 ? '-ml-3' : ''}>
-                    <PersonAvatar
-                      personId={person.id}
-                      expenseId={expenseId}
-                      size="md"
-                    />
+                    <PersonAvatar size="md" />
                   </View>
                 ))}
               {assignedPeople.length > 4 && (
@@ -130,11 +126,7 @@ export const ItemCard = ({
       </View>
       <View className="flex flex-row items-center justify-start gap-2 pt-2">
         {item.assignedPersonIds.map((personId) => (
-          <PersonAvatar
-            key={personId}
-            personId={personId}
-            expenseId={expenseId}
-          />
+          <PersonAvatar key={personId} />
         ))}
       </View>
     </View>

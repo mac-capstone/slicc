@@ -108,6 +108,106 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
 - `chore:` - for maintenance tasks
   Use lowercase for commit messages. example - `feat: add login`
 
+## Schema
+
+```js
+// User collection
+{
+  [userId: UserId]: {
+    username: string; // unique
+    displayName: string;
+
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+}
+
+// Groups collection
+{
+  [groupId: GroupId]: {
+    name: string;
+    description?: string;
+    owner: UserId;
+    admins: UserId[];
+	members: UserId[];
+	events: EventId[];
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+}
+
+// Events collection
+{
+  [eventId: EventId]: {
+    name: string;
+    createdBy: UserId;
+    description?: string;
+    details?: string;
+    startDate?: Date | string;
+    endDate?: Date | string;
+    startTime?: string;
+    endTime?: string;
+    isRecurring?: boolean;
+    recurringInterval?: number;
+    recurringUnit?: 'day' | 'week' | 'month' | 'year';
+    recurringEndDate?: Date | string;
+    location?: string;
+    locationUrl?: string;
+    groupId?: GroupId;
+    participants: UserId[];
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+}
+
+// Expenses collection
+{
+  [expenseId: ExpenseId]: {
+    name: string;
+    date: Date;
+    createdBy: UserId;
+    eventId?: EventId;
+    totalAmount: number;
+	  createdAt?: Date;
+    updatedAt?: Date;
+    // subcollection
+    people: {
+	    [userId: UserIdT]: {
+		    subtotal: number;
+	    }
+    }
+    // items subcolection
+    items: {
+	    [itemId: ItemId]: {
+		    name: string;
+		    price: number;
+		    tax: number;
+			owed: Record<UserId, number> // store exact ammount owed
+		    peopleAssigned: UserId[]
+	    }
+    }
+  };
+}
+
+// notifications collection
+{
+  [notificationId: NotificationId]: {
+    type:
+      | "groupInvite"
+      | "eventInvite"
+      | "reminder"
+      | "eventComingUp"
+
+    senderId: UserId;
+    receiverId: UserId;
+
+    isRead: boolean;
+    createdAt: Date;
+    readAt?: Date;
+  };
+}
+```
+
 ## ✍️ Documentation
 
 - [Rules and Conventions](https://starter.obytes.com/getting-started/rules-and-conventions/)

@@ -123,8 +123,6 @@ export const AddRemovePerson = ({ itemID, expenseId }: Props) => {
             >
               <PersonAvatar
                 size="lg"
-                personId={person.id}
-                expenseId={expenseId}
                 inSplitView={true}
                 isSelected={isAssigned}
               />

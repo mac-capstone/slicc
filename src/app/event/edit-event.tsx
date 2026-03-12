@@ -15,9 +15,13 @@ import { useEvent, useUpdateEvent } from '@/api/events/use-events';
 import { useUsersAsPeople } from '@/api/people/use-users';
 import { DateTimePick } from '@/components/date-time-pick';
 import { PersonAvatar } from '@/components/person-avatar';
-import { Button, Input, Pressable, Text, View } from '@/components/ui';
+import { Button, colors, Input, Pressable, Text, View } from '@/components/ui';
 import { useThemeConfig } from '@/lib/use-theme-config';
-import type { EventIdT } from '@/types';
+import type { EventIdT, UserIdT } from '@/types';
+
+const avatarColorKeys = Object.keys(
+  colors.avatar ?? {}
+) as (keyof typeof colors.avatar)[];
 
 export default function EditEvent() {
   const theme = useThemeConfig();
@@ -86,18 +90,25 @@ export default function EditEvent() {
     return new Date(year, month - 1, day);
   };
 
+  const toDateString = (value: string | Date | undefined): string => {
+    if (!value) return '';
+    if (value instanceof Date) return value.toLocaleDateString('en-CA');
+    return value;
+  };
+
   // Initialize form with event data
   useEffect(() => {
     if (event) {
       setEventName(event.name);
-      setStartDate(parseLocalDate(event.startDate));
-      setEndDate(parseLocalDate(event.endDate));
-      // Parse time strings to Date objects
-      const startTimeDate = parseTimeToDate(event.startTime);
-      const endTimeDate = parseTimeToDate(event.endTime);
+      const start = toDateString(event.startDate);
+      const end = toDateString(event.endDate);
+      if (start) setStartDate(parseLocalDate(start));
+      if (end) setEndDate(parseLocalDate(end));
+      const startTimeDate = parseTimeToDate(event.startTime ?? '');
+      const endTimeDate = parseTimeToDate(event.endTime ?? '');
       setStartTime(startTimeDate);
       setEndTime(endTimeDate);
-      setIsRecurring(event.isRecurring);
+      setIsRecurring(event.isRecurring ?? false);
       setRecurringInterval(event.recurringInterval?.toString() || '1');
       setRecurringUnit(event.recurringUnit || 'day');
       if (event.recurringEndDate) {
@@ -120,7 +131,7 @@ export default function EditEvent() {
   ];
 
   const { people: participants } = useUsersAsPeople(
-    event?.participants || [],
+    (event?.participants ?? []) as UserIdT[],
     colorsvar
   );
 
@@ -497,46 +508,23 @@ export default function EditEvent() {
               </View>
 
               <View className="ml-0">
-                {eventId &&
-                  participants.map((participant) => (
-                    <View
-                      key={participant.id}
-                      className="mb-3 flex-row items-center"
-                    >
-                      <View className="mr-3">
-                        <PersonAvatar
-                          eventId={eventId as EventIdT}
-                          userId={participant.id}
-                          size="md"
-                        />
-                      </View>
-                      <Text className="text-base text-white">
-                        {participant.name}
-                      </Text>
+                {participants.map((participant, index) => (
+                  <View
+                    key={participant.id}
+                    className="mb-3 flex-row items-center"
+                  >
+                    <View className="mr-3">
+                      <PersonAvatar
+                        userId={participant.id}
+                        color={avatarColorKeys[index % avatarColorKeys.length]}
+                        size="md"
+                      />
                     </View>
-                  ))}
-                {!eventId &&
-                  participants.map((participant) => (
-                    <View
-                      key={participant.id}
-                      className="mb-3 flex-row items-center"
-                    >
-                      <View
-                        className="mr-3 size-8 items-center justify-center rounded-full"
-                        style={{ backgroundColor: participant.color }}
-                      >
-                        <Text className="text-base font-bold text-white">
-                          {participant.name
-                            .split(' ')
-                            .map((n) => n[0])
-                            .join('')}
-                        </Text>
-                      </View>
-                      <Text className="text-base text-white">
-                        {participant.name}
-                      </Text>
-                    </View>
-                  ))}
+                    <Text className="text-base text-white">
+                      {participant.name}
+                    </Text>
+                  </View>
+                ))}
               </View>
             </View>
 

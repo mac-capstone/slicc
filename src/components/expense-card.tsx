@@ -41,7 +41,10 @@ export const ExpenseCard = ({ id, config }: Props) => {
       });
 
   const totalAmount = data.totalAmount;
-  const remainingAmount = data.remainingAmount;
+  const remainingAmount = data.people.reduce(
+    (acc, person) => acc + person.subtotal,
+    0
+  );
   return (
     <Pressable
       className="flex-1"

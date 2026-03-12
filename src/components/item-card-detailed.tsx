@@ -150,11 +150,7 @@ export const ItemCardDetailed = ({ expenseId, itemId }: Props) => {
           >
             {assignedPeople.map((person: PersonWithId, index: number) => (
               <View key={person.id} className={index > 0 ? '-ml-3' : 'm-0'}>
-                <PersonAvatar
-                  personId={person.id}
-                  expenseId={expenseId}
-                  size="lg"
-                />
+                <PersonAvatar size="lg" />
               </View>
             ))}
           </ScrollView>
