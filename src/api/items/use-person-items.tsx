@@ -3,11 +3,11 @@ import { createQuery } from 'react-query-kit';
 import { mapMockItemToItemWithId } from '@/lib';
 import { mockData } from '@/lib/mock-data';
 import { getTempExpense } from '@/lib/store';
-import { type ExpenseIdT, type ItemWithId, type PersonIdT } from '@/types';
+import { type ExpenseIdT, type ItemWithId } from '@/types';
 
 export const usePersonItems = createQuery<
   ItemWithId[],
-  { expenseId: ExpenseIdT; personId: PersonIdT },
+  { expenseId: ExpenseIdT; personId: string },
   Error
 >({
   queryKey: ['items', 'expenseId', 'personId'],

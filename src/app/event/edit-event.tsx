@@ -80,10 +80,10 @@ export default function EditEvent() {
     return `${hours}:${minutes}`;
   };
 
-  const toLocalDateString = (date: Date): string => {
-    // Convert Date to YYYY-MM-DD in local timezone
-    return date.toLocaleDateString('en-CA'); // en-CA format is YYYY-MM-DD
-  };
+  // const toLocalDateString = (date: Date): string => {
+  //   // Convert Date to YYYY-MM-DD in local timezone
+  //   return date.toLocaleDateString('en-CA'); // en-CA format is YYYY-MM-DD
+  // };
 
   const parseLocalDate = (dateStr: string): Date => {
     const [year, month, day] = dateStr.split('-').map(Number);
@@ -234,17 +234,15 @@ export default function EditEvent() {
         eventId: eventId!,
         data: {
           name: eventName,
-          startDate: toLocalDateString(startDate),
-          endDate: toLocalDateString(endDate),
+          startDate,
+          endDate,
           startTime: dateToTimeString(startTime),
           endTime: dateToTimeString(endTime),
           isRecurring,
           recurringInterval: isRecurring ? (interval as number) : undefined,
           recurringUnit: isRecurring ? recurringUnit : undefined,
           recurringEndDate:
-            isRecurring && recurringEndDate
-              ? toLocalDateString(recurringEndDate)
-              : undefined,
+            isRecurring && recurringEndDate ? recurringEndDate : undefined,
           location,
           details,
           groupId: event!.groupId,

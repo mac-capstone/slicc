@@ -5,7 +5,7 @@ import { useExpense } from '@/api/expenses/use-expenses';
 import { useItem } from '@/api/items/use-items';
 import { usePeopleIdsForItem } from '@/api/people/use-people';
 import { ActivityIndicator } from '@/components/ui';
-import { type ExpenseIdT, type ItemIdT, type PersonWithId } from '@/types';
+import { type ExpenseIdT, type ItemIdT } from '@/types';
 
 import { PersonAvatar } from './person-avatar';
 
@@ -71,10 +71,8 @@ export const ItemCard = ({
     }
 
     const people = expense.people;
-    const assignedPeople =
-      people?.filter((p: PersonWithId) =>
-        (assignedPersonIds ?? []).includes(p.id)
-      ) ?? [];
+    const ids = (assignedPersonIds ?? []) as string[];
+    const assignedPeople = people?.filter((p) => ids.includes(p.id)) ?? [];
 
     return (
       <Pressable
@@ -88,13 +86,11 @@ export const ItemCard = ({
         <View className="flex-1 flex-row items-center gap-3">
           {assignedPeople.length > 0 && (
             <View className="flex-row items-center">
-              {assignedPeople
-                .slice(0, 4)
-                .map((person: PersonWithId, index: number) => (
-                  <View key={person.id} className={index > 0 ? '-ml-3' : ''}>
-                    <PersonAvatar size="md" />
-                  </View>
-                ))}
+              {assignedPeople.slice(0, 4).map((person, index: number) => (
+                <View key={person.id} className={index > 0 ? '-ml-3' : ''}>
+                  <PersonAvatar size="md" />
+                </View>
+              ))}
               {assignedPeople.length > 4 && (
                 <Text className="ml-2 text-lg dark:text-text-50">···</Text>
               )}

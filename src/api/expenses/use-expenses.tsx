@@ -4,8 +4,9 @@ import { createQuery } from 'react-query-kit';
 import {
   type Expense,
   type ExpenseIdT,
-  type ExpenseItem,
-  type ExpensePerson,
+  type ItemIdT,
+  type ItemWithId,
+  type PersonWithId,
 } from '@/types';
 import {
   expenseConverter,
@@ -17,8 +18,8 @@ import { db } from '../common/firebase';
 
 type ExpenseResponse = Expense & {
   id: ExpenseIdT;
-  items: (ExpenseItem & { id: string })[];
-  people: (ExpensePerson & { id: string })[];
+  items: ItemWithId[];
+  people: PersonWithId[];
 };
 
 const expensesRef = collection(db, 'expenses').withConverter(expenseConverter);
@@ -52,8 +53,14 @@ export const useExpense = createQuery<ExpenseResponse, ExpenseIdT, Error>({
       ),
     ]);
 
-    const people = peopleSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    const items = itemsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const people: PersonWithId[] = peopleSnap.docs.map((d) => ({
+      id: d.id,
+      ...d.data(),
+    }));
+    const items: ItemWithId[] = itemsSnap.docs.map((d) => ({
+      id: d.id as ItemIdT,
+      ...d.data(),
+    }));
 
     return { id: expenseId, ...expense, people, items };
   },

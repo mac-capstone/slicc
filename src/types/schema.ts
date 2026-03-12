@@ -58,14 +58,14 @@ export const eventSchema = z.object({
   createdBy: z.string(),
   description: z.string().optional(),
   details: z.string().optional(),
-  startDate: z.union([firestoreTimestamp, z.string()]).optional(),
-  endDate: z.union([firestoreTimestamp, z.string()]).optional(),
+  startDate: firestoreTimestamp.optional(),
+  endDate: firestoreTimestamp.optional(),
   startTime: z.string().optional(),
   endTime: z.string().optional(),
   isRecurring: z.boolean().optional(),
   recurringInterval: z.number().optional(),
   recurringUnit: z.enum(['day', 'week', 'month', 'year']).optional(),
-  recurringEndDate: z.union([firestoreTimestamp, z.string()]).optional(),
+  recurringEndDate: firestoreTimestamp.optional(),
   location: z.string().optional(),
   locationUrl: z.string().optional(),
   groupId: z.string().optional(),
@@ -80,10 +80,12 @@ export const eventConverter = zodConverter(eventSchema);
 
 export const expenseSchema = z.object({
   name: z.string(),
-  date: firestoreTimestamp,
+  date: z.union([firestoreTimestamp, z.string()]),
   createdBy: z.string(),
   eventId: z.string().optional(),
   totalAmount: z.number(),
+  remainingAmount: z.number().optional(),
+  participantCount: z.number().optional(),
   createdAt: firestoreTimestamp.optional(),
   updatedAt: firestoreTimestamp.optional(),
 });
@@ -102,10 +104,12 @@ export const expensePersonConverter = zodConverter(expensePersonSchema);
 
 export const expenseItemSchema = z.object({
   name: z.string(),
-  price: z.number(),
-  tax: z.number(),
-  owed: z.record(z.string(), z.number()),
-  peopleAssigned: z.array(z.string()),
+  amount: z.number(),
+  split: z.object({
+    mode: z.string(),
+    shares: z.record(z.string(), z.number()),
+  }),
+  assignedPersonIds: z.array(z.string()),
 });
 
 export const expenseItemConverter = zodConverter(expenseItemSchema);

@@ -13,7 +13,7 @@ import { ItemCardDetailed } from '@/components/item-card-detailed';
 import { ActivityIndicator, Pressable, Text, View } from '@/components/ui';
 import { clearTempExpense, useExpenseCreation } from '@/lib/store';
 import { useThemeConfig } from '@/lib/use-theme-config';
-import { type ExpenseIdT } from '@/types';
+import { type ExpenseIdT, type ItemIdT } from '@/types';
 
 const TEMP_EXPENSE_ID = 'temp-expense' as ExpenseIdT;
 
@@ -27,7 +27,7 @@ export default function SplitExpense() {
     variables: TEMP_EXPENSE_ID,
   });
   const hydrate = useExpenseCreation.use.hydrate();
-  const [selectedItemId, setSelectedItemId] = useState(
+  const [selectedItemId, setSelectedItemId] = useState<ItemIdT | undefined>(
     tempExpense?.items?.[0]?.id
   );
 

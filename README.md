@@ -143,14 +143,14 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
     createdBy: UserId;
     description?: string;
     details?: string;
-    startDate?: Date | string;
-    endDate?: Date | string;
+    startDate?: Date;
+    endDate?: Date;
     startTime?: string;
     endTime?: string;
     isRecurring?: boolean;
     recurringInterval?: number;
     recurringUnit?: 'day' | 'week' | 'month' | 'year';
-    recurringEndDate?: Date | string;
+    recurringEndDate?: Date;
     location?: string;
     locationUrl?: string;
     groupId?: GroupId;
@@ -168,24 +168,25 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
     createdBy: UserId;
     eventId?: EventId;
     totalAmount: number;
-	  createdAt?: Date;
-    updatedAt?: Date;
-    // subcollection
-    people: {
-	    [userId: UserIdT]: {
-		    subtotal: number;
-	    }
-    }
-    // items subcolection
-    items: {
-	    [itemId: ItemId]: {
-		    name: string;
-		    price: number;
-		    tax: number;
-			owed: Record<UserId, number> // store exact ammount owed
-		    peopleAssigned: UserId[]
-	    }
-    }
+    remainingAmount?: number;
+    participantCount?: number;
+    createdAt?: Date;
+    updatedAt?: Date;
+    // subcollection
+    people: {
+      [userId: UserId]: {
+        subtotal: number;
+      }
+    }
+    // items subcollection
+    items: {
+      [itemId: ItemId]: {
+        name: string;
+        amount: number;
+        split: { mode: string; shares: Record<string, number> };
+        assignedPersonIds: UserId[];
+      }
+    }
   };
 }
 

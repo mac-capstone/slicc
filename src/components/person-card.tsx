@@ -6,7 +6,7 @@ import { usePerson } from '@/api/people/use-people';
 import { useUser } from '@/api/people/use-users';
 import { ActivityIndicator, Text, View } from '@/components/ui';
 import { calculatePersonShare } from '@/lib/utils';
-import { type ExpenseIdT, type PersonIdT, type UserIdT } from '@/types';
+import { type ExpenseIdT, type UserIdT } from '@/types';
 
 import { PersonAvatar } from './person-avatar';
 export const PersonCard = ({
@@ -69,9 +69,8 @@ export const PersonItemList = ({
   personId: UserIdT;
   expenseId: ExpenseIdT;
 }) => {
-  const pid = personId as unknown as PersonIdT;
   const { data, isPending, isError } = usePersonItems({
-    variables: { expenseId, personId: pid },
+    variables: { expenseId, personId },
   });
   if (isPending) {
     return <ActivityIndicator />;
@@ -88,7 +87,7 @@ export const PersonItemList = ({
       <FlashList
         data={data}
         renderItem={({ item }) => {
-          const share = calculatePersonShare(item, pid);
+          const share = calculatePersonShare(item, personId);
           return (
             <View
               key={item.id}

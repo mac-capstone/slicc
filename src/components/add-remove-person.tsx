@@ -8,12 +8,7 @@ import { useItem } from '@/api/items/use-items';
 import { usePeopleIdsForItem } from '@/api/people/use-people';
 import { colors } from '@/components/ui';
 import { useExpenseCreation } from '@/lib/store';
-import {
-  type ExpenseIdT,
-  type ItemIdT,
-  type PersonIdT,
-  type PersonWithId,
-} from '@/types';
+import { type ExpenseIdT, type ItemIdT, type PersonWithId } from '@/types';
 
 import { PersonAvatar } from './person-avatar';
 
@@ -57,7 +52,7 @@ export const AddRemovePerson = ({ itemID, expenseId }: Props) => {
     const peopleArray = tempExpense?.people || [];
     const avatarColors = Object.keys(colors.avatar || {});
     const newPerson: PersonWithId = {
-      id: uuidv4() as PersonIdT,
+      id: uuidv4(),
       name: `Person ${peopleArray.length + 1}`,
       color: avatarColors[peopleArray.length % avatarColors.length],
       userRef: null,
@@ -93,7 +88,8 @@ export const AddRemovePerson = ({ itemID, expenseId }: Props) => {
       </Text>
       <View className="flex-row flex-wrap items-center pb-4">
         {people.map((person) => {
-          const isAssigned = itemID && assignedPeopleIds.includes(person.id);
+          const assignedIds = assignedPeopleIds as string[];
+          const isAssigned = itemID && assignedIds.includes(person.id);
           return (
             <TouchableOpacity
               key={person.id}

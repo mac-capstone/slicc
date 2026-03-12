@@ -9,7 +9,6 @@ import {
   type ItemIdT,
   type ItemWithId,
   type Person,
-  type PersonIdT,
   type PersonWithId,
   type UserIdT,
 } from '@/types';
@@ -55,7 +54,7 @@ export const mapMockPersonToPersonWithId = (
   person: (typeof mockData.expenses)[number]['people'][number]
 ): PersonWithId => {
   return {
-    id: person.id as PersonIdT,
+    id: person.id,
     name: person.doc.name,
     color: person.doc.color,
     userRef: person.doc.userRef,
@@ -85,16 +84,19 @@ export const mapMockItemToItemWithId = (
     name: item.doc.name,
     amount: item.doc.amount,
     split: {
-      mode: item.doc.split.mode as 'equal' | 'custom',
-      shares: item.doc.split.shares as Record<PersonIdT, number>,
+      mode: item.doc.split.mode as string,
+      shares: item.doc.split.shares as Record<string, number>,
     },
-    assignedPersonIds: item.doc.assignedPersonIds as PersonIdT[],
+    assignedPersonIds: item.doc.assignedPersonIds as string[],
   };
 };
 
-export const calculatePersonShare = (item: ItemWithId, personId: PersonIdT) => {
+export const calculatePersonShare = (
+  item: ItemWithId,
+  personId: string
+): number => {
   const totalShares = Object.values(item.split.shares).reduce(
-    (acc, share) => acc + share,
+    (acc: number, share: number) => acc + share,
     0
   );
   return (item.split.shares[personId] * item.amount) / totalShares;

@@ -58,7 +58,9 @@ const mockEvents = [
     isRecurring: true,
     recurringInterval: 1,
     recurringUnit: 'year' as const,
-    recurringEndDate: '2030-03-15',
+    recurringEndDate: admin.firestore.Timestamp.fromDate(
+      new Date('2030-03-15')
+    ),
     location: 'Boston Pizza',
     locationUrl: 'https://maps.google.com/?q=Boston+Pizza',
     groupId: 'group_friends',
@@ -116,7 +118,37 @@ const mockGroups = [
 
 // ── Expenses (with people + items subcollections) ──────────────────────────
 
-const mockExpenses = [
+type RawExpense = {
+  id: string;
+  doc: {
+    name: string;
+    date: admin.firestore.Timestamp;
+    createdBy: string;
+    eventId?: string;
+    totalAmount: number;
+    createdAt: admin.firestore.Timestamp;
+    updatedAt: admin.firestore.Timestamp;
+  };
+  people: { id: string; subtotal: number }[];
+  items: {
+    id: string;
+    name: string;
+    amount: number;
+    split: { mode: string; shares: Record<string, number> };
+    assignedPersonIds: string[];
+  }[];
+};
+
+function buildExpenseDoc(raw: RawExpense) {
+  const settled = raw.people.reduce((sum, p) => sum + p.subtotal, 0);
+  return {
+    ...raw.doc,
+    remainingAmount: parseFloat((raw.doc.totalAmount - settled).toFixed(2)),
+    participantCount: raw.people.length,
+  };
+}
+
+const rawExpenses: RawExpense[] = [
   {
     id: 'exp_boston_pizza',
     doc: {
@@ -137,26 +169,29 @@ const mockExpenses = [
       {
         id: 'item_pizza',
         name: 'Pepperoni Pizza',
-        price: 30.0,
-        tax: 3.9,
-        owed: { user_ankush: 11.3, user_michael: 11.3, user_sarah: 11.3 },
-        peopleAssigned: ['user_ankush', 'user_michael', 'user_sarah'],
+        amount: 30.0,
+        split: {
+          mode: 'equal',
+          shares: { user_ankush: 1, user_michael: 1, user_sarah: 1 },
+        },
+        assignedPersonIds: ['user_ankush', 'user_michael', 'user_sarah'],
       },
       {
         id: 'item_cactus_cuts',
         name: 'Cactus Cuts',
-        price: 13.5,
-        tax: 1.76,
-        owed: { user_ankush: 7.63, user_michael: 7.63 },
-        peopleAssigned: ['user_ankush', 'user_michael'],
+        amount: 13.5,
+        split: { mode: 'equal', shares: { user_ankush: 1, user_michael: 1 } },
+        assignedPersonIds: ['user_ankush', 'user_michael'],
       },
       {
         id: 'item_drinks',
         name: 'Drinks',
-        price: 15.07,
-        tax: 0.0,
-        owed: { user_ankush: 3.02, user_michael: 4.53, user_sarah: 7.52 },
-        peopleAssigned: ['user_ankush', 'user_michael', 'user_sarah'],
+        amount: 15.07,
+        split: {
+          mode: 'custom',
+          shares: { user_ankush: 3.02, user_michael: 4.53, user_sarah: 7.52 },
+        },
+        assignedPersonIds: ['user_ankush', 'user_michael', 'user_sarah'],
       },
     ],
   },
@@ -181,15 +216,17 @@ const mockExpenses = [
       {
         id: 'item_broth',
         name: 'Tomato & Mushroom Broth',
-        price: 25.0,
-        tax: 3.25,
-        owed: {
-          user_ankush: 7.06,
-          user_michael: 7.06,
-          user_sarah: 7.06,
-          user_jane: 7.07,
+        amount: 25.0,
+        split: {
+          mode: 'equal',
+          shares: {
+            user_ankush: 1,
+            user_michael: 1,
+            user_sarah: 1,
+            user_jane: 1,
+          },
         },
-        peopleAssigned: [
+        assignedPersonIds: [
           'user_ankush',
           'user_michael',
           'user_sarah',
@@ -199,15 +236,17 @@ const mockExpenses = [
       {
         id: 'item_meats',
         name: 'Assorted Meats',
-        price: 95.1,
-        tax: 12.36,
-        owed: {
-          user_ankush: 28.37,
-          user_michael: 28.37,
-          user_sarah: 25.36,
-          user_jane: 25.36,
+        amount: 95.1,
+        split: {
+          mode: 'custom',
+          shares: {
+            user_ankush: 28.37,
+            user_michael: 28.37,
+            user_sarah: 25.36,
+            user_jane: 25.36,
+          },
         },
-        peopleAssigned: [
+        assignedPersonIds: [
           'user_ankush',
           'user_michael',
           'user_sarah',
@@ -217,15 +256,17 @@ const mockExpenses = [
       {
         id: 'item_veggies',
         name: 'Vegetables',
-        price: 40.0,
-        tax: 5.2,
-        owed: {
-          user_ankush: 11.3,
-          user_michael: 11.3,
-          user_sarah: 11.3,
-          user_jane: 11.3,
+        amount: 40.0,
+        split: {
+          mode: 'equal',
+          shares: {
+            user_ankush: 1,
+            user_michael: 1,
+            user_sarah: 1,
+            user_jane: 1,
+          },
         },
-        peopleAssigned: [
+        assignedPersonIds: [
           'user_ankush',
           'user_michael',
           'user_sarah',
@@ -235,15 +276,17 @@ const mockExpenses = [
       {
         id: 'item_noodles',
         name: 'Dancing Noodles',
-        price: 55.0,
-        tax: 7.15,
-        owed: {
-          user_ankush: 22.62,
-          user_michael: 16.52,
-          user_sarah: 15.03,
-          user_jane: 15.03,
+        amount: 55.0,
+        split: {
+          mode: 'custom',
+          shares: {
+            user_ankush: 22.62,
+            user_michael: 16.52,
+            user_sarah: 15.03,
+            user_jane: 15.03,
+          },
         },
-        peopleAssigned: [
+        assignedPersonIds: [
           'user_ankush',
           'user_michael',
           'user_sarah',
@@ -344,8 +387,9 @@ async function seed(): Promise<void> {
   console.log(`Seeded ${mockEvents.length} events`);
 
   // Expenses + subcollections
-  for (const expense of mockExpenses) {
-    await db.collection('expenses').doc(expense.id).set(expense.doc);
+  for (const expense of rawExpenses) {
+    const expenseDoc = buildExpenseDoc(expense);
+    await db.collection('expenses').doc(expense.id).set(expenseDoc);
 
     for (const person of expense.people) {
       const { id, ...personData } = person;
@@ -367,7 +411,7 @@ async function seed(): Promise<void> {
         .set(itemData);
     }
   }
-  console.log(`Seeded ${mockExpenses.length} expenses with subcollections`);
+  console.log(`Seeded ${rawExpenses.length} expenses with subcollections`);
 
   // Notifications
   const notifBatch = db.batch();

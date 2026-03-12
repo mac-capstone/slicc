@@ -85,7 +85,8 @@ export const ExpenseCard = ({ id, config }: Props) => {
             <ProgressBar
               className=""
               initialProgress={
-                ((data.totalAmount - data.remainingAmount) / data.totalAmount) *
+                ((data.totalAmount - (data.remainingAmount ?? 0)) /
+                  data.totalAmount) *
                 100
               }
             />

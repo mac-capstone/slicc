@@ -34,11 +34,17 @@ export type EventPerson = {
   name: string;
   color: string;
   userRef: string;
-} & ExpensePerson;
+  subtotal: number;
+};
 
-// ── Legacy aliases (match old names used across the codebase) ──────────────
+// ── Expense person with optional UI fields (name/color/userRef are not in Firestore) ──
 
-export type Person = ExpensePerson;
+export type Person = ExpensePerson & {
+  name?: string;
+  color?: string;
+  userRef?: string | null;
+};
+
 export type Item = ExpenseItem;
 
 // ── WithId variants ────────────────────────────────────────────────────────
@@ -49,5 +55,5 @@ export type EventWithId = Event & { id: EventIdT };
 export type ExpenseWithId = Expense & { id: ExpenseIdT };
 export type ExpensePersonWithId = ExpensePerson & { id: UserIdT };
 export type ExpenseItemWithId = ExpenseItem & { id: ItemIdT };
-export type PersonWithId = Person & { id: PersonIdT };
+export type PersonWithId = Person & { id: string };
 export type ItemWithId = Item & { id: ItemIdT };

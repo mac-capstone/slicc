@@ -18,7 +18,7 @@ export const usePeopleIdsForItem = createQuery<
 
     if (!itemSnap.exists()) return [];
 
-    return itemSnap.data().peopleAssigned as UserIdT[];
+    return itemSnap.data().assignedPersonIds as UserIdT[];
   },
 });
 
