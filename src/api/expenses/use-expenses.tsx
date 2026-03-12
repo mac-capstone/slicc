@@ -1,6 +1,7 @@
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { createQuery } from 'react-query-kit';
 
+import { getTempExpense } from '@/lib/store';
 import {
   type Expense,
   type ExpenseIdT,
@@ -35,6 +36,12 @@ export const useExpenseIds = createQuery<ExpenseIdT[], void, Error>({
 export const useExpense = createQuery<ExpenseResponse, ExpenseIdT, Error>({
   queryKey: ['expenses', 'expenseId'],
   fetcher: async (expenseId) => {
+    if (expenseId === 'temp-expense') {
+      const tempExpense = getTempExpense();
+      if (!tempExpense) throw new Error('Temp expense not found');
+      return tempExpense;
+    }
+
     const expenseRef = doc(expensesRef, expenseId);
     const expenseSnap = await getDoc(expenseRef);
 

@@ -19,7 +19,6 @@ import {
 } from 'react-native';
 import { v4 as uuidv4 } from 'uuid';
 
-import { queryClient } from '@/api';
 import { extractReceiptInfo } from '@/api/camera-receipt/extract-receipt-info';
 import {
   Button,
@@ -31,9 +30,7 @@ import { white } from '@/components/ui/colors';
 import { useExpenseCreation } from '@/lib/store';
 import { useThemeConfig } from '@/lib/use-theme-config';
 import { parseReceiptInfo } from '@/lib/utils';
-import { type ExpenseIdT, type ItemIdT, type ItemWithId } from '@/types';
-
-const TEMP_EXPENSE_ID = 'temp-expense' as ExpenseIdT;
+import { type ItemIdT, type ItemWithId } from '@/types';
 
 // TODO: add ability to pick reciept pic from galery
 export default function ReceiptCameraScreen() {
@@ -122,13 +119,6 @@ export default function ReceiptCameraScreen() {
       // add the new items
       items.forEach((item) => {
         addItem(item);
-      });
-      // Invalidate React Query cache to trigger refetch
-      await queryClient.invalidateQueries({
-        queryKey: ['expenses', 'expenseId', TEMP_EXPENSE_ID],
-      });
-      await queryClient.invalidateQueries({
-        queryKey: ['items', 'expenseId', TEMP_EXPENSE_ID],
       });
       setLoading(false);
       router.back();

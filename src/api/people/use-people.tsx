@@ -1,6 +1,7 @@
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { createQuery } from 'react-query-kit';
 
+import { getTempExpense } from '@/lib/store';
 import { type ExpenseIdT, type ExpensePerson, type UserIdT } from '@/types';
 import { expenseItemConverter, expensePersonConverter } from '@/types/schema';
 
@@ -13,6 +14,13 @@ export const usePeopleIdsForItem = createQuery<
 >({
   queryKey: ['people', 'expenseId', 'itemId'],
   fetcher: async ({ expenseId, itemId }) => {
+    if (expenseId === 'temp-expense') {
+      const tempExpense = getTempExpense();
+      if (!tempExpense) return [];
+      const item = tempExpense.items.find((i) => i.id === itemId);
+      return (item?.assignedPersonIds ?? []) as UserIdT[];
+    }
+
     const itemRef = doc(db, 'expenses', expenseId, 'items', itemId);
     const itemSnap = await getDoc(itemRef.withConverter(expenseItemConverter));
 
@@ -25,6 +33,12 @@ export const usePeopleIdsForItem = createQuery<
 export const usePeopleIds = createQuery<UserIdT[], ExpenseIdT, Error>({
   queryKey: ['people', 'expenseId'],
   fetcher: async (expenseId) => {
+    if (expenseId === 'temp-expense') {
+      const tempExpense = getTempExpense();
+      if (!tempExpense) return [];
+      return tempExpense.people.map((p) => p.id as UserIdT);
+    }
+
     const peopleRef = collection(
       db,
       'expenses',
@@ -43,6 +57,14 @@ export const usePerson = createQuery<
 >({
   queryKey: ['people', 'expenseId', 'personId'],
   fetcher: async ({ expenseId, personId }) => {
+    if (expenseId === 'temp-expense') {
+      const tempExpense = getTempExpense();
+      if (!tempExpense) throw new Error('Person not found');
+      const person = tempExpense.people.find((p) => p.id === personId);
+      if (!person) throw new Error('Person not found');
+      return { ...person, id: personId };
+    }
+
     const personRef = doc(
       db,
       'expenses',
