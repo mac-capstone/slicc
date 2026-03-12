@@ -21,10 +21,18 @@ import {
 import { useUsersAsPeople } from '@/api/people/use-users';
 import { DateTimePick } from '@/components/date-time-pick';
 import { PersonAvatar } from '@/components/person-avatar';
-import { Button, colors, Input, Pressable, Select, Text, View } from '@/components/ui';
+import {
+  Button,
+  colors,
+  Input,
+  Pressable,
+  Select,
+  Text,
+  View,
+} from '@/components/ui';
 import { getUserId } from '@/lib';
 import { useThemeConfig } from '@/lib/use-theme-config';
-import type { EventIdT, UserIdT, GroupIdT } from '@/types';
+import type { EventIdT, GroupIdT, UserIdT } from '@/types';
 
 const avatarColorKeys = Object.keys(
   colors.avatar ?? {}
@@ -70,32 +78,21 @@ export default function EditEvent() {
   const [location, setLocation] = useState('');
   const [details, setDetails] = useState('');
 
-  // Helper functions to convert between Timestamp and Date
-  const timestampToDate = (timestamp: Timestamp): Date => {
-    return timestamp.toDate();
-  };
-
   const dateToTimestamp = (date: Date): Timestamp => {
     return Timestamp.fromDate(date);
-  };
-
-  const toDateString = (value: string | Date | undefined): string => {
-    if (!value) return '';
-    if (value instanceof Date) return value.toLocaleDateString('en-CA');
-    return value;
   };
 
   // Initialize form with event data
   useEffect(() => {
     if (event) {
       setEventName(event.name);
-      setStartDate(timestampToDate(event.startDate ?? ''));
-      setEndDate(timestampToDate(event.endDate ?? ''));
-      setIsRecurring(event.isRecurring);
+      setStartDate(event.startDate);
+      setEndDate(event.endDate);
+      setIsRecurring(event.isRecurring ?? false);
       setRecurringInterval(event.recurringInterval?.toString() || '1');
       setRecurringUnit(event.recurringUnit || 'day');
       if (event.recurringEndDate) {
-        setRecurringEndDate(timestampToDate(event.recurringEndDate));
+        setRecurringEndDate(event.recurringEndDate);
       }
       setLocation(event.location || '');
       setDetails(event.details || '');
@@ -229,7 +226,6 @@ export default function EditEvent() {
           name: eventName,
           startDate: dateToTimestamp(startDate),
           endDate: dateToTimestamp(endDate),
-          isRecurring,
           location,
           details,
           groupId: event!.groupId,
@@ -239,13 +235,14 @@ export default function EditEvent() {
 
         // Handle recurring fields - either set or delete
         if (isRecurring) {
+          updateData.isRecurring = true;
           updateData.recurringInterval = interval as number;
           updateData.recurringUnit = recurringUnit;
           updateData.recurringEndDate = recurringEndDate
             ? dateToTimestamp(recurringEndDate)
             : deleteField();
         } else {
-          // Delete recurring fields when not recurring
+          updateData.isRecurring = false;
           updateData.recurringInterval = deleteField();
           updateData.recurringUnit = deleteField();
           updateData.recurringEndDate = deleteField();
@@ -587,7 +584,9 @@ export default function EditEvent() {
                       <View className="mr-3">
                         <PersonAvatar
                           userId={participant.id}
-                          color={avatarColorKeys[index % avatarColorKeys.length]}
+                          color={
+                            avatarColorKeys[index % avatarColorKeys.length]
+                          }
                           size="md"
                         />
                       </View>
@@ -597,7 +596,7 @@ export default function EditEvent() {
                     </View>
                   ))}
                 {!isEditMode &&
-                  participants.map((participant, index) => (
+                  participants.map((participant) => (
                     <View
                       key={participant.id}
                       className="mb-3 flex-row items-center"

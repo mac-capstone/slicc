@@ -26,7 +26,7 @@ type ExpenseResponse = Expense & {
 
 const expensesRef = collection(db, 'expenses').withConverter(expenseConverter);
 
-export const useExpenseeIds = createQuery<ExpenseIdT[], void, Error>({
+export const useExpenseIds = createQuery<ExpenseIdT[], void, Error>({
   queryKey: ['expenses'],
   fetcher: async () => {
     const snapshot = await getDocs(expensesRef);
@@ -43,10 +43,13 @@ export const useExpenseIdsByEvent = createQuery<
   Error
 >({
   queryKey: ['expenses', 'eventId'],
-  fetcher: async (_eventId) => {
-    // TODO: Filter expenses by eventId once the Expense model includes an eventId field
-    // For now, returning all expenses as a placeholder
-    return mockData.expenses.map((e) => e.id as ExpenseIdT);
+  fetcher: async (eventId) => {
+    const eventsRef = collection(db, 'events');
+    const snapshot = await getDocs(eventsRef);
+    const eventDoc = snapshot.docs.find((d) => d.data().id === eventId);
+    if (!eventDoc) return [];
+    const event = eventDoc.data();
+    return event.expenseIds as ExpenseIdT[];
   },
 });
 

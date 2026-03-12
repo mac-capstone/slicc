@@ -7,11 +7,9 @@ import {
   getDoc,
   getDocs,
   setDoc,
-  Timestamp,
   updateDoc,
 } from 'firebase/firestore';
 import { createQuery } from 'react-query-kit';
-import { z } from 'zod';
 
 import { db } from '@/api/common/firebase';
 import { mockData } from '@/lib/mock-data';
@@ -21,28 +19,7 @@ import {
   type EventWithId,
   type UserIdT,
 } from '@/types';
-
-// Zod schema for Timestamp validation
-const TimestampSchema = z.custom<Timestamp>((val) => val instanceof Timestamp, {
-  message: 'Must be a Timestamp object',
-});
-
-// Zod schema for Event validation
-const EventSchema = z.object({
-  name: z.string(),
-  startDate: TimestampSchema,
-  endDate: TimestampSchema,
-  isRecurring: z.boolean(),
-  recurringInterval: z.number().int().positive().optional(),
-  recurringUnit: z.enum(['day', 'week', 'month', 'year']).optional(),
-  recurringEndDate: TimestampSchema.optional(),
-  groupId: z.string(),
-  location: z.string().optional(),
-  locationUrl: z.string().optional(),
-  details: z.string().optional(),
-  createdBy: z.string(),
-  participants: z.array(z.string()).default([]),
-});
+import { eventSchema } from '@/types/schema';
 
 const USE_MOCK_DATA = false; // Set to false when ready to use Firestore
 
@@ -78,7 +55,7 @@ export const useEvent = createQuery<EventWithId, EventIdT, Error>({
 
       // Validate with Zod
       console.log(typeof event.doc.startDate, event.doc.startDate);
-      const parsedEvent = EventSchema.safeParse(event.doc);
+      const parsedEvent = eventSchema.safeParse(event.doc);
       if (!parsedEvent.success) {
         console.error('Invalid event structure:', parsedEvent.error.flatten());
         throw new Error('Unable to load event data.');
@@ -97,7 +74,7 @@ export const useEvent = createQuery<EventWithId, EventIdT, Error>({
     }
 
     // Validate with Zod
-    const parsedEvent = EventSchema.safeParse(eventSnap.data());
+    const parsedEvent = eventSchema.safeParse(eventSnap.data());
     if (!parsedEvent.success) {
       console.error('Invalid event structure:', parsedEvent.error.flatten());
       throw new Error('Unable to load event data.');
@@ -171,7 +148,8 @@ export const useUpdateEvent = () => {
       const eventRef = doc(db, 'events', eventId);
       await updateDoc(eventRef, data);
       const updatedSnap = await getDoc(eventRef);
-      return { id: eventId, ...updatedSnap.data() };
+      const parsedEvent = eventSchema.parse(updatedSnap.data());
+      return { id: eventId, ...parsedEvent };
     },
     onSuccess: (_, variables) => {
       // Invalidate specific event query and events list
@@ -306,7 +284,7 @@ export const useEventParticipant = createQuery<
 
     if (!eventSnap.exists()) throw new Error('Event not found');
 
-    const event = eventSnap.data() as Event;
+    const event = eventSchema.parse(eventSnap.data()) as Event;
     if (!event.participants.includes(userId))
       throw new Error('User not a participant');
 

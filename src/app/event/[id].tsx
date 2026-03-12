@@ -2,7 +2,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { type Timestamp } from 'firebase/firestore';
 import React from 'react';
 import { ActivityIndicator, Linking, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,8 +17,7 @@ const avatarColorKeys = Object.keys(
 ) as (keyof typeof colors.avatar)[];
 
 // Helper function to format time in AM/PM format from Timestamp
-const formatTimeAmPm = (timestamp: Timestamp): string => {
-  const date = timestamp.toDate();
+const formatTimeAmPm = (date: Date): string => {
   const hours = date.getHours();
   const minutes = date.getMinutes();
   const period = hours >= 12 ? 'PM' : 'AM';
@@ -28,8 +26,7 @@ const formatTimeAmPm = (timestamp: Timestamp): string => {
 };
 
 // Helper function to format date from Timestamp
-const formatDate = (timestamp: Timestamp): string => {
-  const date = timestamp.toDate();
+const formatDate = (date: Date): string => {
   const options: Intl.DateTimeFormatOptions = {
     weekday: 'long',
     month: 'long',
@@ -38,17 +35,8 @@ const formatDate = (timestamp: Timestamp): string => {
   return date.toLocaleDateString('en-US', options);
 };
 
-const toDateString = (value: string | Date | undefined): string => {
-  if (!value) return '';
-  if (value instanceof Date) {
-    return value.toLocaleDateString('en-CA');
-  }
-  return value;
-};
-
 // Helper function to format date short (for "until" display)
-const formatDateShort = (timestamp: Timestamp): string => {
-  const date = timestamp.toDate();
+const formatDateShort = (date: Date): string => {
   const options: Intl.DateTimeFormatOptions = {
     month: 'short',
     day: 'numeric',
@@ -66,15 +54,15 @@ const getRecurringText = ({
   recurringEndDate,
 }: {
   isRecurring: boolean;
-  startDate: Timestamp;
+  startDate: Date;
   interval?: number;
   unit?: string;
-  recurringEndDate?: Timestamp;
+  recurringEndDate?: Date;
 }): string => {
   if (!isRecurring) return '';
 
-  // Convert Timestamp to Date
-  const startDateObj = startDate.toDate();
+  const startDateObj = startDate;
+  const repeatInterval = interval ?? 1;
 
   const unitText =
     unit === 'year'
@@ -86,10 +74,10 @@ const getRecurringText = ({
           : 'day';
 
   let baseText = '';
-  if (interval === 1) {
+  if (repeatInterval === 1) {
     baseText = `Repeats every ${unitText}`;
   } else {
-    baseText = `Repeats every ${interval} ${unitText}s`;
+    baseText = `Repeats every ${repeatInterval} ${unitText}s`;
   }
 
   // Add specific day information
@@ -133,6 +121,10 @@ const getDaySuffix = (day: number): string => {
     default:
       return 'th';
   }
+};
+
+export const areDatesEqual = (date1: Date, date2: Date) => {
+  return date1.getTime() === date2.getTime();
 };
 
 export default function EventDetails() {
@@ -244,10 +236,10 @@ export default function EventDetails() {
               {/* Date Section */}
               <View className="mb-4 flex-row items-start">
                 <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
-                  <Ionicons name="calendar-outline" size={24} color="#3EB489" />
+                  <Ionicons name="calendar-outline" size={24} color="#00C8B3" />
                 </View>
                 <View className="flex-1">
-                  {event.startDate.isEqual(event.endDate) ? (
+                  {areDatesEqual(event.startDate, event.endDate) ? (
                     <Text className="text-base font-medium text-white">
                       {formatDate(event.startDate)}
                     </Text>
@@ -280,12 +272,12 @@ export default function EventDetails() {
               {/* Time Section */}
               <View className="mb-4 flex-row items-start">
                 <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
-                  <Ionicons name="time-outline" size={24} color="#3EB489" />
+                  <Ionicons name="time-outline" size={24} color="#00C8B3" />
                 </View>
                 <View className="flex-1">
                   <Text className="text-base font-medium text-white">
-                    {formatTimeAmPm(event.startTime ?? '')} -{' '}
-                    {formatTimeAmPm(event.endTime ?? '')}
+                    {formatTimeAmPm(event.startDate)} -{' '}
+                    {formatTimeAmPm(event.endDate)}
                   </Text>
                   {event.isRecurring && (
                     <View className="mt-1 flex-row items-center">
@@ -315,7 +307,7 @@ export default function EventDetails() {
               {/* People Section */}
               <View className="mb-4 flex-row items-start">
                 <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
-                  <Ionicons name="people-outline" size={24} color="#3EB489" />
+                  <Ionicons name="people-outline" size={24} color="#00C8B3" />
                 </View>
                 <View className="flex-1">
                   <View className="flex-row items-center">
@@ -370,7 +362,7 @@ export default function EventDetails() {
                       <Ionicons
                         name="location-outline"
                         size={24}
-                        color="#3EB489"
+                        color="#00C8B3"
                       />
                     </View>
                     <View className="flex-1">
@@ -387,7 +379,7 @@ export default function EventDetails() {
                         <MaterialCommunityIcons
                           name="open-in-new"
                           size={16}
-                          color="#3EB489"
+                          color="#00C8B3"
                           style={{ marginLeft: 4 }}
                         />
                       </Pressable>
