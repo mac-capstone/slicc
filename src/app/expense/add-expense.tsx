@@ -212,7 +212,6 @@ export default function AddExpense() {
         nextDisabled={getTotalAmount() === 0 || expenseName === ''}
         onNextPress={() => {
           setExpenseNameInStore(expenseName);
-          setExpenseName('');
           router.push('/expense/split-expense');
         }}
         totalAmount={getTotalAmount()}

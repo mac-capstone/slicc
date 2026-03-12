@@ -18,7 +18,6 @@ const firebaseConfig = {
   messagingSenderId: Env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: Env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
-console.log('firebaseConfig', firebaseConfig);
 // Initialize Firebase using modular Web SDK
 // Only initialize if no apps exist to prevent duplicate initialization
 export const app =
