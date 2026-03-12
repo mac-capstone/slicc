@@ -126,12 +126,6 @@ export default function AddExpense() {
   }, [userId, tempExpense, initializeTempExpense, isError]);
 
   useEffect(() => {
-    if (tempExpense?.name) {
-      setExpenseName(tempExpense.name);
-    }
-  }, [tempExpense?.name]);
-
-  useEffect(() => {
     const backHandler = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
