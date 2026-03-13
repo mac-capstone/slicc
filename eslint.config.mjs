@@ -30,6 +30,7 @@ export default defineConfig([
     'docs/',
     'cli/',
     'expo-env.d.ts',
+    'src/lib/scripts/**',
   ]),
   expoConfig,
   eslintPluginPrettierRecommended,

@@ -6,6 +6,7 @@ import { FlatList } from 'react-native';
 import { queryClient } from '@/api';
 import { useExpense } from '@/api/expenses/use-expenses';
 import { usePerson } from '@/api/people/use-people';
+import { useUser } from '@/api/people/use-users';
 import { PersonAvatar } from '@/components/person-avatar';
 import {
   ActivityIndicator,
@@ -17,7 +18,7 @@ import {
 } from '@/components/ui';
 import { mockData } from '@/lib/mock-data';
 import { useThemeConfig } from '@/lib/use-theme-config';
-import { type ExpenseIdT, type PersonIdT } from '@/types';
+import { type ExpenseIdT, type UserIdT } from '@/types';
 
 export default function SettleScreen() {
   const router = useRouter();
@@ -35,35 +36,33 @@ export default function SettleScreen() {
   // Initialize payments from current data once loaded
   useEffect(() => {
     if (data && !initialized) {
-      const expense = mockData.expenses.find((e) => e.id === expenseId);
-      if (expense) {
-        const initial: Record<string, number> = {};
-        expense.people.forEach((p) => {
-          initial[p.id] = p.doc.paid;
-        });
-        setPayments(initial);
-        setInitialized(true);
-      }
+      const initial: Record<string, number> = {};
+      data.people.forEach((p) => {
+        initial[p.id] = p.paid;
+      });
+      setPayments(initial);
+      setInitialized(true);
     }
-  }, [data, expenseId, initialized]);
+  }, [data, initialized]);
 
   const handleSavePayments = useCallback(() => {
-    const expense = mockData.expenses.find((e) => e.id === expenseId);
-    if (!expense) return;
-
-    // Update paid values in mock data
-    expense.people.forEach((p) => {
-      if (payments[p.id] !== undefined) {
-        p.doc.paid = payments[p.id];
-      }
-    });
-
-    // Recalculate remaining amount
-    const totalPaid = expense.people.reduce((sum, p) => sum + p.doc.paid, 0);
-    expense.doc.remainingAmount = Math.max(
-      expense.doc.totalAmount - totalPaid,
-      0
-    );
+    // Update paid values in mock data (TODO: replace with firebase write)
+    const mockExpense = mockData.expenses.find((e) => e.id === expenseId);
+    if (mockExpense) {
+      mockExpense.people.forEach((p) => {
+        if (payments[p.id] !== undefined) {
+          p.doc.paid = payments[p.id];
+        }
+      });
+      const totalPaid = mockExpense.people.reduce(
+        (sum, p) => sum + p.doc.paid,
+        0
+      );
+      mockExpense.doc.remainingAmount = Math.max(
+        mockExpense.doc.totalAmount - totalPaid,
+        0
+      );
+    }
 
     // Invalidate queries so the UI refreshes
     queryClient.invalidateQueries({
@@ -92,17 +91,8 @@ export default function SettleScreen() {
     );
   }
 
-  // Get people from mock data for this expense
-  const expense = mockData.expenses.find((e) => e.id === expenseId);
-  if (!expense) {
-    return (
-      <View className="flex-1 justify-center p-3">
-        <Text className="text-center">Expense not found</Text>
-      </View>
-    );
-  }
-
-  const totalAmount = expense.doc.totalAmount;
+  // Use data from useExpense hook
+  const totalAmount = data.totalAmount;
   const totalCollected = Object.values(payments).reduce(
     (sum, val) => sum + val,
     0
@@ -154,15 +144,15 @@ export default function SettleScreen() {
         {/* People list */}
         <FlatList
           className="mt-4"
-          data={expense.people}
+          data={data.people}
           keyExtractor={(item) => item.id}
           ItemSeparatorComponent={() => <View className="h-3" />}
           contentContainerStyle={{ paddingBottom: 100 }}
           renderItem={({ item }) => (
             <SettlePersonCard
-              personId={item.id as PersonIdT}
+              personId={item.id as UserIdT}
               expenseId={expenseId}
-              currentPaid={payments[item.id] ?? item.doc.paid}
+              currentPaid={payments[item.id] ?? item.paid}
               onUpdatePaid={(newPaid) =>
                 setPayments((prev) => ({ ...prev, [item.id]: newPaid }))
               }
@@ -191,7 +181,7 @@ function SettlePersonCard({
   currentPaid,
   onUpdatePaid,
 }: {
-  personId: PersonIdT;
+  personId: UserIdT;
   expenseId: ExpenseIdT;
   currentPaid: number;
   onUpdatePaid: (newPaid: number) => void;
@@ -199,6 +189,7 @@ function SettlePersonCard({
   const { data, isPending, isError } = usePerson({
     variables: { expenseId, personId },
   });
+  const { data: user } = useUser({ variables: personId });
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState('');
 
@@ -254,10 +245,10 @@ function SettlePersonCard({
       {/* Person header row */}
       <View className="flex-row items-center justify-between">
         <View className="flex-row items-center gap-3">
-          <PersonAvatar size="lg" personId={personId} expenseId={expenseId} />
+          <PersonAvatar size="lg" userId={personId} />
           <View>
             <Text className="font-futuraMedium text-lg dark:text-text-50">
-              {data.name}
+              {user?.displayName ?? 'Unknown'}
             </Text>
           </View>
         </View>
