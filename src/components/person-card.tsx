@@ -3,38 +3,56 @@ import React from 'react';
 
 import { usePersonItems } from '@/api/items/use-person-items';
 import { usePerson } from '@/api/people/use-people';
+import { useUser } from '@/api/people/use-users';
 import { ActivityIndicator, Text, View } from '@/components/ui';
 import { calculatePersonShare } from '@/lib/utils';
-import { type ExpenseIdT, type PersonIdT } from '@/types';
+import { type ExpenseIdT, type UserIdT } from '@/types';
 
 import { PersonAvatar } from './person-avatar';
 export const PersonCard = ({
   personId,
   expenseId,
 }: {
-  personId: PersonIdT;
+  personId: UserIdT;
   expenseId: ExpenseIdT;
 }) => {
-  const { data, isPending, isError } = usePerson({
+  const {
+    data,
+    isPending: isPersonPending,
+    isError: isPersonError,
+  } = usePerson({
     variables: { expenseId, personId },
   });
-  if (isPending) {
+  const {
+    data: personItems,
+    isPending: isItemsPending,
+    isError: isItemsError,
+  } = usePersonItems({
+    variables: { expenseId, personId },
+  });
+  const { data: user } = useUser({ variables: personId });
+
+  if (isPersonPending || isItemsPending) {
     return <ActivityIndicator />;
   }
-  if (isError) {
+  if (isPersonError || isItemsError || !data || !personItems) {
     return <Text>Error loading person</Text>;
   }
+  const subtotal = personItems.reduce((sum, item) => {
+    const share = calculatePersonShare(item, personId);
+    return Number.isFinite(share) ? sum + share : sum;
+  }, 0);
   return (
     <View className="flex min-h-20 w-full flex-col gap-2 rounded-xl bg-background-900 p-3">
       <View className="flex w-full flex-row justify-between gap-2">
         <View className="flex flex-row items-center gap-2">
-          <PersonAvatar size="lg" personId={personId} expenseId={expenseId} />
+          <PersonAvatar userId={personId} size="lg" />
           <Text className="font-futuraMedium text-xl dark:text-text-50">
-            {data.name}
+            {user?.displayName ?? 'Unknown'}
           </Text>
         </View>
         <Text className="font-futuraDemi text-xl dark:text-accent-100">
-          ${data.subtotal?.toFixed(2)}
+          ${subtotal.toFixed(2)}
         </Text>
       </View>
       <View className="ml-6 mt-1 border-l border-white/15 pl-4">
@@ -48,7 +66,7 @@ export const PersonItemList = ({
   personId,
   expenseId,
 }: {
-  personId: PersonIdT;
+  personId: UserIdT;
   expenseId: ExpenseIdT;
 }) => {
   const { data, isPending, isError } = usePersonItems({

@@ -5,7 +5,6 @@ import {
   type ExpenseWithId,
   type ItemIdT,
   type ItemWithId,
-  type PersonIdT,
   type PersonWithId,
   type UserIdT,
 } from '@/types';
@@ -32,13 +31,13 @@ interface ExpenseCreationState {
   updateItem: (itemId: string, updates: Partial<ItemWithId>) => void;
   updateItemShare: (
     itemId: ItemIdT,
-    personId: PersonIdT,
+    personId: string,
     newShare: number
   ) => void;
-  assignPersonToItem: (itemId: ItemIdT, personId: PersonIdT) => void;
-  removePersonFromItem: (itemId: ItemIdT, personId: PersonIdT) => void;
+  assignPersonToItem: (itemId: ItemIdT, personId: string) => void;
+  removePersonFromItem: (itemId: ItemIdT, personId: string) => void;
   addPerson: (person: PersonWithId) => void;
-  removePerson: (personId: PersonIdT) => void;
+  removePerson: (personId: string) => void;
   clearTempExpense: () => void;
   clearTempExpenseItems: () => void;
   initializeTempExpense: (createdBy: UserIdT) => void;
@@ -70,7 +69,7 @@ const _useExpenseCreation = create<ExpenseCreationState>((set, get) => ({
       id: 'temp-expense' as ExpenseIdT,
       name: '',
       date: new Date().toISOString(),
-      createdBy,
+      createdBy: createdBy as string,
       remainingAmount: 0,
       participantCount: 0,
       items: [],

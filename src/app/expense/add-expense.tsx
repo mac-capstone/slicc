@@ -22,30 +22,21 @@ import Animated, {
 } from 'react-native-reanimated';
 import { v4 as uuidv4 } from 'uuid';
 
-import { queryClient } from '@/api';
-import { useExpense } from '@/api/expenses/use-expenses';
 import ExpenseCreationFooter from '@/components/expense-creation-footer';
 import { Button, Input, Pressable, Text, View } from '@/components/ui';
 import { useAuth } from '@/lib';
 import { storage } from '@/lib/storage';
 import { clearTempExpense, useExpenseCreation } from '@/lib/store';
 import { useThemeConfig } from '@/lib/use-theme-config';
-import { type ExpenseIdT, type ItemIdT, type ItemWithId } from '@/types';
+import { type ItemIdT, type ItemWithId } from '@/types';
 
-const TEMP_EXPENSE_ID = 'temp-expense' as ExpenseIdT;
 const SWIPE_NUDGE_SHOWN_KEY = 'swipe-nudge-shown';
 
 export default function AddExpense() {
   const theme = useThemeConfig();
   const userId = useAuth.use.userId();
   const pathname = usePathname();
-  const {
-    data: tempExpense,
-    isPending,
-    isError,
-  } = useExpense({
-    variables: TEMP_EXPENSE_ID,
-  });
+  const tempExpense = useExpenseCreation.use.tempExpense();
   const [expenseName, setExpenseName] = useState<string>('');
   const prevItemsCountRef = React.useRef<number>(0);
   const firstItemNudgeTriggerRef = React.useRef<(() => void) | null>(null);
@@ -73,57 +64,37 @@ export default function AddExpense() {
     prevItemsCountRef.current = currentCount;
   }, [tempExpense?.items?.length]);
 
-  const handleLeave = useCallback(async () => {
+  const performLeave = useCallback(() => {
+    router.replace('/');
+    clearTempExpense();
+    setExpenseName('');
+  }, [setExpenseName]);
+
+  const handleLeave = useCallback(() => {
     if (tempExpense?.items?.length && tempExpense.items.length > 0) {
       Alert.alert(
         'Unsaved Changes',
         'You have unsaved changes. Are you sure you want to leave?',
         [
           { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Leave',
-            onPress: async () => {
-              router.replace('/');
-              clearTempExpense();
-              setExpenseName('');
-              await queryClient.invalidateQueries({
-                queryKey: ['expenses', 'expenseId', TEMP_EXPENSE_ID],
-              });
-            },
-          },
+          { text: 'Leave', onPress: performLeave },
         ]
       );
-      return true; // Prevent default back behavior when showing alert
-    } else {
-      router.replace('/');
-      clearTempExpense();
-      setExpenseName('');
-      await queryClient.invalidateQueries({
-        queryKey: ['expenses', 'expenseId', TEMP_EXPENSE_ID],
-      });
-      return true; // Prevent default back behavior (navigation handled above)
+      return true;
     }
-  }, [tempExpense, setExpenseName]);
+    performLeave();
+    return true;
+  }, [tempExpense, performLeave]);
 
   useEffect(() => {
     hydrate();
   }, [hydrate]);
 
   useEffect(() => {
-    const fetchTempExpense = async () => {
-      // if the user is logged in and the temp expense is not found
-      if (userId && (!tempExpense || isError)) {
-        initializeTempExpense(userId);
-        await queryClient.invalidateQueries({
-          queryKey: ['expenses', 'expenseId', TEMP_EXPENSE_ID],
-        });
-        await queryClient.invalidateQueries({
-          queryKey: ['items', 'expenseId', TEMP_EXPENSE_ID],
-        });
-      }
-    };
-    fetchTempExpense();
-  }, [userId, tempExpense, initializeTempExpense, isError]);
+    if (userId && !tempExpense) {
+      initializeTempExpense(userId);
+    }
+  }, [userId, tempExpense, initializeTempExpense]);
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener(
@@ -140,7 +111,7 @@ export default function AddExpense() {
     return () => backHandler.remove();
   }, [handleLeave, pathname]);
 
-  if (isPending) {
+  if (!tempExpense) {
     return (
       <>
         <Stack.Screen
@@ -167,10 +138,6 @@ export default function AddExpense() {
         </View>
       </>
     );
-  }
-
-  if (isError) {
-    return <Text>Error loading temp expense</Text>;
   }
 
   return (
@@ -243,12 +210,8 @@ export default function AddExpense() {
       </View>
       <ExpenseCreationFooter
         nextDisabled={getTotalAmount() === 0 || expenseName === ''}
-        onNextPress={async () => {
+        onNextPress={() => {
           setExpenseNameInStore(expenseName);
-          setExpenseName('');
-          await queryClient.invalidateQueries({
-            queryKey: ['expenses', 'expenseId', TEMP_EXPENSE_ID],
-          });
           router.push('/expense/split-expense');
         }}
         totalAmount={getTotalAmount()}
@@ -277,15 +240,9 @@ const TempItemCard = React.memo(function TempItemCard({
     storage
   );
 
-  const handleDelete = useCallback(async () => {
+  const handleDelete = useCallback(() => {
     if (!item) return;
     onDelete(item.id);
-    await queryClient.invalidateQueries({
-      queryKey: ['expenses', 'expenseId', TEMP_EXPENSE_ID],
-    });
-    await queryClient.invalidateQueries({
-      queryKey: ['items', 'expenseId', TEMP_EXPENSE_ID],
-    });
   }, [item, onDelete]);
 
   const triggerNudge = useCallback(() => {
@@ -471,7 +428,7 @@ function getItemAndAmountFromTaggedWords(taggedWords: any[]): {
 
 function CreateItemCard() {
   const [tempItemName, setTempItemName] = useState<string>('');
-  const [tempItemAmount, setTempItemAmount] = useState<number>(0);
+  const [tempItemAmount, setTempItemAmount] = useState<string>('');
   const [recognizing, setRecognizing] = useState(false);
 
   const addItem = useExpenseCreation.use.addItem();
@@ -492,7 +449,7 @@ function CreateItemCard() {
         getItemAndAmountFromTaggedWords(taggedWords);
 
       setTempItemName(itemName);
-      setTempItemAmount(itemAmount);
+      setTempItemAmount(String(itemAmount));
     }
   });
   useSpeechRecognitionEvent('error', (event) => {
@@ -542,33 +499,43 @@ function CreateItemCard() {
       </View>
       <Input
         placeholder="Enter Item Amount"
-        keyboardType="numeric"
-        value={tempItemAmount === 0 ? '' : tempItemAmount.toString()}
-        onChangeText={(text) => setTempItemAmount(Number(text))}
+        keyboardType="decimal-pad"
+        value={tempItemAmount}
+        onChangeText={(text) => {
+          let cleaned = text.replace(/[^0-9.]/g, '');
+
+          const firstDot = cleaned.indexOf('.');
+          if (firstDot !== -1) {
+            cleaned =
+              cleaned.slice(0, firstDot + 1) +
+              cleaned.slice(firstDot + 1).replace(/\./g, '');
+          }
+
+          setTempItemAmount(cleaned);
+        }}
       />
       <Button
         label="Add Item"
-        onPress={async () => {
+        onPress={() => {
+          const amount = Number(tempItemAmount);
+
+          if (Number.isNaN(amount)) return;
+
           addItem({
             id: uuidv4() as ItemIdT,
-            name: tempItemName,
-            amount: tempItemAmount,
+            name: tempItemName.trim(),
+            amount,
             split: {
               mode: 'equal',
               shares: {},
             },
             assignedPersonIds: [],
           });
-          await queryClient.invalidateQueries({
-            queryKey: ['expenses', 'expenseId', TEMP_EXPENSE_ID],
-          });
-          await queryClient.invalidateQueries({
-            queryKey: ['items', 'expenseId', TEMP_EXPENSE_ID],
-          });
+
           setTempItemName('');
-          setTempItemAmount(0);
+          setTempItemAmount('');
         }}
-        disabled={!tempItemName || !tempItemAmount}
+        disabled={!tempItemName.trim() || !tempItemAmount}
       />
     </View>
   );

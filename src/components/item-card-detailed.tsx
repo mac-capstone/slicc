@@ -14,12 +14,7 @@ import { useItem } from '@/api/items/use-items';
 import { usePeopleIdsForItem } from '@/api/people/use-people';
 import { calculatePersonShare } from '@/lib';
 import { useExpenseCreation } from '@/lib/store';
-import {
-  type ExpenseIdT,
-  type ItemIdT,
-  type PersonIdT,
-  type PersonWithId,
-} from '@/types';
+import { type ExpenseIdT, type ItemIdT } from '@/types';
 
 import { PersonAvatar } from './person-avatar';
 import { Button } from './ui/button';
@@ -68,8 +63,8 @@ export const ItemCardDetailed = ({ expenseId, itemId }: Props) => {
         assignedPersonIds &&
         assignedPersonIds.length > 0
       ) {
-        assignedPersonIds.forEach((personId) => {
-          updateItemShare(itemId, personId, 1);
+        assignedPersonIds.forEach((pid) => {
+          updateItemShare(itemId, pid, 1);
         });
         await queryClient.invalidateQueries({
           queryKey: useItem.getKey({
@@ -99,12 +94,10 @@ export const ItemCardDetailed = ({ expenseId, itemId }: Props) => {
   const people = expense.people; // never undefined as we use temp expenses which has people
 
   // Default to empty array to prevent undefined rendering
-  const assignedPeople =
-    people?.filter((p: PersonWithId) =>
-      (assignedPersonIds ?? []).includes(p.id)
-    ) ?? [];
+  const ids = (assignedPersonIds ?? []) as string[];
+  const assignedPeople = people?.filter((p) => ids.includes(p.id)) ?? [];
 
-  const handleIncrease = async (personId: PersonIdT) => {
+  const handleIncrease = async (personId: string) => {
     const currentShare = item.split.shares[personId] || 0;
     const newShare = parseFloat((currentShare + 1).toFixed(1));
     updateItemShare(itemId, personId, newShare);
@@ -116,7 +109,7 @@ export const ItemCardDetailed = ({ expenseId, itemId }: Props) => {
     });
   };
 
-  const handleDecrease = async (personId: PersonIdT) => {
+  const handleDecrease = async (personId: string) => {
     const currentShare = item.split.shares[personId] || 0;
     const newShare = parseFloat(Math.max(0, currentShare - 1).toFixed(1));
     updateItemShare(itemId, personId, newShare);
@@ -128,7 +121,7 @@ export const ItemCardDetailed = ({ expenseId, itemId }: Props) => {
     });
   };
 
-  const participants = assignedPeople.map((person: PersonWithId) => {
+  const participants = assignedPeople.map((person) => {
     const share = item.split.shares[person.id] || 0;
     const price = calculatePersonShare(item, person.id);
     return {
@@ -148,13 +141,9 @@ export const ItemCardDetailed = ({ expenseId, itemId }: Props) => {
             showsHorizontalScrollIndicator={false}
             className="flex-row"
           >
-            {assignedPeople.map((person: PersonWithId, index: number) => (
+            {assignedPeople.map((person, index: number) => (
               <View key={person.id} className={index > 0 ? '-ml-3' : 'm-0'}>
-                <PersonAvatar
-                  personId={person.id}
-                  expenseId={expenseId}
-                  size="lg"
-                />
+                <PersonAvatar size="lg" />
               </View>
             ))}
           </ScrollView>
@@ -206,48 +195,41 @@ export const ItemCardDetailed = ({ expenseId, itemId }: Props) => {
       <View className="pt-4">
         {splitMode === 'custom' && participants.length > 0 && (
           <ScrollView className="max-h-40">
-            {participants.map(
-              (
-                participant: PersonWithId & { quantity: number; price: string },
-                index: number
-              ) => {
-                if (!participant) {
-                  return null;
-                }
-                return (
-                  <View
-                    key={index}
-                    className="flex-row items-center justify-between py-2"
-                  >
-                    <Text className="text-lg text-white">
-                      {participant.name}
-                    </Text>
-                    <View className="flex-row items-center p-1">
-                      <Pressable onPress={() => handleDecrease(participant.id)}>
-                        <AntDesign name="minus" size={16} color="white" />
-                      </Pressable>
-                      <View className="mx-4 min-h-8 min-w-8 items-center justify-center rounded-md bg-white px-2 py-1">
-                        <Text className="text-md font-bold text-black">
-                          {participant.quantity}
-                        </Text>
-                      </View>
-                      <Pressable onPress={() => handleIncrease(participant.id)}>
-                        <AntDesign name="plus" size={16} color="white" />
-                      </Pressable>
-                      <Text
-                        className={
-                          participant.price.length > 6
-                            ? 'ml-5 w-auto text-right text-lg text-white'
-                            : 'ml-5 w-20 text-right text-lg text-white'
-                        }
-                      >
-                        {participant.price}
+            {participants.map((participant, index: number) => {
+              if (!participant) {
+                return null;
+              }
+              return (
+                <View
+                  key={index}
+                  className="flex-row items-center justify-between py-2"
+                >
+                  <Text className="text-lg text-white">{participant.name}</Text>
+                  <View className="flex-row items-center p-1">
+                    <Pressable onPress={() => handleDecrease(participant.id)}>
+                      <AntDesign name="minus" size={16} color="white" />
+                    </Pressable>
+                    <View className="mx-4 min-h-8 min-w-8 items-center justify-center rounded-md bg-white px-2 py-1">
+                      <Text className="text-md font-bold text-black">
+                        {participant.quantity}
                       </Text>
                     </View>
+                    <Pressable onPress={() => handleIncrease(participant.id)}>
+                      <AntDesign name="plus" size={16} color="white" />
+                    </Pressable>
+                    <Text
+                      className={
+                        participant.price.length > 6
+                          ? 'ml-5 w-auto text-right text-lg text-white'
+                          : 'ml-5 w-20 text-right text-lg text-white'
+                      }
+                    >
+                      {participant.price}
+                    </Text>
                   </View>
-                );
-              }
-            )}
+                </View>
+              );
+            })}
           </ScrollView>
         )}
       </View>

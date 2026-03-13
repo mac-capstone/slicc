@@ -1,3 +1,5 @@
+import { Timestamp } from 'firebase/firestore';
+
 export const mockData = {
   users: [
     {
@@ -289,15 +291,16 @@ export const mockData = {
     {
       id: 'event_birthday',
       doc: {
-        name: 'Tink birthday',
-        startDate: '2026-04-08',
-        endDate: '2026-04-08',
-        startTime: '18:00',
-        endTime: '22:00',
-        isRecurring: false,
-        groupId: 'group_tea_party',
-        location: 'Hai Di Lao',
-        locationUrl: 'https://maps.google.com/?q=Hai+Di+Lao',
+        name: 'Twink Birthday',
+        startDate: Timestamp.fromDate(new Date(2026, 1, 15, 18, 0)), // Feb 15, 2026 at 6:00 PM
+        endDate: Timestamp.fromDate(new Date(2026, 1, 16, 22, 0)), // Feb 16, 2026 at 10:00 PM
+        isRecurring: true,
+        recurringInterval: 1,
+        recurringUnit: 'day' as const,
+        recurringEndDate: undefined,
+        groupId: 'group_friends',
+        location: 'Place Name',
+        locationUrl: 'https://maps.google.com/?q=Place+Name',
         details:
           'Join us for a birthday celebration with cake, games, and great company!',
         createdBy: 'user_ankush',

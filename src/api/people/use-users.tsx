@@ -4,7 +4,7 @@ import { createQuery } from 'react-query-kit';
 
 import { db } from '@/api/common/firebase';
 import { mockData } from '@/lib/mock-data';
-import { type Person, type UserIdT } from '@/types';
+import { type EventPerson, type UserIdT } from '@/types';
 
 const USE_MOCK_DATA = true; // Set to false when ready to use Firestore
 
@@ -70,19 +70,21 @@ export const useUsersAsPeople = (userIds: UserIdT[], colors: string[]) => {
   const isLoading = queries.some((query) => query.isLoading);
   const isError = queries.some((query) => query.isError);
 
-  const people: (Person & { id: UserIdT })[] = queries.map((query, index) => {
-    const user = query.data;
-    const userId = userIds[index];
-    const color = colors[index % colors.length];
+  const people: (EventPerson & { id: UserIdT })[] = queries.map(
+    (query, index) => {
+      const user = query.data;
+      const userId = userIds[index];
+      const color = colors[index % colors.length];
 
-    return {
-      id: userId,
-      name: user?.displayName || `User ${userId}`,
-      color: color,
-      userRef: userId,
-      subtotal: 0, // Not relevant for events
-    };
-  });
+      return {
+        id: userId,
+        name: user?.displayName || `User ${userId}`,
+        color: color,
+        userRef: userId,
+        subtotal: 0,
+      };
+    }
+  );
 
   return { people, isLoading, isError };
 };
