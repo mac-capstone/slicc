@@ -1,8 +1,12 @@
 import Feather from '@expo/vector-icons/Feather';
+import { useFocusEffect } from '@react-navigation/native';
+import { useQueries } from '@tanstack/react-query';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 
+import { fetchEvent } from '@/api/events/use-events';
+import { useGroup } from '@/api/groups/use-groups';
 import { AddButton } from '@/components/add-button';
 import {
   GroupEventCard,
@@ -10,46 +14,84 @@ import {
 } from '@/components/group-event-card';
 import { SearchableSectionHeader } from '@/components/searchable-section-header';
 import { colors, Text } from '@/components/ui';
-import { mockData } from '@/lib/mock-data';
+import { markGroupAsRead } from '@/lib/group-preferences';
 import { useThemeConfig } from '@/lib/use-theme-config';
-import type { GroupIdT, UserIdT } from '@/types';
+import type { EventIdT, EventWithId, GroupIdT, UserIdT } from '@/types';
+
+function eventToCardData(event: EventWithId): GroupEventCardData {
+  const startDate =
+    event.startDate instanceof Date
+      ? event.startDate
+      : new Date(event.startDate);
+  return {
+    id: event.id,
+    name: event.name,
+    startDate: startDate.toISOString(),
+    startTime: startDate.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }),
+    location: event.location,
+    participants: event.participants as UserIdT[],
+  };
+}
 
 export default function GroupDetailScreen() {
   const theme = useThemeConfig();
   const params = useLocalSearchParams<{ id: string }>();
   const groupId = params.id as GroupIdT;
 
-  const group = useMemo(
-    () => mockData.groups.find((g) => g.id === groupId),
-    [groupId]
+  const {
+    data: group,
+    isPending,
+    isError,
+  } = useGroup({
+    variables: groupId,
+  });
+
+  const eventQueries = useQueries({
+    queries: (group?.events ?? []).map((eventId) => ({
+      queryKey: ['events', 'eventId', eventId] as const,
+      queryFn: () => fetchEvent(eventId as EventIdT),
+    })),
+  });
+
+  const events = useMemo(
+    () =>
+      eventQueries
+        .map((q) => q.data)
+        .filter((e): e is EventWithId => e != null),
+    [eventQueries]
   );
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchInputVisible, setIsSearchInputVisible] = useState(false);
 
+  useFocusEffect(
+    useCallback(() => {
+      markGroupAsRead(groupId);
+    }, [groupId])
+  );
+
   const allUpcomingEvents = useMemo((): GroupEventCardData[] => {
-    if (!group) return [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    return group.doc.eventIds
-      .map((id) => mockData.events.find((e) => e.id === id))
-      .filter((e): e is NonNullable<typeof e> => e != null)
-      .filter((e) => new Date(e.doc.startDate).getTime() >= today.getTime())
-      .sort(
-        (a, b) =>
-          new Date(a.doc.startDate).getTime() -
-          new Date(b.doc.startDate).getTime()
-      )
-      .map((e) => ({
-        id: e.id,
-        name: e.doc.name,
-        startDate: e.doc.startDate,
-        startTime: e.doc.startTime,
-        location: e.doc.location,
-        participants: e.doc.participants as UserIdT[],
-      }));
-  }, [group]);
+    return events
+      .filter((e) => {
+        const start =
+          e.startDate instanceof Date ? e.startDate : new Date(e.startDate);
+        return start.getTime() >= today.getTime();
+      })
+      .sort((a, b) => {
+        const startA =
+          a.startDate instanceof Date ? a.startDate : new Date(a.startDate);
+        const startB =
+          b.startDate instanceof Date ? b.startDate : new Date(b.startDate);
+        return startA.getTime() - startB.getTime();
+      })
+      .map(eventToCardData);
+  }, [events]);
 
   const upcomingEvents = useMemo(() => {
     if (!searchQuery.trim()) return allUpcomingEvents;
@@ -67,10 +109,12 @@ export default function GroupDetailScreen() {
   const handleNewEvent = () =>
     router.push(`/event/edit-event?groupId=${groupId}` as const);
 
-  if (!group) {
+  if (isPending || isError || !group) {
     return (
       <View className="flex-1 items-center justify-center bg-background-950">
-        <Text className="text-white">Group not found</Text>
+        <Text className="text-white">
+          {isPending ? 'Loading...' : 'Group not found'}
+        </Text>
       </View>
     );
   }
@@ -79,7 +123,7 @@ export default function GroupDetailScreen() {
     <>
       <Stack.Screen
         options={{
-          title: group.doc.title,
+          title: group.name,
           headerShown: true,
           headerTitleStyle: {
             fontSize: 28,

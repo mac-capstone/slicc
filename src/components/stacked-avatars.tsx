@@ -19,7 +19,7 @@ type Props = {
 
 export function StackedAvatars({
   userIds,
-  eventId,
+  eventId: _eventId,
   maxCount = DEFAULT_MAX_COUNT,
   size = 'sm',
   avatarBorderClassName = 'border-2 border-background-950',
@@ -37,7 +37,7 @@ export function StackedAvatars({
           className={`rounded-full ${avatarBorderClassName}`}
           style={index > 0 ? { marginLeft: -8 } : undefined}
         >
-          <PersonAvatar userId={userId} eventId={eventId} size={size} />
+          <PersonAvatar userId={userId} size={size} />
         </View>
       ))}
       {additionalCount > 0 && (

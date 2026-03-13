@@ -1,11 +1,20 @@
 // src/app/group/edit.tsx
 import Feather from '@expo/vector-icons/Feather';
 import Octicons from '@expo/vector-icons/Octicons';
+import { useQueries } from '@tanstack/react-query';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import React, { useMemo, useRef, useState } from 'react';
+import { Timestamp } from 'firebase/firestore';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { v4 as uuidv4 } from 'uuid';
 
+import {
+  useCreateGroup,
+  useGroup,
+  useUpdateGroup,
+} from '@/api/groups/use-groups';
+import { fetchUser, useUser, useUserIds } from '@/api/people/use-users';
 import {
   Button,
   colors,
@@ -16,17 +25,16 @@ import {
   View,
 } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
-import { mockData } from '@/lib/mock-data';
 import type { GroupIdT, UserIdT } from '@/types';
 
 // ---------------------------------------------------------------------------
-// Inline helper — renders a user avatar from mockData color without needing
-// an event/expense context (PersonAvatar requires one of those).
+// Inline helper — renders a user avatar using useUser for displayName/color
 // ---------------------------------------------------------------------------
 function UserAvatar({ userId, size = 36 }: { userId: UserIdT; size?: number }) {
-  const user = mockData.users.find((u) => u.id === userId);
+  const { data: user } = useUser({ variables: userId });
+  const colorKey = (user as { color?: string } | undefined)?.color ?? 'white';
   const bgColor =
-    colors.avatar[(user?.doc.color ?? 'white') as keyof typeof colors.avatar] ??
+    colors.avatar[colorKey as keyof typeof colors.avatar] ??
     colors.avatar.white;
   return (
     <View
@@ -42,6 +50,102 @@ function UserAvatar({ userId, size = 36 }: { userId: UserIdT; size?: number }) {
     </View>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Group header with editable name
+// ---------------------------------------------------------------------------
+function GroupHeaderRow({
+  groupTitle,
+  setGroupTitle,
+  isEditingName,
+  setIsEditingName,
+  nameInputRef,
+  currentUserId,
+}: {
+  groupTitle: string;
+  setGroupTitle: (v: string) => void;
+  isEditingName: boolean;
+  setIsEditingName: (v: boolean) => void;
+  nameInputRef: React.RefObject<TextInput | null>;
+  currentUserId: UserIdT | null;
+}) {
+  return (
+    <View className="mb-6 flex-row items-center">
+      <Pressable className="mr-4 size-14 items-center justify-center rounded-full bg-neutral-700">
+        <Octicons name="person" size={26} color="#A4A4A4" />
+      </Pressable>
+      <View className="flex-1">
+        {isEditingName ? (
+          <TextInput
+            ref={nameInputRef}
+            value={groupTitle}
+            onChangeText={setGroupTitle}
+            onBlur={() => setIsEditingName(false)}
+            autoFocus
+            style={{
+              fontSize: 24,
+              fontWeight: 'bold',
+              color: '#ffffff',
+              padding: 0,
+            }}
+          />
+        ) : (
+          <Pressable
+            onPress={() => {
+              setIsEditingName(true);
+              setTimeout(() => nameInputRef.current?.focus(), 50);
+            }}
+            className="flex-row items-center gap-2"
+          >
+            <Text className="text-2xl font-bold text-white">
+              {groupTitle || 'Group name'}
+            </Text>
+            <Feather name="edit-2" size={16} color="#A4A4A4" />
+          </Pressable>
+        )}
+      </View>
+      {currentUserId && (
+        <View className="ml-3">
+          <UserAvatar userId={currentUserId} size={36} />
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Member list item
+// ---------------------------------------------------------------------------
+function MemberRow({
+  user,
+  isMember,
+  onToggle,
+}: {
+  user: { id: string; displayName: string };
+  isMember: boolean;
+  onToggle: () => void;
+}) {
+  const uid = user.id as UserIdT;
+  return (
+    <View className="flex-row items-center border-b border-neutral-800 py-3">
+      <UserAvatar userId={uid} size={36} />
+      <Text className="ml-3 flex-1 text-base text-white">
+        {user.displayName}
+      </Text>
+      {isMember ? (
+        <Pressable onPress={onToggle}>
+          <Text className="text-sm font-semibold text-red-500">Remove</Text>
+        </Pressable>
+      ) : (
+        <Pressable onPress={onToggle} className="flex-row items-center gap-1">
+          <Octicons name="person-add" size={14} color="#D4D4D4" />
+          <Text className="ml-1 text-sm font-semibold text-white">Add</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Main screen
 // ---------------------------------------------------------------------------
@@ -51,33 +155,56 @@ export default function GroupFormScreen() {
   const groupId = params.groupId as GroupIdT | undefined;
   const currentUserId = useAuth.use.userId();
 
-  const group = useMemo(
-    () => (groupId ? mockData.groups.find((g) => g.id === groupId) : undefined),
-    [groupId]
-  );
+  const { data: group } = useGroup({
+    variables: groupId!,
+    enabled: !!groupId,
+  });
+
   const isEditing = !!group;
-  // ---- local state --------------------------------------------------------
-  const [groupTitle, setGroupTitle] = useState(group?.doc.title ?? '');
+
+  const [groupTitle, setGroupTitle] = useState('');
   const [isEditingName, setIsEditingName] = useState(false);
   const [selectedMemberIds, setSelectedMemberIds] = useState<Set<UserIdT>>(
-    () => new Set((group?.doc.memberIds ?? []) as UserIdT[])
+    () => new Set()
   );
   const [tab, setTab] = useState<'selected' | 'allFriends'>('selected');
   const [searchQuery, setSearchQuery] = useState('');
   const nameInputRef = useRef<TextInput>(null);
 
-  // ---- derived list -------------------------------------------------------
+  useEffect(() => {
+    if (group) {
+      setGroupTitle(group.name);
+      setSelectedMemberIds(new Set(group.members as UserIdT[]));
+    }
+  }, [group]);
+
+  const { data: userIds = [] } = useUserIds();
+
+  const userQueries = useQueries({
+    queries: userIds.map((id) => ({
+      queryKey: ['users', 'userId', id] as const,
+      queryFn: () => fetchUser(id),
+    })),
+  });
+
+  const users = useMemo(
+    () =>
+      userQueries
+        .map((q) => q.data)
+        .filter((u): u is NonNullable<typeof u> => u != null),
+    [userQueries]
+  );
+
   const displayedUsers = useMemo(() => {
     const base =
       tab === 'selected'
-        ? mockData.users.filter((u) => selectedMemberIds.has(u.id as UserIdT))
-        : mockData.users;
+        ? users.filter((u) => selectedMemberIds.has(u.id as UserIdT))
+        : users;
     if (!searchQuery.trim()) return base;
     const q = searchQuery.trim().toLowerCase();
-    return base.filter((u) => u.doc.displayName.toLowerCase().includes(q));
-  }, [tab, selectedMemberIds, searchQuery]);
+    return base.filter((u) => u.displayName.toLowerCase().includes(q));
+  }, [tab, selectedMemberIds, searchQuery, users]);
 
-  // ---- actions ------------------------------------------------------------
   const toggleMember = (uid: UserIdT) => {
     setSelectedMemberIds((prev) => {
       const next = new Set(prev);
@@ -87,16 +214,48 @@ export default function GroupFormScreen() {
     });
   };
 
-  const handleSave = () => {
-    // TODO: replace with Firebase mutation when backend is wired up
-    if (group) {
-      // group.doc.title = groupTitle;
-      // group.doc.memberIds = Array.from(selectedMemberIds);
+  const createGroup = useCreateGroup();
+  const updateGroup = useUpdateGroup();
+
+  const handleSave = async () => {
+    if (!currentUserId) return;
+
+    const members = Array.from(selectedMemberIds);
+    if (!members.includes(currentUserId)) {
+      members.unshift(currentUserId);
     }
-    router.back();
+
+    try {
+      if (isEditing && groupId) {
+        await updateGroup.mutateAsync({
+          groupId,
+          data: {
+            name: groupTitle,
+            members,
+          },
+        });
+      } else {
+        const newGroupId = uuidv4() as GroupIdT;
+        await createGroup.mutateAsync({
+          groupId: newGroupId,
+          data: {
+            name: groupTitle,
+            description: '',
+            owner: currentUserId,
+            admins: [currentUserId],
+            members,
+            events: [],
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+          },
+        });
+      }
+      router.back();
+    } catch {
+      // Error handling - could show toast/alert
+    }
   };
 
-  // ---- render -------------------------------------------------------------
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
@@ -117,55 +276,14 @@ export default function GroupFormScreen() {
           contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
           keyboardShouldPersistTaps="handled"
         >
-          {/* ── Group header row ── */}
-          <View className="mb-6 flex-row items-center">
-            {/* Photo placeholder */}
-            <Pressable
-              className="mr-4 size-14 items-center justify-center
-  rounded-full bg-neutral-700"
-            >
-              <Octicons name="person" size={26} color="#A4A4A4" />
-            </Pressable>
-
-            {/* Editable group name */}
-            <View className="flex-1">
-              {isEditingName ? (
-                <TextInput
-                  ref={nameInputRef}
-                  value={groupTitle}
-                  onChangeText={setGroupTitle}
-                  onBlur={() => setIsEditingName(false)}
-                  autoFocus
-                  style={{
-                    fontSize: 24,
-                    fontWeight: 'bold',
-                    color: '#ffffff',
-                    padding: 0,
-                  }}
-                />
-              ) : (
-                <Pressable
-                  onPress={() => {
-                    setIsEditingName(true);
-                    setTimeout(() => nameInputRef.current?.focus(), 50);
-                  }}
-                  className="flex-row items-center gap-2"
-                >
-                  <Text className="text-2xl font-bold text-white">
-                    {groupTitle || 'Group name'}
-                  </Text>
-                  <Feather name="edit-2" size={16} color="#A4A4A4" />
-                </Pressable>
-              )}
-            </View>
-
-            {/* Current-user avatar badge */}
-            {currentUserId && (
-              <View className="ml-3">
-                <UserAvatar userId={currentUserId} size={36} />
-              </View>
-            )}
-          </View>
+          <GroupHeaderRow
+            groupTitle={groupTitle}
+            setGroupTitle={setGroupTitle}
+            isEditingName={isEditingName}
+            setIsEditingName={setIsEditingName}
+            nameInputRef={nameInputRef}
+            currentUserId={currentUserId}
+          />
 
           {/* ── Members label ── */}
           <Text className="mb-3 text-base text-neutral-400">Members</Text>
@@ -203,7 +321,7 @@ export default function GroupFormScreen() {
               className="mb-4"
             >
               {Array.from(selectedMemberIds).map((uid) => {
-                const user = mockData.users.find((u) => u.id === uid);
+                const user = users.find((u) => u.id === uid);
                 return (
                   <View
                     key={uid}
@@ -212,7 +330,7 @@ export default function GroupFormScreen() {
                   >
                     <UserAvatar userId={uid} size={20} />
                     <Text className="ml-1 text-sm text-white">
-                      {user?.doc.displayName.split(' ')[0]}
+                      {user?.displayName?.split(' ')[0] ?? uid}
                     </Text>
                   </View>
                 );
@@ -237,39 +355,14 @@ export default function GroupFormScreen() {
 
           {/* ── Member list ── */}
           <View>
-            {displayedUsers.map((user) => {
-              const uid = user.id as UserIdT;
-              const isMember = selectedMemberIds.has(uid);
-              return (
-                <View
-                  key={uid}
-                  className="flex-row items-center border-b border-neutral-800
-   py-3"
-                >
-                  <UserAvatar userId={uid} size={36} />
-                  <Text className="ml-3 flex-1 text-base text-white">
-                    {user.doc.displayName}
-                  </Text>
-                  {isMember ? (
-                    <Pressable onPress={() => toggleMember(uid)}>
-                      <Text className="text-sm font-semibold text-red-500">
-                        Remove
-                      </Text>
-                    </Pressable>
-                  ) : (
-                    <Pressable
-                      onPress={() => toggleMember(uid)}
-                      className="flex-row items-center gap-1"
-                    >
-                      <Octicons name="person-add" size={14} color="#D4D4D4" />
-                      <Text className="ml-1 text-sm font-semibold text-white">
-                        Add
-                      </Text>
-                    </Pressable>
-                  )}
-                </View>
-              );
-            })}
+            {displayedUsers.map((user) => (
+              <MemberRow
+                key={user.id}
+                user={user}
+                isMember={selectedMemberIds.has(user.id as UserIdT)}
+                onToggle={() => toggleMember(user.id as UserIdT)}
+              />
+            ))}
           </View>
 
           {/* ── Bottom buttons ── */}

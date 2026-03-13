@@ -12,6 +12,7 @@ import {
 import { createQuery } from 'react-query-kit';
 
 import { db } from '@/api/common/firebase';
+import { setGroupUnread } from '@/lib/group-preferences';
 import { mockData } from '@/lib/mock-data';
 import {
   type Event,
@@ -45,6 +46,24 @@ export const useEventIds = createQuery<
   },
 });
 
+export async function fetchEvent(eventId: EventIdT): Promise<EventWithId> {
+  const eventRef = doc(db, 'events', eventId);
+  const eventSnap = await getDoc(eventRef);
+
+  if (!eventSnap.exists()) {
+    throw new Error('Event not found');
+  }
+
+  const parsedEvent = eventSchema.safeParse(eventSnap.data());
+  if (!parsedEvent.success) {
+    console.error('Invalid event structure:', parsedEvent.error.flatten());
+    throw new Error('Unable to load event data.');
+  }
+  const validatedEvent = parsedEvent.data;
+
+  return { id: eventSnap.id as EventIdT, ...validatedEvent } as EventWithId;
+}
+
 // Query to get a single event by ID
 export const useEvent = createQuery<EventWithId, EventIdT, Error>({
   queryKey: ['events', 'eventId'],
@@ -65,23 +84,7 @@ export const useEvent = createQuery<EventWithId, EventIdT, Error>({
       return { id: event.id as EventIdT, ...validatedEvent } as EventWithId;
     }
 
-    // Firestore implementation
-    const eventRef = doc(db, 'events', eventId);
-    const eventSnap = await getDoc(eventRef);
-
-    if (!eventSnap.exists()) {
-      throw new Error('Event not found');
-    }
-
-    // Validate with Zod
-    const parsedEvent = eventSchema.safeParse(eventSnap.data());
-    if (!parsedEvent.success) {
-      console.error('Invalid event structure:', parsedEvent.error.flatten());
-      throw new Error('Unable to load event data.');
-    }
-    const validatedEvent = parsedEvent.data;
-
-    return { id: eventSnap.id as EventIdT, ...validatedEvent } as EventWithId;
+    return fetchEvent(eventId);
   },
 });
 
@@ -109,6 +112,18 @@ export const useCreateEvent = () => {
       // Firestore implementation
       const eventRef = doc(db, 'events', eventId);
       await setDoc(eventRef, data);
+
+      if (data.groupId) {
+        const groupRef = doc(db, 'groups', data.groupId);
+        await updateDoc(groupRef, {
+          events: arrayUnion(eventId),
+        });
+        setGroupUnread(data.groupId);
+        queryClient.invalidateQueries({
+          queryKey: ['groups', 'groupId', data.groupId],
+        });
+      }
+
       return { id: eventId, ...data };
     },
     onSuccess: () => {

@@ -85,9 +85,15 @@ export function GroupItem({ group, onPinToggle, onPress }: Props) {
             </View>
           </View>
           <View className="mt-1 flex-row items-center gap-2">
-            <Feather name="alert-circle" size={14} color={colors.accent[100]} />
+            {group.eventDescription ? (
+              <Feather
+                name="alert-circle"
+                size={14}
+                color={colors.accent[100]}
+              />
+            ) : null}
             <Text className="text-sm" style={{ color: colors.text[800] }}>
-              {group.eventDescription}
+              {group.eventDescription || 'No upcoming events'}
             </Text>
           </View>
         </View>
