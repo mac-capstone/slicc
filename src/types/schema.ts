@@ -96,6 +96,7 @@ export const expenseConverter = zodConverter(expenseSchema);
 
 export const expensePersonSchema = z.object({
   subtotal: z.number(),
+  paid: z.number(),
 });
 
 export const expensePersonConverter = zodConverter(expensePersonSchema);

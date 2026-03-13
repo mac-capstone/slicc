@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import Octicons from '@expo/vector-icons/Octicons';
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
@@ -67,6 +68,7 @@ export default function ExpenseView() {
             color: person.color,
             userRef: person.userRef,
             subtotal: person.subtotal,
+            paid: person.paid,
           },
         }));
         items = data.items.map((item) => ({
@@ -152,9 +154,22 @@ export default function ExpenseView() {
         }}
       />
       <View className="flex-1 px-4">
-        <Text className="font-futuraBold text-4xl dark:text-text-50">
-          {data.name}
-        </Text>
+        <View className="flex-row items-center justify-between">
+          <Text className="font-futuraBold text-4xl dark:text-text-50">
+            {data.name}
+          </Text>
+          {viewMode !== 'confirm' && (
+            <Pressable
+              onPress={() => router.push(`/expense/settle?id=${id}` as any)}
+            >
+              <Ionicons
+                name="create-outline"
+                size={30}
+                color={theme.dark ? '#fff' : '#000'}
+              />
+            </Pressable>
+          )}
+        </View>
         <Text className="text-base font-medium dark:text-text-800">
           {formattedDate}
         </Text>

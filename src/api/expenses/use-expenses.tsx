@@ -29,6 +29,10 @@ export const useExpenseIds = createQuery<ExpenseIdT[], void, Error>({
   queryKey: ['expenses'],
   fetcher: async () => {
     const snapshot = await getDocs(expensesRef);
+    console.log(
+      'Fetched expense IDs:',
+      snapshot.docs.map((d) => d.id)
+    );
     return snapshot.docs.map((d) => d.id as ExpenseIdT);
   },
 });
