@@ -34,7 +34,7 @@ export const mockData = {
         date: '2025-10-20',
         createdBy: 'user_ankush',
         totalAmount: 64.23,
-        remainingAmount: 23.45,
+        remainingAmount: 34.23,
         participantCount: 3,
       },
       people: [

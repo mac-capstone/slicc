@@ -38,14 +38,11 @@ export const PersonCard = ({
   if (isPersonError || isItemsError || !data || !personItems) {
     return <Text>Error loading person</Text>;
   }
-  const subtotal = personItems.reduce((sum, item) => {
-    const share = calculatePersonShare(item, personId);
-    return Number.isFinite(share) ? sum + share : sum;
-  }, 0);
 
+  const subtotal = data.subtotal;
   const paid = data.paid ?? 0;
-  const remaining = Math.max(data.subtotal - paid, 0);
-  const progress = data.subtotal > 0 ? Math.min(paid / data.subtotal, 1) : 0;
+  const remaining = Math.max(subtotal - paid, 0);
+  const progress = subtotal > 0 ? Math.min(paid / subtotal, 1) : 0;
 
   return (
     <View className="flex min-h-20 w-full flex-col gap-2 rounded-xl bg-background-900 p-3">
