@@ -7,9 +7,13 @@ import { ActivityIndicator, Linking, ScrollView } from 'react-native';
 
 import { useEvent } from '@/api/events/use-events';
 import { PersonAvatar } from '@/components/person-avatar';
-import { Button, Pressable, Text, View } from '@/components/ui';
+import { Button, colors, Pressable, Text, View } from '@/components/ui';
 import { useThemeConfig } from '@/lib/use-theme-config';
-import type { EventIdT } from '@/types';
+import type { EventIdT, UserIdT } from '@/types';
+
+const avatarColorKeys = Object.keys(
+  colors.avatar ?? {}
+) as (keyof typeof colors.avatar)[];
 
 // Helper function to format time in AM/PM format
 const formatTimeAmPm = (timeString: string): string => {
@@ -36,6 +40,14 @@ const formatDate = (dateString: string): string => {
     day: 'numeric',
   };
   return date.toLocaleDateString('en-US', options);
+};
+
+const toDateString = (value: string | Date | undefined): string => {
+  if (!value) return '';
+  if (value instanceof Date) {
+    return value.toLocaleDateString('en-CA');
+  }
+  return value;
 };
 
 // Helper function to get recurring text
@@ -169,19 +181,20 @@ export default function EventDetails() {
                 <Ionicons name="calendar-outline" size={24} color="#3EB489" />
               </View>
               <View className="flex-1">
-                {event.startDate === event.endDate ? (
+                {toDateString(event.startDate) ===
+                toDateString(event.endDate) ? (
                   <Text className="text-base font-medium text-white">
-                    {formatDate(event.startDate)}
+                    {formatDate(toDateString(event.startDate))}
                   </Text>
                 ) : (
                   <>
                     <Text className="text-sm text-text-800">Start</Text>
                     <Text className="mb-2 text-base font-medium text-white">
-                      {formatDate(event.startDate)}
+                      {formatDate(toDateString(event.startDate))}
                     </Text>
                     <Text className="text-sm text-text-800">End</Text>
                     <Text className="text-base font-medium text-white">
-                      {formatDate(event.endDate)}
+                      {formatDate(toDateString(event.endDate))}
                     </Text>
                   </>
                 )}
@@ -198,8 +211,8 @@ export default function EventDetails() {
               </View>
               <View className="flex-1">
                 <Text className="text-base font-medium text-white">
-                  {formatTimeAmPm(event.startTime)} -{' '}
-                  {formatTimeAmPm(event.endTime)}
+                  {formatTimeAmPm(event.startTime ?? '')} -{' '}
+                  {formatTimeAmPm(event.endTime ?? '')}
                 </Text>
                 {event.isRecurring && (
                   <View className="mt-1 flex-row items-center">
@@ -242,8 +255,10 @@ export default function EventDetails() {
                         }}
                       >
                         <PersonAvatar
-                          eventId={eventId as EventIdT}
-                          userId={userId}
+                          userId={userId as UserIdT}
+                          color={
+                            avatarColorKeys[index % avatarColorKeys.length]
+                          }
                           size="md"
                         />
                       </View>

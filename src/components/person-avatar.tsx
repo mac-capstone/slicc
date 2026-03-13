@@ -1,75 +1,41 @@
 import Octicons from '@expo/vector-icons/Octicons';
-import { ActivityIndicator } from 'react-native';
 import { Circle, Path, Svg } from 'react-native-svg';
 
-import { useEventParticipant } from '@/api/events/use-events';
-import { usePerson } from '@/api/people/use-people';
-import { colors, Text, View } from '@/components/ui';
+import { useUser } from '@/api/people/use-users';
+import { colors, Image, View } from '@/components/ui';
 import { cn } from '@/lib/utils';
-import {
-  type EventIdT,
-  type ExpenseIdT,
-  type PersonIdT,
-  type UserIdT,
-} from '@/types';
+import { type UserIdT } from '@/types';
 
-type PersonAvatarPropsWithExpense = {
+const SIZE_CLASSES = {
+  sm: 'size-6',
+  md: 'size-8',
+  lg: 'size-12',
+} as const;
+
+const ICON_SIZES = { sm: 12, md: 15, lg: 24 } as const;
+
+type PersonAvatarProps = {
+  userId?: UserIdT;
+  color?: keyof typeof colors.avatar;
   size?: 'sm' | 'md' | 'lg';
-  personId: PersonIdT;
-  expenseId: ExpenseIdT;
-  eventId?: never;
-  userId?: never;
-  inSplitView?: boolean;
   isSelected?: boolean;
-};
-
-type PersonAvatarPropsWithEvent = {
-  size?: 'sm' | 'md' | 'lg';
-  userId: UserIdT;
-  eventId: EventIdT;
-  personId?: never;
-  expenseId?: never;
   inSplitView?: boolean;
-  isSelected?: boolean;
 };
-
-type PersonAvatarProps =
-  | PersonAvatarPropsWithExpense
-  | PersonAvatarPropsWithEvent;
 
 export const PersonAvatar = ({
-  size = 'md',
-  personId,
-  expenseId,
-  eventId,
   userId,
+  color,
+  size = 'md',
   isSelected = false,
   inSplitView = false,
 }: PersonAvatarProps) => {
-  // Use the appropriate hook based on whether we have expenseId or eventId
-  const personQuery = usePerson({
-    variables: expenseId && personId ? { expenseId, personId } : undefined,
-    enabled: !!expenseId && !!personId,
+  const { data: user } = useUser({
+    variables: userId!,
+    enabled: !!userId,
   });
 
-  const participantQuery = useEventParticipant({
-    variables: eventId && userId ? { eventId, userId } : undefined,
-    enabled: !!eventId && !!userId,
-  });
-
-  const { data, isPending, isError } = expenseId
-    ? personQuery
-    : participantQuery;
-
-  if (isPending) {
-    return <ActivityIndicator />;
-  }
-  if (isError) {
-    return <Text>Error loading person</Text>;
-  }
-  const avatarColor =
-    colors.avatar?.[data.color as keyof typeof colors.avatar] ??
-    colors.avatar.white;
+  const photoURL = user?.photoURL;
+  const avatarColor = colors.avatar?.[color ?? 'white'] ?? colors.avatar.white;
 
   const checkmarkSize = size === 'sm' ? 10 : size === 'md' ? 14 : 18;
   const checkmarkCircleRadius = checkmarkSize / 2;
@@ -78,21 +44,21 @@ export const PersonAvatar = ({
   return (
     <View
       className={cn(
-        'flex items-center justify-center rounded-full relative',
-        size === 'sm' ? 'size-6' : size === 'md' ? 'size-8' : 'size-12',
-        inSplitView
-          ? isSelected
-            ? 'opacity-100'
-            : 'opacity-65'
-          : 'opacity-100'
+        'relative flex items-center justify-center overflow-hidden rounded-full',
+        SIZE_CLASSES[size],
+        inSplitView && !isSelected ? 'opacity-65' : 'opacity-100'
       )}
-      style={{ backgroundColor: avatarColor }}
+      style={photoURL ? undefined : { backgroundColor: avatarColor }}
     >
-      <Octicons
-        name="person"
-        size={size === 'sm' ? 12 : size === 'md' ? 15 : 24}
-        color="#D4D4D4"
-      />
+      {photoURL ? (
+        <Image
+          source={{ uri: photoURL }}
+          className="size-full"
+          contentFit="cover"
+        />
+      ) : (
+        <Octicons name="person" size={ICON_SIZES[size]} color="#D4D4D4" />
+      )}
       {isSelected && (
         <View className="absolute -right-1 -top-1">
           <Svg

@@ -12,13 +12,11 @@ import {
 import { createQuery } from 'react-query-kit';
 
 import { db } from '@/api/common/firebase';
-import colors from '@/components/ui/colors';
 import { mockData } from '@/lib/mock-data';
 import {
   type Event,
   type EventIdT,
   type EventWithId,
-  type Person,
   type UserIdT,
 } from '@/types';
 
@@ -53,7 +51,10 @@ export const useEvent = createQuery<EventWithId, EventIdT, Error>({
     if (USE_MOCK_DATA) {
       const event = mockData.events.find((e) => e.id === eventId);
       if (!event) throw new Error('Event not found');
-      return { id: event.id as EventIdT, ...event.doc } as EventWithId;
+      return {
+        id: event.id as EventIdT,
+        ...event.doc,
+      } as unknown as EventWithId;
     }
 
     // Firestore implementation
@@ -233,11 +234,13 @@ export const useRemoveParticipant = () => {
   });
 };
 
-// Query to get a participant with their assigned color in an event
-const avatarColors = Object.keys(colors.avatar || {});
+type EventParticipant = {
+  name: string;
+  userRef: string;
+};
 
 export const useEventParticipant = createQuery<
-  Person,
+  EventParticipant,
   { eventId: EventIdT; userId: UserIdT },
   Error
 >({
@@ -247,50 +250,35 @@ export const useEventParticipant = createQuery<
       const event = mockData.events.find((e) => e.id === eventId);
       if (!event) throw new Error('Event not found');
 
-      const participantIndex = event.doc.participants.indexOf(userId);
-      if (participantIndex === -1) throw new Error('User not a participant');
+      if (!event.doc.participants.includes(userId))
+        throw new Error('User not a participant');
 
       const user = mockData.users.find((u) => u.id === userId);
       if (!user) throw new Error('User not found');
 
-      // Assign color based on participant index
-      const color = avatarColors[participantIndex % avatarColors.length];
-
       return {
         name: user.doc.displayName,
-        color: color,
         userRef: userId,
-        subtotal: 0, // Not relevant for events
       };
     }
 
-    // Firestore implementation
     const eventRef = doc(db, 'events', eventId);
     const eventSnap = await getDoc(eventRef);
 
-    if (!eventSnap.exists()) {
-      throw new Error('Event not found');
-    }
+    if (!eventSnap.exists()) throw new Error('Event not found');
 
     const event = eventSnap.data() as Event;
-    const participantIndex = event.participants.indexOf(userId);
-    if (participantIndex === -1) throw new Error('User not a participant');
+    if (!event.participants.includes(userId))
+      throw new Error('User not a participant');
 
     const userRef = doc(db, 'users', userId);
     const userSnap = await getDoc(userRef);
 
-    if (!userSnap.exists()) {
-      throw new Error('User not found');
-    }
-
-    const user = userSnap.data();
-    const color = avatarColors[participantIndex % avatarColors.length];
+    if (!userSnap.exists()) throw new Error('User not found');
 
     return {
-      name: user.displayName,
-      color: color,
+      name: userSnap.data().displayName,
       userRef: userId,
-      subtotal: 0,
     };
   },
 });

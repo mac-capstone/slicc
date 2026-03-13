@@ -3,16 +3,17 @@ import React from 'react';
 
 import { usePersonItems } from '@/api/items/use-person-items';
 import { usePerson } from '@/api/people/use-people';
+import { useUser } from '@/api/people/use-users';
 import { ActivityIndicator, Text, View } from '@/components/ui';
 import { calculatePersonShare } from '@/lib/utils';
-import { type ExpenseIdT, type PersonIdT } from '@/types';
+import { type ExpenseIdT, type UserIdT } from '@/types';
 
 import { PersonAvatar } from './person-avatar';
 export const PersonCard = ({
   personId,
   expenseId,
 }: {
-  personId: PersonIdT;
+  personId: UserIdT;
   expenseId: ExpenseIdT;
 }) => {
   const {
@@ -29,6 +30,8 @@ export const PersonCard = ({
   } = usePersonItems({
     variables: { expenseId, personId },
   });
+  const { data: user } = useUser({ variables: personId });
+
   if (isPersonPending || isItemsPending) {
     return <ActivityIndicator />;
   }
@@ -43,9 +46,9 @@ export const PersonCard = ({
     <View className="flex min-h-20 w-full flex-col gap-2 rounded-xl bg-background-900 p-3">
       <View className="flex w-full flex-row justify-between gap-2">
         <View className="flex flex-row items-center gap-2">
-          <PersonAvatar size="lg" personId={personId} expenseId={expenseId} />
+          <PersonAvatar userId={personId} size="lg" />
           <Text className="font-futuraMedium text-xl dark:text-text-50">
-            {data.name}
+            {user?.displayName ?? 'Unknown'}
           </Text>
         </View>
         <Text className="font-futuraDemi text-xl dark:text-accent-100">
@@ -63,7 +66,7 @@ export const PersonItemList = ({
   personId,
   expenseId,
 }: {
-  personId: PersonIdT;
+  personId: UserIdT;
   expenseId: ExpenseIdT;
 }) => {
   const { data, isPending, isError } = usePersonItems({

@@ -21,7 +21,8 @@
     "cli",
     "android",
     "ios",
-    "lint-staged.config.js"
+    "lint-staged.config.js",
+    "src/lib/scripts/**"
   ],
   "include": [
     "src/**/*.ts",
