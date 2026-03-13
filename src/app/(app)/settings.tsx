@@ -4,6 +4,7 @@ import React from 'react';
 import { Item } from '@/components/settings/item';
 import { ItemsContainer } from '@/components/settings/items-container';
 import { LanguageItem } from '@/components/settings/language-item';
+import { TaxItem } from '@/components/settings/tax-item';
 import { ThemeItem } from '@/components/settings/theme-item';
 import { FocusAwareStatusBar, ScrollView, View } from '@/components/ui';
 import { useAuth } from '@/lib';
@@ -19,6 +20,7 @@ export default function Settings() {
           <ItemsContainer title="settings.generale">
             <LanguageItem />
             <ThemeItem />
+            <TaxItem />
           </ItemsContainer>
 
           <ItemsContainer title="settings.about">

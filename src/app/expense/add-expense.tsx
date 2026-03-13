@@ -8,8 +8,8 @@ import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
 } from 'expo-speech-recognition';
-import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, BackHandler } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, BackHandler, Modal } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useMMKVBoolean } from 'react-native-mmkv';
 import Animated, {
@@ -24,13 +24,25 @@ import { v4 as uuidv4 } from 'uuid';
 
 import ExpenseCreationFooter from '@/components/expense-creation-footer';
 import { Button, Input, Pressable, Text, View } from '@/components/ui';
-import { useAuth } from '@/lib';
+import { useAuth, useDefaultTaxRate } from '@/lib';
 import { storage } from '@/lib/storage';
 import { clearTempExpense, useExpenseCreation } from '@/lib/store';
 import { useThemeConfig } from '@/lib/use-theme-config';
 import { type ItemIdT, type ItemWithId } from '@/types';
 
 const SWIPE_NUDGE_SHOWN_KEY = 'swipe-nudge-shown';
+
+/** Strips anything that isn't a digit or decimal point, and prevents multiple decimals. */
+const sanitizeNumeric = (text: string): string => {
+  // Remove everything except digits and '.'
+  let cleaned = text.replace(/[^0-9.]/g, '');
+  // Allow only the first decimal point
+  const parts = cleaned.split('.');
+  if (parts.length > 2) {
+    cleaned = parts[0] + '.' + parts.slice(1).join('');
+  }
+  return cleaned;
+};
 
 export default function AddExpense() {
   const theme = useThemeConfig();
@@ -47,6 +59,7 @@ export default function AddExpense() {
     initializeTempExpense,
     hydrate,
     removeItem,
+    addItem,
   } = useExpenseCreation();
 
   // Track items count and trigger nudge when adding first item (list length goes from 0 to 1)
@@ -140,6 +153,8 @@ export default function AddExpense() {
     );
   }
 
+  const existingTip = tempExpense?.items?.find((item) => item.isTip);
+
   return (
     <>
       <Stack.Screen
@@ -166,9 +181,10 @@ export default function AddExpense() {
         <Text className="font-futuraBold text-4xl dark:text-text-50">
           Create an expense
         </Text>
-        <View className="pb-11 pt-5">
+        <View className="pb-2 pt-5">
           <Input
             placeholder="Enter Expense Name"
+            inputClassName="py-4 text-lg"
             value={expenseName}
             onChangeText={(text) => {
               setExpenseName(text);
@@ -192,8 +208,14 @@ export default function AddExpense() {
             keyExtractor={(item) => item.id}
             drawDistance={500}
             ListFooterComponent={
-              <View className="pt-5">
+              <View className="pt-2">
                 <CreateItemCard />
+                <AddTipButton
+                  existingTip={existingTip}
+                  totalAmount={getTotalAmount()}
+                  addItem={addItem}
+                  removeItem={removeItem}
+                />
               </View>
             }
             ItemSeparatorComponent={() => <View className="h-5" />}
@@ -303,6 +325,19 @@ const TempItemCard = React.memo(function TempItemCard({
 
   if (!item) return null;
 
+  // baseAmount = parseFloat(tempItemAmount) || 0;
+  // taxRate = parseFloat(tempItemTaxStr) || 0;
+  // taxAmount = baseAmount * (taxRate / 100);
+  // totalWithTax = baseAmount + taxAmount;
+
+  // taxAmount is calculated as:
+  // amount * (taxRate / 100)
+  // totalWithTax is calculated as:
+  // amount + taxAmount
+
+  const taxAmount = item.amount * ((item.taxRate ? item.taxRate : 0) / 100);
+  const totalWithTax = item.amount + taxAmount;
+
   return (
     <View className="overflow-hidden rounded-xl">
       <View
@@ -320,13 +355,26 @@ const TempItemCard = React.memo(function TempItemCard({
       {/* swipeable card */}
       <GestureDetector gesture={panGesture}>
         <Animated.View style={animatedCardStyle}>
-          <View className="flex flex-row items-center justify-between rounded-xl bg-background-900 p-4">
-            <Text className="font-futuraBold text-lg dark:text-text-50">
-              {item.name}
-            </Text>
-            <Text className="font-futuraDemi text-xl dark:text-text-50">
-              ${item.amount.toFixed(2)}
-            </Text>
+          <View className="flex flex-col rounded-xl bg-background-900 p-4">
+            <View className="flex flex-row items-center justify-between">
+              <Text className="font-futuraBold text-lg dark:text-text-50">
+                {item.isTip ? `Tip` : item.name}
+              </Text>
+              <Text className="font-futuraDemi text-xl dark:text-text-50">
+                ${item.amount.toFixed(2)}
+              </Text>
+            </View>
+            {!item.isTip &&
+              item.taxRate !== undefined &&
+              item.taxRate > 0 &&
+              item.amount !== undefined && (
+                <View className="mt-1 flex flex-row justify-between">
+                  <Text className="text-xs text-neutral-400">
+                    Base: ${item.amount.toFixed(2)} + Tax ({item.taxRate}%): $
+                    {totalWithTax?.toFixed(2) ?? '0.00'}
+                  </Text>
+                </View>
+              )}
           </View>
         </Animated.View>
       </GestureDetector>
@@ -427,11 +475,23 @@ function getItemAndAmountFromTaggedWords(taggedWords: any[]): {
 }
 
 function CreateItemCard() {
+  const { defaultTaxRate } = useDefaultTaxRate();
   const [tempItemName, setTempItemName] = useState<string>('');
   const [tempItemAmount, setTempItemAmount] = useState<string>('');
+  const [tempItemTaxStr, setTempItemTaxStr] = useState<string>('');
   const [recognizing, setRecognizing] = useState(false);
 
+  // Sync the tax input with default whenever default changes and user hasn't typed anything
+  useEffect(() => {
+    setTempItemTaxStr(defaultTaxRate > 0 ? defaultTaxRate.toString() : '');
+  }, [defaultTaxRate]);
+
   const addItem = useExpenseCreation.use.addItem();
+
+  const baseAmount = parseFloat(tempItemAmount) || 0;
+  const taxRate = parseFloat(tempItemTaxStr) || 0;
+  const taxAmount = baseAmount * (taxRate / 100);
+  const totalWithTax = baseAmount + taxAmount;
 
   useSpeechRecognitionEvent('start', () => setRecognizing(true));
   useSpeechRecognitionEvent('end', () => setRecognizing(false));
@@ -449,7 +509,7 @@ function CreateItemCard() {
         getItemAndAmountFromTaggedWords(taggedWords);
 
       setTempItemName(itemName);
-      setTempItemAmount(String(itemAmount));
+      setTempItemAmount(itemAmount > 0 ? itemAmount.toString() : '');
     }
   });
   useSpeechRecognitionEvent('error', (event) => {
@@ -468,6 +528,24 @@ function CreateItemCard() {
       interimResults: true,
       continuous: false,
     });
+  };
+
+  const handleAddItem = () => {
+    addItem({
+      id: uuidv4() as ItemIdT,
+      name: tempItemName,
+      amount: baseAmount,
+      taxRate: taxRate,
+      isTip: false,
+      split: {
+        mode: 'equal',
+        shares: {},
+      },
+      assignedPersonIds: [],
+    });
+    setTempItemName('');
+    setTempItemAmount('');
+    setTempItemTaxStr(defaultTaxRate > 0 ? defaultTaxRate.toString() : '');
   };
 
   return (
@@ -497,46 +575,269 @@ function CreateItemCard() {
           </Pressable>
         )}
       </View>
-      <Input
-        placeholder="Enter Item Amount"
-        keyboardType="decimal-pad"
-        value={tempItemAmount}
-        onChangeText={(text) => {
-          let cleaned = text.replace(/[^0-9.]/g, '');
+      <View className="flex flex-row items-center gap-2">
+        <Text className="pb-2 text-base font-bold text-neutral-400">$</Text>
+        <Input
+          placeholder="Enter Item Amount"
+          keyboardType="decimal-pad"
+          containerClassName="mb-0 flex-1"
+          value={tempItemAmount}
+          onChangeText={(text) => setTempItemAmount(sanitizeNumeric(text))}
+        />
+        <Text className="pb-2 text-base font-bold text-neutral-400">+</Text>
+        <Input
+          placeholder="0"
+          keyboardType="numeric"
+          containerClassName="mb-0 w-16"
+          inputClassName="text-center"
+          value={tempItemTaxStr}
+          onChangeText={(text) => setTempItemTaxStr(sanitizeNumeric(text))}
+        />
+        <Text className="pb-2 text-base font-bold text-neutral-400">% Tax</Text>
+      </View>
 
-          const firstDot = cleaned.indexOf('.');
-          if (firstDot !== -1) {
-            cleaned =
-              cleaned.slice(0, firstDot + 1) +
-              cleaned.slice(firstDot + 1).replace(/\./g, '');
-          }
+      {/* Tax breakdown display */}
+      {baseAmount > 0 && (
+        <View className="rounded-lg bg-background-900 px-3 py-2">
+          <View className="flex-row justify-between">
+            <Text className="text-sm text-neutral-400">Base Price</Text>
+            <Text className="text-sm text-neutral-400">
+              ${baseAmount.toFixed(2)}
+            </Text>
+          </View>
+          {taxRate > 0 && (
+            <View className="flex-row justify-between">
+              <Text className="text-sm text-neutral-400">Tax ({taxRate}%)</Text>
+              <Text className="text-sm text-neutral-400">
+                +${taxAmount.toFixed(2)}
+              </Text>
+            </View>
+          )}
+          <View className="mt-1 border-t border-neutral-700 pt-1">
+            <View className="flex-row justify-between">
+              <Text className="text-sm font-bold dark:text-text-50">Total</Text>
+              <Text className="text-sm font-bold dark:text-text-50">
+                ${totalWithTax.toFixed(2)}
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
 
-          setTempItemAmount(cleaned);
-        }}
-      />
       <Button
         label="Add Item"
-        onPress={() => {
-          const amount = Number(tempItemAmount);
-
-          if (Number.isNaN(amount)) return;
-
-          addItem({
-            id: uuidv4() as ItemIdT,
-            name: tempItemName.trim(),
-            amount,
-            split: {
-              mode: 'equal',
-              shares: {},
-            },
-            assignedPersonIds: [],
-          });
-
-          setTempItemName('');
-          setTempItemAmount('');
-        }}
-        disabled={!tempItemName.trim() || !tempItemAmount}
+        onPress={handleAddItem}
+        disabled={!tempItemName.trim() || !tempItemName || baseAmount <= 0}
       />
     </View>
+  );
+}
+
+function AddTipButton({
+  existingTip,
+  totalAmount,
+  addItem,
+  removeItem,
+}: {
+  existingTip: ItemWithId | undefined;
+  totalAmount: number;
+  addItem: (item: ItemWithId) => void;
+  removeItem: (itemId: ItemIdT) => void;
+}) {
+  const [modalVisible, setModalVisible] = useState(false);
+  const [tipMode, setTipMode] = useState<'flat' | 'percentage'>('flat');
+  const [tipInput, setTipInput] = useState<string>('');
+
+  const subtotalWithoutTip = useMemo(() => {
+    if (existingTip) {
+      return totalAmount - existingTip.amount;
+    }
+    return totalAmount;
+  }, [totalAmount, existingTip]);
+
+  const calculatedTipAmount = useMemo(() => {
+    const val = parseFloat(tipInput) || 0;
+    if (tipMode === 'percentage') {
+      return Math.round(subtotalWithoutTip * (val / 100) * 100) / 100;
+    }
+    return Math.round(val * 100) / 100;
+  }, [tipInput, tipMode, subtotalWithoutTip]);
+
+  const handleAddTip = () => {
+    if (calculatedTipAmount <= 0) return;
+
+    // Remove existing tip first
+    if (existingTip) {
+      removeItem(existingTip.id);
+    }
+
+    addItem({
+      id: uuidv4() as ItemIdT,
+      name: 'Tip',
+      amount: calculatedTipAmount,
+      isTip: true,
+      split: {
+        mode: 'equal',
+        shares: {},
+      },
+      assignedPersonIds: [],
+    });
+
+    setModalVisible(false);
+    setTipInput('');
+  };
+
+  const handleRemoveTip = () => {
+    if (existingTip) {
+      removeItem(existingTip.id);
+    }
+    setModalVisible(false);
+  };
+
+  return (
+    <>
+      <Button
+        label={
+          existingTip ? `Tip: $${existingTip.amount.toFixed(2)}` : 'Add Tip'
+        }
+        variant="outline"
+        icon={<Ionicons name="cash-outline" size={18} color="#A4A4A4" />}
+        onPress={() => {
+          setTipInput('');
+          setModalVisible(true);
+        }}
+      />
+
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <Pressable
+          className="flex-1 items-center justify-center bg-black/50"
+          onPress={() => setModalVisible(false)}
+        >
+          <Pressable
+            className="mx-6 w-80 rounded-2xl bg-neutral-100 p-5 dark:bg-neutral-800"
+            onPress={() => {}}
+          >
+            <Text className="mb-4 text-center text-xl font-bold dark:text-text-50">
+              Add Tip
+            </Text>
+
+            {/* Tip mode toggle */}
+            <View className="mb-4 flex-row overflow-hidden rounded-lg bg-neutral-200 dark:bg-neutral-700">
+              <Pressable
+                className={`flex-1 py-2 ${tipMode === 'flat' ? 'bg-black dark:bg-accent-100' : ''}`}
+                onPress={() => setTipMode('flat')}
+              >
+                <Text
+                  className={`text-center font-bold ${
+                    tipMode === 'flat'
+                      ? 'text-white dark:text-black'
+                      : 'dark:text-text-50'
+                  }`}
+                >
+                  Flat ($)
+                </Text>
+              </Pressable>
+              <Pressable
+                className={`flex-1 py-2 ${tipMode === 'percentage' ? 'bg-black dark:bg-accent-100' : ''}`}
+                onPress={() => setTipMode('percentage')}
+              >
+                <Text
+                  className={`text-center font-bold ${
+                    tipMode === 'percentage'
+                      ? 'text-white dark:text-black'
+                      : 'dark:text-text-50'
+                  }`}
+                >
+                  Percent (%)
+                </Text>
+              </Pressable>
+            </View>
+
+            {/* Quick percentage buttons */}
+            {tipMode === 'percentage' && (
+              <View className="mb-3 flex-row justify-between gap-2">
+                {[10, 15, 18, 20, 25].map((pct) => (
+                  <Pressable
+                    key={pct}
+                    className={`flex-1 rounded-lg py-2 ${
+                      tipInput === pct.toString()
+                        ? 'bg-black dark:bg-accent-100'
+                        : 'bg-neutral-200 dark:bg-neutral-700'
+                    }`}
+                    onPress={() => setTipInput(pct.toString())}
+                  >
+                    <Text
+                      className={`text-center text-sm font-bold ${
+                        tipInput === pct.toString()
+                          ? 'text-white dark:text-black'
+                          : 'dark:text-text-50'
+                      }`}
+                    >
+                      {pct}%
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+
+            <Input
+              placeholder={
+                tipMode === 'flat' ? 'Enter tip amount' : 'Enter tip %'
+              }
+              keyboardType="numeric"
+              value={tipInput}
+              onChangeText={(text) => setTipInput(sanitizeNumeric(text))}
+            />
+
+            {/* Preview */}
+            {calculatedTipAmount > 0 && (
+              <View className="mb-2 rounded-lg bg-neutral-200 px-3 py-2 dark:bg-neutral-700">
+                <View className="flex-row justify-between">
+                  <Text className="text-sm text-neutral-500 dark:text-neutral-400">
+                    Subtotal
+                  </Text>
+                  <Text className="text-sm text-neutral-500 dark:text-neutral-400">
+                    ${subtotalWithoutTip.toFixed(2)}
+                  </Text>
+                </View>
+                <View className="flex-row justify-between">
+                  <Text className="text-sm font-bold dark:text-text-50">
+                    Tip
+                  </Text>
+                  <Text className="text-sm font-bold dark:text-text-50">
+                    +${calculatedTipAmount.toFixed(2)}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <Button
+              label="Add Tip"
+              onPress={handleAddTip}
+              disabled={calculatedTipAmount <= 0}
+            />
+
+            {existingTip && (
+              <Button
+                label="Remove Tip"
+                variant="destructive"
+                onPress={handleRemoveTip}
+              />
+            )}
+
+            <Button
+              label="Cancel"
+              variant="ghost"
+              onPress={() => setModalVisible(false)}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
   );
 }
