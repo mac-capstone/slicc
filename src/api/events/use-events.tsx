@@ -12,7 +12,8 @@ import {
 import { createQuery } from 'react-query-kit';
 
 import { db } from '@/api/common/firebase';
-import { getItem, setItem } from '@/lib/storage';
+import { setGroupUnread } from '@/lib/group-preferences';
+import { mockData } from '@/lib/mock-data';
 import {
   type Event,
   type EventIdT,
@@ -20,7 +21,7 @@ import {
   type UserIdT,
 } from '@/types';
 import { eventConverter, eventSchema } from '@/types/schema';
-import { setGroupUnread } from '@/lib';
+import { setItem, getItem } from '@/lib/storage';
 
 const eventsRef = collection(db, 'events').withConverter(eventConverter);
 
@@ -106,6 +107,24 @@ export async function fetchEvent(eventId: EventIdT): Promise<EventWithId> {
   return { id: eventSnap.id as EventIdT, ...validatedEvent } as EventWithId;
 }
 
+export async function fetchEvent(eventId: EventIdT): Promise<EventWithId> {
+  const eventRef = doc(db, 'events', eventId);
+  const eventSnap = await getDoc(eventRef);
+
+  if (!eventSnap.exists()) {
+    throw new Error('Event not found');
+  }
+
+  const parsedEvent = eventSchema.safeParse(eventSnap.data());
+  if (!parsedEvent.success) {
+    console.error('Invalid event structure:', parsedEvent.error.flatten());
+    throw new Error('Unable to load event data.');
+  }
+  const validatedEvent = parsedEvent.data;
+
+  return { id: eventSnap.id as EventIdT, ...validatedEvent } as EventWithId;
+}
+
 // Query to get a single event by ID
 export const useEvent = createQuery<EventWithId, EventIdT, Error>({
   queryKey: ['events', 'eventId'],
@@ -118,17 +137,7 @@ export const useEvent = createQuery<EventWithId, EventIdT, Error>({
       }
     }
 
-    // Firestore implementation
-    const eventRef = doc(eventsRef, eventId);
-    const eventSnap = await getDoc(eventRef);
-
-    if (!eventSnap.exists()) {
-      throw new Error('Event not found');
-    }
-
-    const event = { id: eventId, ...eventSnap.data() };
-    await saveEventToCache(event);
-    return event;
+    return fetchEvent(eventId);
   },
 });
 
@@ -146,16 +155,19 @@ export const useCreateEvent = () => {
       // Firestore implementation
       const eventRef = doc(eventsRef, eventId);
       await setDoc(eventRef, data);
-      const createdEvent = { id: eventId, ...data };
-      await saveEventToCache(createdEvent);
 
-      const cachedEventIds =
-        getItem<AllEventsResponse>(EVENT_IDS_CACHE_KEY) ?? [];
-      if (!cachedEventIds.includes(eventId)) {
-        await setItem(EVENT_IDS_CACHE_KEY, [...cachedEventIds, eventId]);
+      if (data.groupId) {
+        const groupRef = doc(db, 'groups', data.groupId);
+        await updateDoc(groupRef, {
+          events: arrayUnion(eventId),
+        });
+        setGroupUnread(data.groupId);
+        queryClient.invalidateQueries({
+          queryKey: ['groups', 'groupId', data.groupId],
+        });
       }
 
-      return createdEvent;
+      return { id: eventId, ...data };
     },
     onSuccess: () => {
       // Invalidate and refetch events list
