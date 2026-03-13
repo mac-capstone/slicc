@@ -325,6 +325,19 @@ const TempItemCard = React.memo(function TempItemCard({
 
   if (!item) return null;
 
+  // baseAmount = parseFloat(tempItemAmount) || 0;
+  // taxRate = parseFloat(tempItemTaxStr) || 0;
+  // taxAmount = baseAmount * (taxRate / 100);
+  // totalWithTax = baseAmount + taxAmount;
+
+  // taxAmount is calculated as:
+  // amount * (taxRate / 100)
+  // totalWithTax is calculated as:
+  // amount + taxAmount
+
+  const taxAmount = item.amount * ((item.taxRate ? item.taxRate : 0) / 100);
+  const totalWithTax = item.amount + taxAmount;
+
   return (
     <View className="overflow-hidden rounded-xl">
       <View
@@ -354,11 +367,11 @@ const TempItemCard = React.memo(function TempItemCard({
             {!item.isTip &&
               item.taxRate !== undefined &&
               item.taxRate > 0 &&
-              item.baseAmount !== undefined && (
+              item.amount !== undefined && (
                 <View className="mt-1 flex flex-row justify-between">
                   <Text className="text-xs text-neutral-400">
-                    Base: ${item.baseAmount.toFixed(2)} + Tax ({item.taxRate}%):
-                    ${item.taxAmount?.toFixed(2) ?? '0.00'}
+                    Base: ${item.amount.toFixed(2)} + Tax ({item.taxRate}%): $
+                    {totalWithTax?.toFixed(2) ?? '0.00'}
                   </Text>
                 </View>
               )}
@@ -517,26 +530,18 @@ function CreateItemCard() {
     });
   };
 
-  const handleAddItem = async () => {
+  const handleAddItem = () => {
     addItem({
       id: uuidv4() as ItemIdT,
       name: tempItemName,
-      amount: Math.round(totalWithTax * 100) / 100,
-      baseAmount: baseAmount,
+      amount: baseAmount,
       taxRate: taxRate,
-      taxAmount: Math.round(taxAmount * 100) / 100,
       isTip: false,
       split: {
         mode: 'equal',
         shares: {},
       },
       assignedPersonIds: [],
-    });
-    await queryClient.invalidateQueries({
-      queryKey: ['expenses', 'expenseId', TEMP_EXPENSE_ID],
-    });
-    await queryClient.invalidateQueries({
-      queryKey: ['items', 'expenseId', TEMP_EXPENSE_ID],
     });
     setTempItemName('');
     setTempItemAmount('');
@@ -621,25 +626,7 @@ function CreateItemCard() {
 
       <Button
         label="Add Item"
-        onPress={() => {
-          const amount = Number(tempItemAmount);
-
-          if (Number.isNaN(amount)) return;
-
-          addItem({
-            id: uuidv4() as ItemIdT,
-            name: tempItemName.trim(),
-            amount,
-            split: {
-              mode: 'equal',
-              shares: {},
-            },
-            assignedPersonIds: [],
-          });
-
-          setTempItemName('');
-          setTempItemAmount('');
-        }}
+        onPress={handleAddItem}
         disabled={!tempItemName.trim() || !tempItemName || baseAmount <= 0}
       />
     </View>
@@ -676,7 +663,7 @@ function AddTipButton({
     return Math.round(val * 100) / 100;
   }, [tipInput, tipMode, subtotalWithoutTip]);
 
-  const handleAddTip = async () => {
+  const handleAddTip = () => {
     if (calculatedTipAmount <= 0) return;
 
     // Remove existing tip first
@@ -696,26 +683,13 @@ function AddTipButton({
       assignedPersonIds: [],
     });
 
-    await queryClient.invalidateQueries({
-      queryKey: ['expenses', 'expenseId', TEMP_EXPENSE_ID],
-    });
-    await queryClient.invalidateQueries({
-      queryKey: ['items', 'expenseId', TEMP_EXPENSE_ID],
-    });
-
     setModalVisible(false);
     setTipInput('');
   };
 
-  const handleRemoveTip = async () => {
+  const handleRemoveTip = () => {
     if (existingTip) {
       removeItem(existingTip.id);
-      await queryClient.invalidateQueries({
-        queryKey: ['expenses', 'expenseId', TEMP_EXPENSE_ID],
-      });
-      await queryClient.invalidateQueries({
-        queryKey: ['items', 'expenseId', TEMP_EXPENSE_ID],
-      });
     }
     setModalVisible(false);
   };
