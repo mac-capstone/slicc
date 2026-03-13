@@ -7,11 +7,7 @@ import { ExpenseCard } from '@/components/expense-card';
 import { ActivityIndicator, Text, View } from '@/components/ui';
 
 export default function Feed() {
-  const { data, isPending, isError, error } = useExpenseIds();
-  console.log('Expense IDs in Feed:', data);
-  console.log('Loading state:', isPending);
-  console.log('Error state:', isError);
-  console.log('Error message:', error?.message);
+  const { data, isPending, isError } = useExpenseIds();
   if (isPending) {
     return <ActivityIndicator />;
   }
