@@ -38,7 +38,6 @@ export default function TabLayout() {
         headerStyle: {
           backgroundColor: colors.background[950],
         },
-        // TODO: Temporary button to events
         headerRight: () => (
           <TouchableOpacity
             onPress={() => router.push('/event/edit-event?id=event_birthday')}
@@ -81,7 +80,7 @@ export default function TabLayout() {
           tabBarButtonTestID: 'groups-tab',
           headerRight: () => (
             <TouchableOpacity
-              onPress={() => {}}
+              onPress={() => router.push('/group/edit')}
               style={{ marginRight: 16 }}
               accessibilityLabel="Add group"
               accessibilityRole="button"

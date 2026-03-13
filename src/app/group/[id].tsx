@@ -60,7 +60,8 @@ export default function GroupDetailScreen() {
   }, [allUpcomingEvents, searchQuery]);
 
   const handleBack = () => router.back();
-  const handleSettings = () => {};
+  const handleSettings = () =>
+    router.push(`/group/${groupId}/members` as const);
   const handleEventPress = (eventId: string) =>
     router.push(`/event/${eventId}` as const);
   const handleNewEvent = () =>
@@ -102,7 +103,7 @@ export default function GroupDetailScreen() {
             <Pressable onPress={handleSettings} className="px-2">
               <Feather
                 name="chevron-right"
-                size={24}
+                size={40}
                 color={theme.dark ? '#fff' : '#000'}
               />
             </Pressable>

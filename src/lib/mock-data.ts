@@ -5,6 +5,7 @@ export const mockData = {
       doc: {
         displayName: 'Ankush Sarkar',
         email: 'ankush@example.com',
+        color: 'red',
         photoURL: null,
       },
     },
@@ -13,6 +14,7 @@ export const mockData = {
       doc: {
         displayName: 'Michael Jordan',
         email: 'michael@example.com',
+        color: 'red',
         photoURL: null,
       },
     },
@@ -21,6 +23,7 @@ export const mockData = {
       doc: {
         displayName: 'Sarah Avery',
         email: 'sarah@example.com',
+        color: 'red',
         photoURL: null,
       },
     },
@@ -29,6 +32,7 @@ export const mockData = {
       doc: {
         displayName: 'Jane Doe',
         email: 'jane@example.com',
+        color: 'red',
         photoURL: null,
       },
     },
@@ -37,6 +41,7 @@ export const mockData = {
       doc: {
         displayName: 'Omar Lee',
         email: 'omar@example.com',
+        color: 'red',
         photoURL: null,
       },
     },
@@ -45,6 +50,7 @@ export const mockData = {
       doc: {
         displayName: 'Ryan Chen',
         email: 'ryan@example.com',
+        color: 'red',
         photoURL: null,
       },
     },
@@ -53,6 +59,7 @@ export const mockData = {
       doc: {
         displayName: 'Emma Wilson',
         email: 'emma@example.com',
+        color: 'red',
         photoURL: null,
       },
     },
@@ -61,6 +68,7 @@ export const mockData = {
       doc: {
         displayName: 'Alex Brown',
         email: 'alex@example.com',
+        color: 'red',
         photoURL: null,
       },
     },
@@ -360,6 +368,7 @@ export const mockData = {
           'user_emma',
           'user_alex',
         ],
+        adminId: 'user_ankush',
         createdAt: '2026-03-04',
         isPinned: true,
         hasUnreadIndicator: false,
@@ -377,6 +386,7 @@ export const mockData = {
           'user_jane',
           'user_omar',
         ],
+        adminId: 'user_ankush',
         createdAt: '2021-09-04',
         isPinned: true,
         hasUnreadIndicator: true,
@@ -397,6 +407,7 @@ export const mockData = {
           'user_emma',
           'user_alex',
         ],
+        adminId: 'user_ankush',
         createdAt: '2026-03-04',
         isPinned: false,
         hasUnreadIndicator: false,
@@ -414,6 +425,7 @@ export const mockData = {
           'user_jane',
           'user_omar',
         ],
+        adminId: 'user_ankush',
         createdAt: '2021-09-04',
         isPinned: true,
         hasUnreadIndicator: true,
