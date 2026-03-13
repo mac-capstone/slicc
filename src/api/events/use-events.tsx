@@ -53,8 +53,6 @@ export const useEvent = createQuery<EventWithId, EventIdT, Error>({
       const event = mockData.events.find((e) => e.id === eventId);
       if (!event) throw new Error('Event not found');
 
-      // Validate with Zod
-      console.log(typeof event.doc.startDate, event.doc.startDate);
       const parsedEvent = eventSchema.safeParse(event.doc);
       if (!parsedEvent.success) {
         console.error('Invalid event structure:', parsedEvent.error.flatten());

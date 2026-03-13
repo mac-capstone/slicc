@@ -60,6 +60,7 @@ export const eventSchema = z.object({
   details: z.string().optional(),
   startDate: firestoreTimestamp,
   endDate: firestoreTimestamp,
+  expenseIds: z.array(z.string()).default([]),
   isRecurring: z.boolean().optional(),
   recurringInterval: z.number().optional(),
   recurringUnit: z.enum(['day', 'week', 'month', 'year']).optional(),
