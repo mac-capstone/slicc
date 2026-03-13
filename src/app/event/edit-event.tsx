@@ -675,22 +675,22 @@ export default function EditEvent() {
             <View className="my-4 h-px bg-gray-500" />
           </View>
         </View>
-        {/* Action Buttons */}
-        <View className="mx-6 mt-6 flex-row gap-24">
-          <Button
-            label="Cancel"
-            variant="outline"
-            onPress={handleCancel}
-            className="h-12 flex-1 border !border-red-500"
-          />
-          <Button
-            label={isEditMode ? 'Save Changes' : 'Create Event'}
-            onPress={handleSaveChanges}
-            className="h-12 flex-1 border !border-text-800 !bg-background-950"
-            textClassName="!text-white"
-          />
-        </View>
       </ScrollView>
+      {/* Action Buttons */}
+      <View className="m-6 flex-row gap-24">
+        <Button
+          label="Cancel"
+          variant="outline"
+          onPress={handleCancel}
+          className="h-12 flex-1 border !border-red-500"
+        />
+        <Button
+          label={isEditMode ? 'Save Changes' : 'Create Event'}
+          onPress={handleSaveChanges}
+          className="h-12 flex-1 border !border-text-800 !bg-background-950"
+          textClassName="!text-white"
+        />
+      </View>
     </>
   );
 }
