@@ -23,7 +23,7 @@ const inputTv = tv({
     container: 'mb-2',
     label: 'text-grey-100 mb-1 text-lg dark:text-neutral-100',
     input:
-      'mt-0 rounded-xl bg-neutral-100 px-4 py-3 font-inter text-base font-semibold leading-5  dark:bg-background-900 dark:text-white',
+      'mt-0 rounded-xl border border-neutral-200 bg-neutral-100 px-4 py-3 font-inter text-base font-semibold leading-5 dark:border-charcoal-600 dark:bg-background-900 dark:text-white',
   },
 
   variants: {
@@ -49,12 +49,19 @@ const inputTv = tv({
           'm-0 rounded-none bg-transparent p-0 text-center dark:bg-transparent',
       },
     },
+    compact: {
+      true: {
+        container: 'mb-0',
+        input: 'h-10 rounded-lg py-0',
+      },
+    },
   },
   defaultVariants: {
     focused: false,
     error: false,
     disabled: false,
     raw: false,
+    compact: false,
   },
 });
 
@@ -64,6 +71,10 @@ export interface NInputProps extends TextInputProps {
   error?: string;
   /** Use raw style - no background, borders, or padding */
   raw?: boolean;
+  /** Restrict input to monetary values (digits and single decimal point, 2 decimal places max) */
+  money?: boolean;
+  /** Use compact sizing - no bottom margin, shorter height */
+  compact?: boolean;
   /** Tailwind classes for the outer container (View) */
   containerClassName?: string;
   /** Tailwind classes for the TextInput itself */
@@ -95,11 +106,37 @@ export const Input = React.forwardRef<NTextInput, NInputProps>((props, ref) => {
     containerClassName,
     inputClassName,
     raw,
+    money,
+    compact,
+    onChangeText,
+    keyboardType,
+    inputMode,
     ...inputProps
   } = props;
   const [isFocussed, setIsFocussed] = React.useState(false);
   const onBlur = React.useCallback(() => setIsFocussed(false), []);
   const onFocus = React.useCallback(() => setIsFocussed(true), []);
+
+  const handleChangeText = React.useCallback(
+    (text: string) => {
+      if (money) {
+        console.log('Raw input:', text);
+        // Allow only digits and a single decimal point, max 2 decimal places
+        const sanitized = text.replace(/[^0-9.]/g, '');
+        // Prevent multiple decimal points
+        const parts = sanitized.split('.');
+        let result = parts[0];
+        if (parts.length > 1) {
+          result += '.' + parts[1].slice(0, 2);
+        }
+        console.log('Sanitized input:', result);
+        onChangeText?.(result);
+      } else {
+        onChangeText?.(text);
+      }
+    },
+    [money, onChangeText]
+  );
 
   const styles = React.useMemo(
     () =>
@@ -108,8 +145,9 @@ export const Input = React.forwardRef<NTextInput, NInputProps>((props, ref) => {
         focused: isFocussed,
         disabled: Boolean(props.disabled),
         raw: Boolean(raw),
+        compact: Boolean(compact),
       }),
-    [error, isFocussed, props.disabled, raw]
+    [error, isFocussed, props.disabled, raw, compact]
   );
 
   return (
@@ -130,6 +168,9 @@ export const Input = React.forwardRef<NTextInput, NInputProps>((props, ref) => {
         onBlur={onBlur}
         onFocus={onFocus}
         {...inputProps}
+        onChangeText={handleChangeText}
+        keyboardType={money ? 'decimal-pad' : keyboardType}
+        inputMode={money ? 'decimal' : inputMode}
         style={StyleSheet.flatten([
           { writingDirection: I18nManager.isRTL ? 'rtl' : 'ltr' },
           { textAlign: I18nManager.isRTL ? 'right' : 'left' },

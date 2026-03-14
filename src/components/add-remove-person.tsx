@@ -57,6 +57,7 @@ export const AddRemovePerson = ({ itemID, expenseId }: Props) => {
       color: avatarColors[peopleArray.length % avatarColors.length],
       userRef: null,
       subtotal: 0,
+      paid: 0,
     };
     addPerson(newPerson);
     await queryClient.invalidateQueries({

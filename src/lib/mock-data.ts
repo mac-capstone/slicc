@@ -84,7 +84,7 @@ export const mockData = {
         date: '2025-10-20',
         createdBy: 'user_ankush',
         totalAmount: 64.23,
-        remainingAmount: 23.45,
+        remainingAmount: 34.23,
         participantCount: 3,
       },
       people: [
@@ -95,6 +95,7 @@ export const mockData = {
             color: 'red',
             userRef: null,
             subtotal: 20.15,
+            paid: 20.0,
           },
         },
         {
@@ -104,6 +105,7 @@ export const mockData = {
             color: 'blue',
             userRef: null,
             subtotal: 22.04,
+            paid: 10.0,
           },
         },
         {
@@ -113,6 +115,7 @@ export const mockData = {
             color: 'green',
             userRef: null,
             subtotal: 22.04,
+            paid: 0,
           },
         },
       ],
@@ -185,6 +188,7 @@ export const mockData = {
             color: 'yellow',
             userRef: 'user_ankush',
             subtotal: 70.0,
+            paid: 70.0,
           },
         },
         {
@@ -194,6 +198,7 @@ export const mockData = {
             color: 'red',
             userRef: null,
             subtotal: 60.0,
+            paid: 30.0,
           },
         },
         {
@@ -203,6 +208,7 @@ export const mockData = {
             color: 'blue',
             userRef: null,
             subtotal: 60.05,
+            paid: 0,
           },
         },
         {
@@ -212,6 +218,7 @@ export const mockData = {
             color: 'green',
             userRef: null,
             subtotal: 60.05,
+            paid: 49.71,
           },
         },
       ],

@@ -94,6 +94,7 @@ export const expenseConverter = zodConverter(expenseSchema);
 
 export const expensePersonSchema = z.object({
   subtotal: z.number(),
+  paid: z.number(),
 });
 
 export const expensePersonConverter = zodConverter(expensePersonSchema);
@@ -103,11 +104,13 @@ export const expensePersonConverter = zodConverter(expensePersonSchema);
 export const expenseItemSchema = z.object({
   name: z.string(),
   amount: z.number(),
+  taxRate: z.number().optional(),
   split: z.object({
     mode: z.string(),
     shares: z.record(z.string(), z.number()),
   }),
   assignedPersonIds: z.array(z.string()),
+  isTip: z.boolean().optional(),
 });
 
 export const expenseItemConverter = zodConverter(expenseItemSchema);

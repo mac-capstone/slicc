@@ -35,6 +35,7 @@ export type EventPerson = {
   color: string;
   userRef: string;
   subtotal: number;
+  paid: number;
 };
 
 // ── Expense person with optional UI fields (name/color/userRef are not in Firestore) ──

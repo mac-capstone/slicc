@@ -174,6 +174,7 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
     people: {
       [userId: UserId]: {
         subtotal: number;
+        paid: number;
       }
     }
     // items subcollection
