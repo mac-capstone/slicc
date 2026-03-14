@@ -20,7 +20,7 @@ import {
   type EventWithId,
   type UserIdT,
 } from '@/types';
-import { eventConverter, eventSchema } from '@/types/schema';
+import { eventConverter } from '@/types/schema';
 
 const USE_MOCK_DATA = false; // Set to false when ready to use Firestore
 const eventsRef = collection(db, 'events').withConverter(eventConverter);
@@ -72,8 +72,10 @@ export const useEvent = createQuery<EventWithId, EventIdT, Error>({
       const event = mockData.events.find((e) => e.id === eventId);
       if (!event) throw new Error('Event not found');
 
-      const normalizedEvent = eventSchema.parse(event.doc);
-      return { id: event.id as EventIdT, ...normalizedEvent } as EventWithId;
+      return {
+        id: event.id as EventIdT,
+        ...event.doc,
+      } as unknown as EventWithId;
     }
 
     // Firestore implementation
