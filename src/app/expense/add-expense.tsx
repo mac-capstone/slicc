@@ -3,7 +3,7 @@ import 'react-native-get-random-values';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Octicons from '@expo/vector-icons/Octicons';
 import { FlashList } from '@shopify/flash-list';
-import { router, Stack, usePathname } from 'expo-router';
+import { router, Stack, useLocalSearchParams, usePathname } from 'expo-router';
 import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
@@ -28,13 +28,14 @@ import { useAuth } from '@/lib';
 import { storage } from '@/lib/storage';
 import { clearTempExpense, useExpenseCreation } from '@/lib/store';
 import { useThemeConfig } from '@/lib/use-theme-config';
-import { type ItemIdT, type ItemWithId } from '@/types';
+import { type EventIdT, type ItemIdT, type ItemWithId } from '@/types';
 
 const SWIPE_NUDGE_SHOWN_KEY = 'swipe-nudge-shown';
 
 export default function AddExpense() {
   const theme = useThemeConfig();
   const userId = useAuth.use.userId();
+  const { eventId } = useLocalSearchParams<{ eventId?: EventIdT }>();
   const pathname = usePathname();
   const tempExpense = useExpenseCreation.use.tempExpense();
   const [expenseName, setExpenseName] = useState<string>('');
@@ -212,7 +213,7 @@ export default function AddExpense() {
         nextDisabled={getTotalAmount() === 0 || expenseName === ''}
         onNextPress={() => {
           setExpenseNameInStore(expenseName);
-          router.push('/expense/split-expense');
+          router.push(`/expense/split-expense?eventId=${eventId}`);
         }}
         totalAmount={getTotalAmount()}
         hasPrevious={false}
