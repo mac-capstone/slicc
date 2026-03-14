@@ -125,7 +125,7 @@ type RawExpense = {
     createdAt: admin.firestore.Timestamp;
     updatedAt: admin.firestore.Timestamp;
   };
-  people: { id: string; subtotal: number }[];
+  people: { id: string; subtotal: number; paid: number }[];
   items: {
     id: string;
     name: string;
@@ -136,10 +136,10 @@ type RawExpense = {
 };
 
 function buildExpenseDoc(raw: RawExpense) {
-  const settled = raw.people.reduce((sum, p) => sum + p.subtotal, 0);
+  const totalPaid = raw.people.reduce((sum, p) => sum + p.paid, 0);
   return {
     ...raw.doc,
-    remainingAmount: parseFloat((raw.doc.totalAmount - settled).toFixed(2)),
+    remainingAmount: parseFloat((raw.doc.totalAmount - totalPaid).toFixed(2)),
     participantCount: raw.people.length,
   };
 }
@@ -157,9 +157,9 @@ const rawExpenses: RawExpense[] = [
       updatedAt: now,
     },
     people: [
-      { id: 'user_ankush', subtotal: 22.04 },
-      { id: 'user_michael', subtotal: 20.15 },
-      { id: 'user_sarah', subtotal: 22.04 },
+      { id: 'user_ankush', subtotal: 22.04, paid: 22.04 },
+      { id: 'user_michael', subtotal: 20.15, paid: 10.0 },
+      { id: 'user_sarah', subtotal: 22.04, paid: 0 },
     ],
     items: [
       {
@@ -203,10 +203,10 @@ const rawExpenses: RawExpense[] = [
       updatedAt: now,
     },
     people: [
-      { id: 'user_ankush', subtotal: 69.35 },
-      { id: 'user_michael', subtotal: 63.25 },
-      { id: 'user_sarah', subtotal: 58.75 },
-      { id: 'user_jane', subtotal: 58.75 },
+      { id: 'user_ankush', subtotal: 69.35, paid: 69.35 },
+      { id: 'user_michael', subtotal: 63.25, paid: 30.0 },
+      { id: 'user_sarah', subtotal: 58.75, paid: 0 },
+      { id: 'user_jane', subtotal: 58.75, paid: 50.0 },
     ],
     items: [
       {
