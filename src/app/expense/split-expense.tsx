@@ -1,6 +1,6 @@
 import Octicons from '@expo/vector-icons/Octicons';
 import { FlashList } from '@shopify/flash-list';
-import { router, Stack } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 
@@ -11,10 +11,11 @@ import { ItemCardDetailed } from '@/components/item-card-detailed';
 import { ActivityIndicator, Pressable, Text, View } from '@/components/ui';
 import { clearTempExpense, useExpenseCreation } from '@/lib/store';
 import { useThemeConfig } from '@/lib/use-theme-config';
-import { type ExpenseIdT, type ItemIdT } from '@/types';
+import { type EventIdT, type ExpenseIdT, type ItemIdT } from '@/types';
 
 export default function SplitExpense() {
   const theme = useThemeConfig();
+  const { eventId } = useLocalSearchParams<{ eventId?: EventIdT }>();
   const tempExpense = useExpenseCreation.use.tempExpense();
   const hydrate = useExpenseCreation.use.hydrate();
   const [selectedItemId, setSelectedItemId] = useState<ItemIdT | undefined>(
@@ -116,6 +117,7 @@ export default function SplitExpense() {
                 params: {
                   id: tempExpense.id as ExpenseIdT,
                   viewMode: 'confirm',
+                  ...(eventId ? { eventId } : {}),
                 },
               })
             }

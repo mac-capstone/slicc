@@ -73,8 +73,7 @@ export default function EventExpenses() {
     );
   }
 
-  // TODO: Filter expenses by event ID when the expense model includes eventId
-  // For now, showing all expenses as placeholder
+  // useExpenseIdsByEvent returns filtered expense ids for the event, so we can directly use it without additional filtering
   const filteredExpenses = expenseIds ?? [];
 
   return (
@@ -106,8 +105,7 @@ export default function EventExpenses() {
           )}
           keyExtractor={(expenseId) => expenseId}
           ListEmptyComponent={
-            <View className="flex-1 items-center justify-center py-10">
-              <Ionicons name="receipt-outline" size={64} color="#666" />
+            <View>
               <Text className="mb-6 mt-4 text-center text-lg text-text-800">
                 No expenses for this event yet
               </Text>

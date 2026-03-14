@@ -1,4 +1,11 @@
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+} from 'firebase/firestore';
 import { createQuery } from 'react-query-kit';
 
 import { getTempExpense } from '@/lib/store';
@@ -34,22 +41,14 @@ export const useExpenseIds = createQuery<ExpenseIdT[], void, Error>({
   },
 });
 
-type ExpenseIdsByEventResponse = ExpenseIdT[];
-type ExpenseIdsByEventVariables = EventIdT;
-
-export const useExpenseIdsByEvent = createQuery<
-  ExpenseIdsByEventResponse,
-  ExpenseIdsByEventVariables,
-  Error
->({
-  queryKey: ['expenses', 'eventId'],
+export const useExpenseIdsByEvent = createQuery<ExpenseIdT[], EventIdT, Error>({
+  queryKey: ['expenses', 'eventIds'],
   fetcher: async (eventId) => {
-    const eventsRef = collection(db, 'events');
-    const snapshot = await getDocs(eventsRef);
-    const eventDoc = snapshot.docs.find((d) => d.data().id === eventId);
-    if (!eventDoc) return [];
-    const event = eventDoc.data();
-    return event.expenseIds as ExpenseIdT[];
+    if (!eventId) return [];
+    const snapshot = await getDocs(
+      query(expensesRef, where('eventId', '==', eventId))
+    );
+    return snapshot.docs.map((d) => d.id as ExpenseIdT);
   },
 });
 
