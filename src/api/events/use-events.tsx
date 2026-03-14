@@ -19,9 +19,10 @@ import {
   type EventWithId,
   type UserIdT,
 } from '@/types';
-import { eventSchema } from '@/types/schema';
+import { eventConverter, eventSchema } from '@/types/schema';
 
 const USE_MOCK_DATA = false; // Set to false when ready to use Firestore
+const eventsRef = collection(db, 'events').withConverter(eventConverter);
 
 // Query to get all event IDs
 type AllEventsResponse = EventIdT[];
@@ -39,7 +40,6 @@ export const useEventIds = createQuery<
     }
 
     // Firestore implementation
-    const eventsRef = collection(db, 'events');
     const snapshot = await getDocs(eventsRef);
     return snapshot.docs.map((doc) => doc.id as EventIdT);
   },
@@ -53,33 +53,19 @@ export const useEvent = createQuery<EventWithId, EventIdT, Error>({
       const event = mockData.events.find((e) => e.id === eventId);
       if (!event) throw new Error('Event not found');
 
-      const parsedEvent = eventSchema.safeParse(event.doc);
-      if (!parsedEvent.success) {
-        console.error('Invalid event structure:', parsedEvent.error.flatten());
-        throw new Error('Unable to load event data.');
-      }
-      const validatedEvent = parsedEvent.data;
-
-      return { id: event.id as EventIdT, ...validatedEvent } as EventWithId;
+      const normalizedEvent = eventSchema.parse(event.doc);
+      return { id: event.id as EventIdT, ...normalizedEvent } as EventWithId;
     }
 
     // Firestore implementation
-    const eventRef = doc(db, 'events', eventId);
+    const eventRef = doc(eventsRef, eventId);
     const eventSnap = await getDoc(eventRef);
 
     if (!eventSnap.exists()) {
       throw new Error('Event not found');
     }
 
-    // Validate with Zod
-    const parsedEvent = eventSchema.safeParse(eventSnap.data());
-    if (!parsedEvent.success) {
-      console.error('Invalid event structure:', parsedEvent.error.flatten());
-      throw new Error('Unable to load event data.');
-    }
-    const validatedEvent = parsedEvent.data;
-
-    return { id: eventSnap.id as EventIdT, ...validatedEvent } as EventWithId;
+    return { id: eventSnap.id as EventIdT, ...eventSnap.data() } as EventWithId;
   },
 });
 
@@ -143,11 +129,10 @@ export const useUpdateEvent = () => {
       }
 
       // Firestore implementation
-      const eventRef = doc(db, 'events', eventId);
+      const eventRef = doc(eventsRef, eventId);
       await updateDoc(eventRef, data);
       const updatedSnap = await getDoc(eventRef);
-      const parsedEvent = eventSchema.parse(updatedSnap.data());
-      return { id: eventId, ...parsedEvent };
+      return { id: eventId, ...updatedSnap.data() };
     },
     onSuccess: (_, variables) => {
       // Invalidate specific event query and events list
@@ -181,7 +166,7 @@ export const useAddParticipant = () => {
       }
 
       // Firestore implementation
-      const eventRef = doc(db, 'events', eventId);
+      const eventRef = doc(eventsRef, eventId);
       const eventSnap = await getDoc(eventRef);
 
       if (!eventSnap.exists()) {
@@ -226,7 +211,7 @@ export const useRemoveParticipant = () => {
       }
 
       // Firestore implementation
-      const eventRef = doc(db, 'events', eventId);
+      const eventRef = doc(eventsRef, eventId);
       const eventSnap = await getDoc(eventRef);
 
       if (!eventSnap.exists()) {
@@ -277,12 +262,12 @@ export const useEventParticipant = createQuery<
       };
     }
 
-    const eventRef = doc(db, 'events', eventId);
+    const eventRef = doc(eventsRef, eventId);
     const eventSnap = await getDoc(eventRef);
 
     if (!eventSnap.exists()) throw new Error('Event not found');
 
-    const event = eventSchema.parse(eventSnap.data()) as Event;
+    const event = eventSnap.data() as Event;
     if (!event.participants.includes(userId))
       throw new Error('User not a participant');
 
