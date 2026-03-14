@@ -120,6 +120,7 @@ export const AddRemovePerson = ({ itemID, expenseId }: Props) => {
             >
               <PersonAvatar
                 size="lg"
+                color={person.color as keyof typeof colors.avatar}
                 inSplitView={true}
                 isSelected={isAssigned}
               />
