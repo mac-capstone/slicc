@@ -177,7 +177,7 @@ export const useUpdateEvent = () => {
         throw new Error('Event not found');
       }
 
-      const updatedEvent = { id: eventId, ...updatedSnap.data() };
+      const updatedEvent = { id: eventId, ...updatedSnap.data() } as EventWithId;
       await saveEventToCache(updatedEvent);
       return updatedEvent;
     },
