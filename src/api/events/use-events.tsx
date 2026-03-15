@@ -27,6 +27,8 @@ const eventsRef = collection(db, 'events').withConverter(eventConverter);
 const EVENT_IDS_CACHE_KEY = 'events:ids';
 const getEventCacheKey = (eventId: EventIdT) => `events:${eventId}`;
 
+const isEventId = (value: string): value is EventIdT => value.length > 0;
+
 const toDate = (value: unknown): Date | undefined => {
   if (value instanceof Date) {
     return value;
@@ -82,7 +84,9 @@ export const useEventIds = createQuery<
 
     // Firestore implementation
     const snapshot = await getDocs(eventsRef);
-    const eventIds = snapshot.docs.map((eventDoc) => eventDoc.id as EventIdT);
+    const eventIds = snapshot.docs
+      .map((eventDoc) => eventDoc.id)
+      .filter(isEventId);
     await setItem(EVENT_IDS_CACHE_KEY, eventIds);
     return eventIds;
   },
