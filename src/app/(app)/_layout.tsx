@@ -38,16 +38,6 @@ export default function TabLayout() {
         headerStyle: {
           backgroundColor: colors.background[950],
         },
-        headerRight: () => (
-          <TouchableOpacity
-            onPress={() => router.push('/event/edit-event?id=event_birthday')}
-            style={{ marginRight: 16 }}
-            accessibilityLabel="Create event"
-            accessibilityRole="button"
-          >
-            <Octicons name="plus" size={24} color={colors.text[800]} />
-          </TouchableOpacity>
-        ),
         tabBarStyle: {
           minHeight: 80,
           paddingTop: 10,
