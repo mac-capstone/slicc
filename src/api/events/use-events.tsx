@@ -13,7 +13,7 @@ import { createQuery } from 'react-query-kit';
 
 import { db } from '@/api/common/firebase';
 import { setGroupUnread } from '@/lib/group-preferences';
-import { mockData } from '@/lib/mock-data';
+import { getItem, setItem } from '@/lib/storage';
 import {
   type Event,
   type EventIdT,
@@ -21,7 +21,6 @@ import {
   type UserIdT,
 } from '@/types';
 import { eventConverter, eventSchema } from '@/types/schema';
-import { setItem, getItem } from '@/lib/storage';
 
 const eventsRef = collection(db, 'events').withConverter(eventConverter);
 
@@ -88,24 +87,6 @@ export const useEventIds = createQuery<
     return eventIds;
   },
 });
-
-export async function fetchEvent(eventId: EventIdT): Promise<EventWithId> {
-  const eventRef = doc(db, 'events', eventId);
-  const eventSnap = await getDoc(eventRef);
-
-  if (!eventSnap.exists()) {
-    throw new Error('Event not found');
-  }
-
-  const parsedEvent = eventSchema.safeParse(eventSnap.data());
-  if (!parsedEvent.success) {
-    console.error('Invalid event structure:', parsedEvent.error.flatten());
-    throw new Error('Unable to load event data.');
-  }
-  const validatedEvent = parsedEvent.data;
-
-  return { id: eventSnap.id as EventIdT, ...validatedEvent } as EventWithId;
-}
 
 export async function fetchEvent(eventId: EventIdT): Promise<EventWithId> {
   const eventRef = doc(db, 'events', eventId);
