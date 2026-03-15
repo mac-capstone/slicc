@@ -12,6 +12,7 @@ import {
 import { createQuery } from 'react-query-kit';
 
 import { db } from '@/api/common/firebase';
+import { getItem, setItem } from '@/lib/storage';
 import {
   type Event,
   type EventIdT,
@@ -22,7 +23,45 @@ import { eventConverter } from '@/types/schema';
 
 const eventsRef = collection(db, 'events').withConverter(eventConverter);
 
-const isEventId = (value: string): value is EventIdT => value.length > 0;
+const EVENT_IDS_CACHE_KEY = 'events:ids';
+const getEventCacheKey = (eventId: EventIdT) => `events:${eventId}`;
+
+const toDate = (value: unknown): Date | undefined => {
+  if (value instanceof Date) {
+    return value;
+  }
+
+  if (typeof value === 'string' || typeof value === 'number') {
+    const parsedDate = new Date(value);
+    if (!Number.isNaN(parsedDate.getTime())) {
+      return parsedDate;
+    }
+  }
+
+  return undefined;
+};
+
+const hydrateCachedEvent = (cachedEvent: EventWithId): EventWithId | null => {
+  const startDate = toDate(cachedEvent.startDate);
+  const endDate = toDate(cachedEvent.endDate);
+
+  if (!startDate || !endDate) {
+    return null;
+  }
+
+  return {
+    ...cachedEvent,
+    startDate,
+    endDate,
+    recurringEndDate: toDate(cachedEvent.recurringEndDate),
+    createdAt: toDate(cachedEvent.createdAt),
+    updatedAt: toDate(cachedEvent.updatedAt),
+  };
+};
+
+const saveEventToCache = async (event: EventWithId) => {
+  await setItem(getEventCacheKey(event.id), event);
+};
 
 // Query to get all event IDs
 type AllEventsResponse = EventIdT[];
@@ -35,9 +74,16 @@ export const useEventIds = createQuery<
 >({
   queryKey: ['events'],
   fetcher: async () => {
+    const cachedEventIds = getItem<AllEventsResponse>(EVENT_IDS_CACHE_KEY);
+    if (cachedEventIds) {
+      return cachedEventIds;
+    }
+
     // Firestore implementation
     const snapshot = await getDocs(eventsRef);
-    return snapshot.docs.map((eventDoc) => eventDoc.id).filter(isEventId);
+    const eventIds = snapshot.docs.map((eventDoc) => eventDoc.id as EventIdT);
+    await setItem(EVENT_IDS_CACHE_KEY, eventIds);
+    return eventIds;
   },
 });
 
@@ -45,6 +91,14 @@ export const useEventIds = createQuery<
 export const useEvent = createQuery<EventWithId, EventIdT, Error>({
   queryKey: ['events', 'eventId'],
   fetcher: async (eventId) => {
+    const cachedEvent = getItem<EventWithId>(getEventCacheKey(eventId));
+    if (cachedEvent) {
+      const hydratedEvent = hydrateCachedEvent(cachedEvent);
+      if (hydratedEvent) {
+        return hydratedEvent;
+      }
+    }
+
     // Firestore implementation
     const eventRef = doc(eventsRef, eventId);
     const eventSnap = await getDoc(eventRef);
@@ -53,7 +107,9 @@ export const useEvent = createQuery<EventWithId, EventIdT, Error>({
       throw new Error('Event not found');
     }
 
-    return { id: eventId, ...eventSnap.data() };
+    const event = { id: eventId, ...eventSnap.data() };
+    await saveEventToCache(event);
+    return event;
   },
 });
 
@@ -71,7 +127,16 @@ export const useCreateEvent = () => {
       // Firestore implementation
       const eventRef = doc(eventsRef, eventId);
       await setDoc(eventRef, data);
-      return { id: eventId, ...data };
+      const createdEvent = { id: eventId, ...data };
+      await saveEventToCache(createdEvent);
+
+      const cachedEventIds =
+        getItem<AllEventsResponse>(EVENT_IDS_CACHE_KEY) ?? [];
+      if (!cachedEventIds.includes(eventId)) {
+        await setItem(EVENT_IDS_CACHE_KEY, [...cachedEventIds, eventId]);
+      }
+
+      return createdEvent;
     },
     onSuccess: () => {
       // Invalidate and refetch events list
@@ -100,7 +165,9 @@ export const useUpdateEvent = () => {
         throw new Error('Event not found');
       }
 
-      return { id: eventId, ...updatedSnap.data() };
+      const updatedEvent = { id: eventId, ...updatedSnap.data() };
+      await saveEventToCache(updatedEvent);
+      return updatedEvent;
     },
     onSuccess: (_, variables) => {
       // Invalidate specific event query and events list
@@ -121,7 +188,7 @@ type AddParticipantVariables = {
 export const useAddParticipant = () => {
   const queryClient = useQueryClient();
 
-  return useMutation<Event, Error, AddParticipantVariables>({
+  return useMutation<EventWithId, Error, AddParticipantVariables>({
     mutationFn: async ({ eventId, userId }: AddParticipantVariables) => {
       // Firestore implementation
       const eventRef = doc(eventsRef, eventId);
@@ -141,7 +208,9 @@ export const useAddParticipant = () => {
         throw new Error('Event not found');
       }
 
-      return updatedSnap.data();
+      const updatedEvent = { id: eventId, ...updatedSnap.data() };
+      await saveEventToCache(updatedEvent);
+      return updatedEvent;
     },
     onSuccess: (_, variables) => {
       // Invalidate specific event query
@@ -161,7 +230,7 @@ type RemoveParticipantVariables = {
 export const useRemoveParticipant = () => {
   const queryClient = useQueryClient();
 
-  return useMutation<Event, Error, RemoveParticipantVariables>({
+  return useMutation<EventWithId, Error, RemoveParticipantVariables>({
     mutationFn: async ({ eventId, userId }: RemoveParticipantVariables) => {
       // Firestore implementation
       const eventRef = doc(eventsRef, eventId);
@@ -181,7 +250,9 @@ export const useRemoveParticipant = () => {
         throw new Error('Event not found');
       }
 
-      return updatedSnap.data();
+      const updatedEvent = { id: eventId, ...updatedSnap.data() };
+      await saveEventToCache(updatedEvent);
+      return updatedEvent;
     },
     onSuccess: (_, variables) => {
       // Invalidate specific event query
