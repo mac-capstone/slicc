@@ -120,7 +120,11 @@ export function GroupItem({ group, onPinToggle, onPress }: Props) {
       <Pressable
         onPress={handlePress}
         accessibilityRole="button"
-        accessibilityLabel={`${actionLabel} ${group.title || ''}`.trim()}
+        accessibilityLabel={
+          group.title?.trim()
+            ? `Open group details for ${group.title.trim()}`
+            : 'Open group details'
+        }
         accessibilityHint="Swipe left to reveal pin options"
       >
         <View className="overflow-hidden border-b border-neutral-700">

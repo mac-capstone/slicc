@@ -160,7 +160,8 @@ export default function GroupFormScreen() {
     enabled: !!groupId,
   });
 
-  const isEditing = !!group;
+  const hasGroupId = Boolean(groupId);
+  const groupLoaded = !hasGroupId || !!group;
 
   const [groupTitle, setGroupTitle] = useState('');
   const [isEditingName, setIsEditingName] = useState(false);
@@ -219,6 +220,7 @@ export default function GroupFormScreen() {
 
   const handleSave = async () => {
     if (!currentUserId) return;
+    if (!groupLoaded) return;
 
     const members = Array.from(selectedMemberIds);
     if (!members.includes(currentUserId)) {
@@ -226,7 +228,7 @@ export default function GroupFormScreen() {
     }
 
     try {
-      if (isEditing && groupId) {
+      if (hasGroupId && groupId) {
         await updateGroup.mutateAsync({
           groupId,
           data: {
@@ -255,7 +257,7 @@ export default function GroupFormScreen() {
       console.error('Failed to save group:', err);
       Alert.alert(
         'Error',
-        isEditing
+        hasGroupId
           ? 'Failed to save changes, please try again.'
           : 'Failed to create group, please try again.'
       );
@@ -374,10 +376,11 @@ export default function GroupFormScreen() {
           {/* ── Bottom buttons ── */}
           <View className="mt-8 gap-3">
             <Button
-              label={isEditing ? 'Save Changes' : 'Create group'}
+              label={hasGroupId ? 'Save Changes' : 'Create group'}
               variant="outline"
               onPress={handleSave}
               fullWidth
+              disabled={!groupLoaded}
             />
             <Pressable
               onPress={() => router.back()}

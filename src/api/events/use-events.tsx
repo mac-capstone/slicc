@@ -256,9 +256,14 @@ export const useAddParticipant = () => {
         throw new Error('Event not found');
       }
 
+      const parsedEvent = eventSchema.safeParse(updatedSnap.data());
+      if (!parsedEvent.success) {
+        console.error('Invalid event structure:', parsedEvent.error.flatten());
+        throw new Error('Unable to load event data.');
+      }
       const updatedEvent = {
         id: eventId,
-        ...updatedSnap.data(),
+        ...parsedEvent.data,
       } as EventWithId;
       await saveEventToCache(updatedEvent);
       return updatedEvent;
@@ -301,9 +306,14 @@ export const useRemoveParticipant = () => {
         throw new Error('Event not found');
       }
 
+      const parsedEvent = eventSchema.safeParse(updatedSnap.data());
+      if (!parsedEvent.success) {
+        console.error('Invalid event structure:', parsedEvent.error.flatten());
+        throw new Error('Unable to load event data.');
+      }
       const updatedEvent = {
         id: eventId,
-        ...updatedSnap.data(),
+        ...parsedEvent.data,
       } as EventWithId;
       await saveEventToCache(updatedEvent);
       return updatedEvent;

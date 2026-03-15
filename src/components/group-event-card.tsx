@@ -37,7 +37,13 @@ export function GroupEventCard({ event, onPress }: Props) {
   const participantCount = event.participants.length;
 
   return (
-    <Pressable onPress={onPress} className="mb-4">
+    <Pressable
+      onPress={onPress}
+      className="mb-4"
+      accessibilityRole="button"
+      accessibilityLabel={`View event ${event.name}`}
+      accessibilityHint="Opens event details"
+    >
       <View className="flex-row rounded-xl bg-neutral-850 p-4 shadow-xl">
         <View
           className="mr-3 size-14 shrink-0 items-center justify-center rounded-lg"
