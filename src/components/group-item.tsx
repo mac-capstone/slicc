@@ -22,7 +22,7 @@ export type GroupItemData = {
   eventDescription: string;
   displayDate: string;
   memberIds: UserIdT[];
-  primaryEventId: EventIdT;
+  primaryEventId?: EventIdT;
   isPinned: boolean;
 };
 
@@ -117,7 +117,12 @@ export function GroupItem({ group, onPinToggle, onPress }: Props) {
   if (onPinToggle) {
     const actionLabel = group.isPinned ? 'Unpin' : 'Pin';
     return (
-      <Pressable onPress={handlePress}>
+      <Pressable
+        onPress={handlePress}
+        accessibilityRole="button"
+        accessibilityLabel={`${actionLabel} ${group.title || ''}`.trim()}
+        accessibilityHint="Swipe left to reveal pin options"
+      >
         <View className="overflow-hidden border-b border-neutral-700">
           <View
             className="absolute right-0 top-0 h-full items-center justify-center bg-neutral-800"
@@ -139,7 +144,11 @@ export function GroupItem({ group, onPinToggle, onPress }: Props) {
   }
 
   return (
-    <Pressable onPress={handlePress}>
+    <Pressable
+      onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={group.title || 'Group'}
+    >
       <View className="border-b border-neutral-700">{content}</View>
     </Pressable>
   );

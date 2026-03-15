@@ -69,7 +69,10 @@ export default function GroupDetailScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      markGroupAsRead(groupId);
+      const timeoutId = setTimeout(() => {
+        markGroupAsRead(groupId);
+      }, 1500);
+      return () => clearTimeout(timeoutId);
     }, [groupId])
   );
 

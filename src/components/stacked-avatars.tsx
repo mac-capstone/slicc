@@ -9,7 +9,7 @@ const DEFAULT_MAX_COUNT = 4;
 
 type Props = {
   userIds: UserIdT[];
-  eventId: EventIdT;
+  eventId?: EventIdT;
   maxCount?: number;
   size?: 'sm' | 'md' | 'lg';
   avatarBorderClassName?: string;

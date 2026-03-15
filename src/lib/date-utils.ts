@@ -22,7 +22,7 @@ export function formatCreationDate(
 }
 
 export function formatEventWhen(startDate: Date | string): string {
-  const eventDate = startDate instanceof Date ? startDate : new Date(startDate);
+  const eventDate = new Date(startDate);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   eventDate.setHours(0, 0, 0, 0);
@@ -34,8 +34,6 @@ export function formatEventWhen(startDate: Date | string): string {
   if (diffDays === 1) return 'tomorrow';
   if (diffDays === -1) return 'yesterday';
   if (diffDays >= 2 && diffDays <= 6) return `in ${diffDays} days`;
-  if (diffDays > 0 && eventDate.getMonth() !== today.getMonth())
-    return 'next month';
   if (diffDays >= 7 && diffDays <= 13) return 'next week';
   if (diffDays >= 14 && diffDays <= 20) return 'in 2 weeks';
   if (diffDays >= 21 && diffDays <= 27) return 'in 3 weeks';

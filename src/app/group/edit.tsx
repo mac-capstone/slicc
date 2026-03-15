@@ -5,7 +5,7 @@ import { useQueries } from '@tanstack/react-query';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Timestamp } from 'firebase/firestore';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { TextInput } from 'react-native';
+import { Alert, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -251,8 +251,14 @@ export default function GroupFormScreen() {
         });
       }
       router.back();
-    } catch {
-      // Error handling - could show toast/alert
+    } catch (err) {
+      console.error('Failed to save group:', err);
+      Alert.alert(
+        'Error',
+        isEditing
+          ? 'Failed to save changes, please try again.'
+          : 'Failed to create group, please try again.'
+      );
     }
   };
 

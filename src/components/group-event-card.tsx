@@ -17,6 +17,9 @@ export type GroupEventCardData = {
 
 function formatMonthDay(dateStr: string): { month: string; day: string } {
   const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) {
+    return { month: 'N/A', day: '0' };
+  }
   const month = date
     .toLocaleDateString('en-US', { month: 'short' })
     .toUpperCase();

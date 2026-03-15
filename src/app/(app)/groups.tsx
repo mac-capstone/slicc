@@ -17,7 +17,7 @@ import type { EventIdT, EventWithId, UserIdT } from '@/types';
 function getMostUpcomingEventId(
   eventIds: string[],
   eventMap: Map<string, EventWithId>
-): string | null {
+): EventIdT | null {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -97,8 +97,8 @@ export default function Groups() {
   const groupItems = useMemo((): GroupItemData[] => {
     return groups
       .map((g) => {
-        const primaryEventId = (getMostUpcomingEventId(g.events, eventMap) ??
-          g.events[0]) as EventIdT | undefined;
+        const primaryEventId =
+          getMostUpcomingEventId(g.events, eventMap) ?? undefined;
         const event = primaryEventId ? eventMap.get(primaryEventId) : undefined;
         const eventDescription = event
           ? formatEventDescription(event.name, event.startDate)
@@ -114,7 +114,7 @@ export default function Groups() {
           eventDescription,
           displayDate: formatCreationDate(g.createdAt),
           memberIds: g.members as UserIdT[],
-          primaryEventId: (primaryEventId ?? g.id) as unknown as EventIdT,
+          primaryEventId,
           isPinned,
         };
       })

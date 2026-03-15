@@ -1,7 +1,7 @@
 import { useQueries } from '@tanstack/react-query';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useMemo } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Alert, ScrollView, View } from 'react-native';
 
 import { useGroup, useLeaveGroup } from '@/api/groups/use-groups';
 import { fetchUser } from '@/api/people/use-users';
@@ -55,8 +55,9 @@ export default function GroupMembersScreen() {
     try {
       await leaveGroup.mutateAsync({ groupId, userId: currentUserId });
       router.replace('/groups');
-    } catch {
-      // Error handling
+    } catch (error) {
+      console.error('Failed to leave group:', error);
+      Alert.alert('Error', 'Failed to leave group, please try again.');
     }
   };
 

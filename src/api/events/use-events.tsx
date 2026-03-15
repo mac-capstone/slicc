@@ -6,7 +6,7 @@ import {
   doc,
   getDoc,
   getDocs,
-  setDoc,
+  runTransaction,
   updateDoc,
 } from 'firebase/firestore';
 import { createQuery } from 'react-query-kit';
@@ -139,11 +139,28 @@ export const useCreateEvent = () => {
 
   return useMutation<EventWithId, Error, CreateEventVariables>({
     mutationFn: async ({ eventId, data }: CreateEventVariables) => {
-      // Firestore implementation
       const eventRef = doc(eventsRef, eventId);
-      await setDoc(eventRef, data);
+      const createdEvent = { id: eventId, ...data } as EventWithId;
 
-      const createdEvent = { id: eventId, ...data };
+      try {
+        await runTransaction(db, async (transaction) => {
+          transaction.set(eventRef, data);
+          if (data.groupId) {
+            const groupRef = doc(db, 'groups', data.groupId);
+            transaction.update(groupRef, {
+              events: arrayUnion(eventId),
+            });
+          }
+        });
+      } catch (error) {
+        console.error('Failed to create event (transaction):', error);
+        throw new Error(
+          data.groupId
+            ? 'Failed to create event and link to group. Please try again.'
+            : 'Failed to create event. Please try again.'
+        );
+      }
+
       await saveEventToCache(createdEvent);
 
       const cachedEventIds =
@@ -153,10 +170,6 @@ export const useCreateEvent = () => {
       }
 
       if (data.groupId) {
-        const groupRef = doc(db, 'groups', data.groupId);
-        await updateDoc(groupRef, {
-          events: arrayUnion(eventId),
-        });
         setGroupUnread(data.groupId);
         queryClient.invalidateQueries({
           queryKey: ['groups', 'groupId', data.groupId],
@@ -192,9 +205,14 @@ export const useUpdateEvent = () => {
         throw new Error('Event not found');
       }
 
+      const parsedEvent = eventSchema.safeParse(updatedSnap.data());
+      if (!parsedEvent.success) {
+        console.error('Invalid event structure:', parsedEvent.error.flatten());
+        throw new Error('Unable to load event data.');
+      }
       const updatedEvent = {
         id: eventId,
-        ...updatedSnap.data(),
+        ...parsedEvent.data,
       } as EventWithId;
       await saveEventToCache(updatedEvent);
       return updatedEvent;
@@ -311,14 +329,24 @@ export const useEventParticipant = createQuery<
 >({
   queryKey: ['events', 'eventId', 'userId'],
   fetcher: async ({ eventId, userId }) => {
-    const eventRef = doc(eventsRef, eventId);
-    const eventSnap = await getDoc(eventRef);
+    const rawEventRef = doc(db, 'events', eventId);
+    const eventSnap = await getDoc(rawEventRef);
 
     if (!eventSnap.exists()) throw new Error('Event not found');
 
-    const event = eventSnap.data() as Event;
-    if (!event?.participants.includes(userId))
+    const parsedEvent = eventSchema.safeParse(eventSnap.data());
+    if (!parsedEvent.success) {
+      console.error('Invalid event structure:', parsedEvent.error.flatten());
+      throw new Error('Unable to load event data.');
+    }
+    const event = parsedEvent.data;
+
+    if (
+      !Array.isArray(event.participants) ||
+      !event.participants.includes(userId)
+    ) {
       throw new Error('User not a participant');
+    }
 
     const userRef = doc(db, 'users', userId);
     const userSnap = await getDoc(userRef);

@@ -28,6 +28,11 @@ const button = tv({
         label: 'text-black dark:text-neutral-100',
         indicator: 'text-black dark:text-neutral-100',
       },
+      'custom-outline': {
+        container: 'dark:bg-background-950',
+        label: 'text-black dark:text-neutral-100',
+        indicator: 'text-black dark:text-neutral-100',
+      },
       destructive: {
         container: 'bg-red-600',
         label: 'text-white',

@@ -5,6 +5,7 @@ import {
   getDoc,
   getDocs,
   query,
+  runTransaction,
   setDoc,
   Timestamp,
   updateDoc,
@@ -75,9 +76,20 @@ export const useCreateGroup = () => {
 
   return useMutation<GroupWithId, Error, CreateGroupVariables>({
     mutationFn: async ({ groupId, data }: CreateGroupVariables) => {
+      const now = Timestamp.now();
+      const dataToWrite = {
+        ...data,
+        createdAt: data.createdAt ?? now,
+        updatedAt: data.updatedAt ?? now,
+      };
       const groupRef = doc(groupsRef, groupId);
-      await setDoc(groupRef, data);
-      return { id: groupId, ...data } as GroupWithId;
+      await setDoc(groupRef, dataToWrite);
+      return {
+        id: groupId,
+        ...dataToWrite,
+        createdAt: dataToWrite.createdAt.toDate(),
+        updatedAt: dataToWrite.updatedAt.toDate(),
+      } as GroupWithId;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['groups'] });
@@ -96,7 +108,7 @@ export const useUpdateGroup = () => {
   return useMutation<GroupWithId, Error, UpdateGroupVariables>({
     mutationFn: async ({ groupId, data }: UpdateGroupVariables) => {
       const groupRef = doc(groupsRef, groupId);
-      await updateDoc(groupRef, data);
+      await updateDoc(groupRef, { ...data, updatedAt: Timestamp.now() });
       const rawRef = doc(db, 'groups', groupId);
       const updatedSnap = await getDoc(rawRef);
       const parsedGroup = groupSchema.parse(updatedSnap.data());
@@ -122,35 +134,55 @@ export const useLeaveGroup = () => {
   return useMutation<void, Error, LeaveGroupVariables>({
     mutationFn: async ({ groupId, userId }: LeaveGroupVariables) => {
       const rawRef = doc(db, 'groups', groupId);
-      const groupSnap = await getDoc(rawRef);
-
-      if (!groupSnap.exists()) {
-        throw new Error('Group not found');
-      }
-
-      const groupData = groupSchema.parse(groupSnap.data());
-      const newMembers = groupData.members.filter((id) => id !== userId);
-
-      if (newMembers.length === groupData.members.length) {
-        return; // User was not in the group
-      }
-
-      const updates: Partial<Group> = { members: newMembers };
-      const now = Timestamp.now();
-
-      if (groupData.owner === userId) {
-        const newOwner = newMembers[0] ?? null;
-        updates.owner = newOwner ?? '';
-        updates.admins = groupData.admins.filter((id) => id !== userId);
-        if (newOwner && !updates.admins?.includes(newOwner)) {
-          updates.admins = [newOwner, ...(updates.admins ?? [])];
-        }
-      } else if (groupData.admins.includes(userId)) {
-        updates.admins = groupData.admins.filter((id) => id !== userId);
-      }
-
       const groupRef = doc(groupsRef, groupId);
-      await updateDoc(groupRef, { ...updates, updatedAt: now });
+
+      await runTransaction(db, async (transaction) => {
+        const groupSnap = await transaction.get(rawRef);
+
+        if (!groupSnap.exists()) {
+          throw new Error('Group not found');
+        }
+
+        const rawData = groupSnap.data();
+        const parsedGroup = groupSchema.safeParse(rawData);
+        if (!parsedGroup.success) {
+          console.error(
+            'Invalid group structure:',
+            parsedGroup.error.flatten()
+          );
+          throw new Error('Unable to load group data.');
+        }
+        const groupData = parsedGroup.data;
+
+        const newMembers = groupData.members.filter((id) => id !== userId);
+
+        if (newMembers.length === groupData.members.length) {
+          return; // User was not in the group
+        }
+
+        if (newMembers.length === 0) {
+          transaction.delete(groupRef);
+          return;
+        }
+
+        const updates: Partial<Group> = { members: newMembers };
+
+        if (groupData.owner === userId) {
+          const newOwner = newMembers[0];
+          updates.owner = newOwner;
+          updates.admins = groupData.admins.filter((id) => id !== userId);
+          if (!updates.admins.includes(newOwner)) {
+            updates.admins = [newOwner, ...updates.admins];
+          }
+        } else if (groupData.admins.includes(userId)) {
+          updates.admins = groupData.admins.filter((id) => id !== userId);
+        }
+
+        transaction.update(groupRef, {
+          ...updates,
+          updatedAt: Timestamp.now(),
+        });
+      });
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({

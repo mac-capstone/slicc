@@ -1,8 +1,10 @@
 import Feather from '@expo/vector-icons/Feather';
-import React from 'react';
+import React, { useCallback, useRef } from 'react';
 import { Keyboard, Pressable, View } from 'react-native';
 
 import { colors, Input, Text } from '@/components/ui';
+
+const BLUR_HIDE_DELAY_MS = 150;
 
 type Props = {
   title: string;
@@ -26,8 +28,28 @@ export function SearchableSectionHeader({
   clearSearchLabel = 'Clear search',
 }: Props) {
   const showClearButton = isSearchInputVisible || searchQuery.length > 0;
+  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleBlur = useCallback(() => {
+    blurTimeoutRef.current = setTimeout(() => {
+      blurTimeoutRef.current = null;
+      onSearchInputVisibleChange(false);
+    }, BLUR_HIDE_DELAY_MS);
+  }, [onSearchInputVisibleChange]);
+
+  React.useEffect(() => {
+    return () => {
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleClear = () => {
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+      blurTimeoutRef.current = null;
+    }
     onSearchQueryChange('');
     onSearchInputVisibleChange(false);
     Keyboard.dismiss();
@@ -45,7 +67,7 @@ export function SearchableSectionHeader({
           <Input
             value={searchQuery}
             onChangeText={onSearchQueryChange}
-            onBlur={() => onSearchInputVisibleChange(false)}
+            onBlur={handleBlur}
             placeholder={placeholder}
             autoFocus
             style={{
