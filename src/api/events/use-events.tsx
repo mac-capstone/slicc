@@ -51,7 +51,7 @@ export const useEvent = createQuery<EventWithId, EventIdT, Error>({
       throw new Error('Event not found');
     }
 
-    return { id: eventSnap.id as EventIdT, ...eventSnap.data() } as EventWithId;
+    return { id: eventId, ...eventSnap.data() };
   },
 });
 
@@ -64,7 +64,7 @@ type CreateEventVariables = {
 export const useCreateEvent = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<EventWithId, Error, CreateEventVariables>({
     mutationFn: async ({ eventId, data }: CreateEventVariables) => {
       // Firestore implementation
       const eventRef = doc(eventsRef, eventId);
@@ -87,12 +87,17 @@ type UpdateEventVariables = {
 export const useUpdateEvent = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<EventWithId, Error, UpdateEventVariables>({
     mutationFn: async ({ eventId, data }: UpdateEventVariables) => {
       // Firestore implementation
       const eventRef = doc(eventsRef, eventId);
       await updateDoc(eventRef, data);
       const updatedSnap = await getDoc(eventRef);
+
+      if (!updatedSnap.exists()) {
+        throw new Error('Event not found');
+      }
+
       return { id: eventId, ...updatedSnap.data() };
     },
     onSuccess: (_, variables) => {
@@ -114,7 +119,7 @@ type AddParticipantVariables = {
 export const useAddParticipant = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<Event, Error, AddParticipantVariables>({
     mutationFn: async ({ eventId, userId }: AddParticipantVariables) => {
       // Firestore implementation
       const eventRef = doc(eventsRef, eventId);
@@ -129,6 +134,11 @@ export const useAddParticipant = () => {
       });
 
       const updatedSnap = await getDoc(eventRef);
+
+      if (!updatedSnap.exists()) {
+        throw new Error('Event not found');
+      }
+
       return updatedSnap.data();
     },
     onSuccess: (_, variables) => {
@@ -149,7 +159,7 @@ type RemoveParticipantVariables = {
 export const useRemoveParticipant = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<Event, Error, RemoveParticipantVariables>({
     mutationFn: async ({ eventId, userId }: RemoveParticipantVariables) => {
       // Firestore implementation
       const eventRef = doc(eventsRef, eventId);
@@ -164,6 +174,11 @@ export const useRemoveParticipant = () => {
       });
 
       const updatedSnap = await getDoc(eventRef);
+
+      if (!updatedSnap.exists()) {
+        throw new Error('Event not found');
+      }
+
       return updatedSnap.data();
     },
     onSuccess: (_, variables) => {
