@@ -38,17 +38,6 @@ export default function TabLayout() {
         headerStyle: {
           backgroundColor: colors.background[950],
         },
-        // TODO: Temporary button to events
-        headerRight: () => (
-          <TouchableOpacity
-            onPress={() => router.push('/event/edit-event?id=event_birthday')}
-            style={{ marginRight: 16 }}
-            accessibilityLabel="Create event"
-            accessibilityRole="button"
-          >
-            <Octicons name="plus" size={24} color={colors.text[800]} />
-          </TouchableOpacity>
-        ),
         tabBarStyle: {
           minHeight: 80,
           paddingTop: 10,
@@ -78,7 +67,17 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <Octicons name="people" size={24} color={color} />
           ),
-          tabBarButtonTestID: 'style-tab',
+          tabBarButtonTestID: 'groups-tab',
+          headerRight: () => (
+            <TouchableOpacity
+              onPress={() => router.push('/group/edit')}
+              style={{ marginRight: 16 }}
+              accessibilityLabel="Add group"
+              accessibilityRole="button"
+            >
+              <Octicons name="plus" size={24} color={colors.text[800]} />
+            </TouchableOpacity>
+          ),
         }}
       />
       <Tabs.Screen

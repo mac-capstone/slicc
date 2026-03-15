@@ -1,0 +1,197 @@
+import Feather from '@expo/vector-icons/Feather';
+import { useFocusEffect } from '@react-navigation/native';
+import { useQueries } from '@tanstack/react-query';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Pressable, ScrollView, View } from 'react-native';
+
+import { fetchEvent } from '@/api/events/use-events';
+import { useGroup } from '@/api/groups/use-groups';
+import { AddButton } from '@/components/add-button';
+import {
+  GroupEventCard,
+  type GroupEventCardData,
+} from '@/components/group-event-card';
+import { SearchableSectionHeader } from '@/components/searchable-section-header';
+import { colors, Text } from '@/components/ui';
+import { markGroupAsRead } from '@/lib/group-preferences';
+import { useThemeConfig } from '@/lib/use-theme-config';
+import type { EventIdT, EventWithId, GroupIdT, UserIdT } from '@/types';
+
+function eventToCardData(event: EventWithId): GroupEventCardData {
+  const startDate =
+    event.startDate instanceof Date
+      ? event.startDate
+      : new Date(event.startDate);
+  return {
+    id: event.id,
+    name: event.name,
+    startDate: startDate.toISOString(),
+    startTime: startDate.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }),
+    location: event.location,
+    participants: event.participants as UserIdT[],
+  };
+}
+
+export default function GroupDetailScreen() {
+  const theme = useThemeConfig();
+  const params = useLocalSearchParams<{ id: string }>();
+  const groupId = params.id as GroupIdT;
+
+  const {
+    data: group,
+    isPending,
+    isError,
+  } = useGroup({
+    variables: groupId,
+  });
+
+  const eventQueries = useQueries({
+    queries: (group?.events ?? []).map((eventId) => ({
+      queryKey: ['events', 'eventId', eventId] as const,
+      queryFn: () => fetchEvent(eventId as EventIdT),
+    })),
+  });
+
+  const events = useMemo(
+    () =>
+      eventQueries
+        .map((q) => q.data)
+        .filter((e): e is EventWithId => e != null),
+    [eventQueries]
+  );
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchInputVisible, setIsSearchInputVisible] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      const timeoutId = setTimeout(() => {
+        markGroupAsRead(groupId);
+      }, 1500);
+      return () => clearTimeout(timeoutId);
+    }, [groupId])
+  );
+
+  const allUpcomingEvents = useMemo((): GroupEventCardData[] => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return events
+      .filter((e) => {
+        const start =
+          e.startDate instanceof Date ? e.startDate : new Date(e.startDate);
+        return start.getTime() >= today.getTime();
+      })
+      .sort((a, b) => {
+        const startA =
+          a.startDate instanceof Date ? a.startDate : new Date(a.startDate);
+        const startB =
+          b.startDate instanceof Date ? b.startDate : new Date(b.startDate);
+        return startA.getTime() - startB.getTime();
+      })
+      .map(eventToCardData);
+  }, [events]);
+
+  const upcomingEvents = useMemo(() => {
+    if (!searchQuery.trim()) return allUpcomingEvents;
+    const query = searchQuery.trim().toLowerCase();
+    return allUpcomingEvents.filter((e) =>
+      e.name.toLowerCase().includes(query)
+    );
+  }, [allUpcomingEvents, searchQuery]);
+
+  const handleBack = () => router.back();
+  const handleSettings = () =>
+    router.push(`/group/${groupId}/members` as const);
+  const handleEventPress = (eventId: string) =>
+    router.push(`/event/${eventId}` as const);
+  const handleNewEvent = () =>
+    router.push(`/event/edit-event?groupId=${groupId}` as const);
+
+  if (isPending || isError || !group) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background-950">
+        <Text className="text-white">
+          {isPending ? 'Loading...' : 'Group not found'}
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <>
+      <Stack.Screen
+        options={{
+          title: group.name,
+          headerShown: true,
+          headerTitleStyle: {
+            fontSize: 28,
+            fontWeight: 'bold',
+          },
+          headerStyle: {
+            backgroundColor: theme.dark ? '#1A1A1A' : '#fff',
+          },
+          headerTintColor: theme.dark ? '#fff' : '#000',
+          headerShadowVisible: false,
+          headerLeft: () => (
+            <Pressable onPress={handleBack} className="px-2">
+              <Feather
+                name="arrow-left"
+                size={24}
+                color={theme.dark ? '#fff' : '#000'}
+              />
+            </Pressable>
+          ),
+          headerRight: () => (
+            <Pressable onPress={handleSettings} className="px-2">
+              <Feather
+                name="chevron-right"
+                size={40}
+                color={theme.dark ? '#fff' : '#000'}
+              />
+            </Pressable>
+          ),
+        }}
+      />
+      <View className="flex-1 bg-background-950">
+        <ScrollView
+          className="flex-1 px-4"
+          contentContainerStyle={{ paddingBottom: 24 }}
+        >
+          <SearchableSectionHeader
+            title="Upcoming Events"
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            isSearchInputVisible={isSearchInputVisible}
+            onSearchInputVisibleChange={setIsSearchInputVisible}
+            placeholder="Search events..."
+            searchLabel="Search events"
+            clearSearchLabel="Clear search"
+          />
+          <View className="mb-4 h-px bg-neutral-700" />
+
+          {upcomingEvents.map((event) => (
+            <GroupEventCard
+              key={event.id}
+              event={event}
+              onPress={() => handleEventPress(event.id)}
+            />
+          ))}
+
+          <AddButton
+            label="Create New Event"
+            onPress={handleNewEvent}
+            className="mt-2"
+            borderColor={colors.white}
+            borderWidth={1.2}
+            heightClassName="h-14"
+          />
+        </ScrollView>
+      </View>
+    </>
+  );
+}

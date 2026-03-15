@@ -1,5 +1,5 @@
 import { useQueries } from '@tanstack/react-query';
-import { doc, getDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { createQuery } from 'react-query-kit';
 
 import { db } from '@/api/common/firebase';
@@ -14,7 +14,42 @@ type User = {
   photoURL: string | null;
 };
 
-type UserWithId = User & { id: UserIdT };
+export type UserWithId = User & { id: UserIdT };
+
+export async function fetchUser(userId: UserIdT): Promise<UserWithId> {
+  if (USE_MOCK_DATA) {
+    const user = mockData.users.find((u) => u.id === userId);
+    if (!user) throw new Error('User not found');
+    return { id: user.id as UserIdT, ...user.doc } as UserWithId;
+  }
+
+  const userRef = doc(db, 'users', userId);
+  const userSnap = await getDoc(userRef);
+
+  if (!userSnap.exists()) {
+    throw new Error('User not found');
+  }
+
+  const data = userSnap.data();
+  return {
+    id: userSnap.id as UserIdT,
+    displayName: data.displayName ?? '',
+    email: data.email ?? '',
+    photoURL: data.photoURL ?? null,
+  } as UserWithId;
+}
+
+export const useUserIds = createQuery<UserIdT[], void, Error>({
+  queryKey: ['users'],
+  fetcher: async () => {
+    if (USE_MOCK_DATA) {
+      return mockData.users.map((u) => u.id as UserIdT);
+    }
+    const usersRef = collection(db, 'users');
+    const snapshot = await getDocs(usersRef);
+    return snapshot.docs.map((d) => d.id as UserIdT);
+  },
+});
 
 // Query to get a single user by ID
 export const useUser = createQuery<UserWithId, UserIdT, Error>({

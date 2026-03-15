@@ -7,6 +7,7 @@ export const mockData = {
       doc: {
         displayName: 'Ankush Sarkar',
         email: 'ankush@example.com',
+        color: 'red',
         photoURL: null,
       },
     },
@@ -15,6 +16,7 @@ export const mockData = {
       doc: {
         displayName: 'Michael Jordan',
         email: 'michael@example.com',
+        color: 'red',
         photoURL: null,
       },
     },
@@ -23,6 +25,46 @@ export const mockData = {
       doc: {
         displayName: 'Sarah Avery',
         email: 'sarah@example.com',
+        photoURL: null,
+      },
+    },
+    {
+      id: 'user_jane',
+      doc: {
+        displayName: 'Jane Doe',
+        email: 'jane@example.com',
+        photoURL: null,
+      },
+    },
+    {
+      id: 'user_omar',
+      doc: {
+        displayName: 'Omar Lee',
+        email: 'omar@example.com',
+        photoURL: null,
+      },
+    },
+    {
+      id: 'user_ryan',
+      doc: {
+        displayName: 'Ryan Chen',
+        email: 'ryan@example.com',
+        photoURL: null,
+      },
+    },
+    {
+      id: 'user_emma',
+      doc: {
+        displayName: 'Emma Wilson',
+        email: 'emma@example.com',
+        photoURL: null,
+      },
+    },
+    {
+      id: 'user_alex',
+      doc: {
+        displayName: 'Alex Brown',
+        email: 'alex@example.com',
         photoURL: null,
       },
     },
@@ -250,20 +292,142 @@ export const mockData = {
     {
       id: 'event_birthday',
       doc: {
-        name: 'Twink Birthday',
-        startDate: Timestamp.fromDate(new Date(2026, 1, 15, 18, 0)), // Feb 15, 2026 at 6:00 PM
-        endDate: Timestamp.fromDate(new Date(2026, 1, 16, 22, 0)), // Feb 16, 2026 at 10:00 PM
-        isRecurring: true,
-        recurringInterval: 1,
-        recurringUnit: 'day' as const,
-        recurringEndDate: undefined,
-        groupId: 'group_friends',
-        location: 'Place Name',
-        locationUrl: 'https://maps.google.com/?q=Place+Name',
+        name: 'Tink birthday',
+        startDate: '2026-04-08',
+        endDate: '2026-04-08',
+        startTime: '18:00',
+        endTime: '22:00',
+        isRecurring: false,
+        groupId: 'group_tea_party',
+        location: 'Hai Di Lao',
+        locationUrl: 'https://maps.google.com/?q=Hai+Di+Lao',
         details:
           'Join us for a birthday celebration with cake, games, and great company!',
         createdBy: 'user_ankush',
-        participants: ['user_ankush', 'user_michael', 'user_sarah'],
+        participants: [
+          'user_ankush',
+          'user_michael',
+          'user_sarah',
+          'user_jane',
+        ],
+      },
+    },
+    {
+      id: 'event_birthday_2',
+      doc: {
+        name: 'Birthday 2 Electric Boogaloo',
+        startDate: '2026-04-09',
+        endDate: '2026-04-09',
+        startTime: '18:00',
+        endTime: '22:00',
+        isRecurring: false,
+        groupId: 'group_tea_party',
+        location: 'Hai Di Lao',
+        createdBy: 'user_ankush',
+        participants: [
+          'user_ankush',
+          'user_michael',
+          'user_sarah',
+          'user_jane',
+        ],
+      },
+    },
+    {
+      id: 'event_capstone',
+      doc: {
+        name: 'Capstone Meeting',
+        startDate: '2026-03-06',
+        endDate: '2026-03-06',
+        startTime: '14:00',
+        endTime: '16:00',
+        isRecurring: false,
+        groupId: 'group_capstone',
+        location: 'Campus',
+        createdBy: 'user_ankush',
+        participants: [
+          'user_ankush',
+          'user_michael',
+          'user_sarah',
+          'user_jane',
+          'user_omar',
+        ],
+      },
+    },
+  ],
+
+  groups: [
+    {
+      id: 'group_tea_party',
+      doc: {
+        title: 'Tea Party',
+        eventIds: ['event_birthday', 'event_birthday_2'],
+        memberIds: [
+          'user_ankush',
+          'user_michael',
+          'user_sarah',
+          'user_jane',
+          'user_omar',
+          'user_ryan',
+          'user_emma',
+          'user_alex',
+        ],
+        createdAt: '2026-03-04',
+        isPinned: true,
+        hasUnreadIndicator: false,
+      },
+    },
+    {
+      id: 'group_capstone',
+      doc: {
+        title: 'Capstone Group',
+        eventIds: ['event_capstone'],
+        memberIds: [
+          'user_ankush',
+          'user_michael',
+          'user_sarah',
+          'user_jane',
+          'user_omar',
+        ],
+        createdAt: '2021-09-04',
+        isPinned: true,
+        hasUnreadIndicator: true,
+      },
+    },
+    {
+      id: 'group_tea_party_2',
+      doc: {
+        title: 'Tea Party',
+        eventIds: ['event_birthday'],
+        memberIds: [
+          'user_ankush',
+          'user_michael',
+          'user_sarah',
+          'user_jane',
+          'user_omar',
+          'user_ryan',
+          'user_emma',
+          'user_alex',
+        ],
+        createdAt: '2026-03-04',
+        isPinned: false,
+        hasUnreadIndicator: false,
+      },
+    },
+    {
+      id: 'group_capstone_2',
+      doc: {
+        title: 'Capstone Group',
+        eventIds: ['event_capstone'],
+        memberIds: [
+          'user_ankush',
+          'user_michael',
+          'user_sarah',
+          'user_jane',
+          'user_omar',
+        ],
+        createdAt: '2021-09-04',
+        isPinned: true,
+        hasUnreadIndicator: true,
       },
     },
   ],
