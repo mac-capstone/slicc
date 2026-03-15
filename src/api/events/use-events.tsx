@@ -23,6 +23,8 @@ import { setGroupUnread } from '@/lib';
 
 const eventsRef = collection(db, 'events').withConverter(eventConverter);
 
+const isEventId = (value: string): value is EventIdT => value.length > 0;
+
 // Query to get all event IDs
 type AllEventsResponse = EventIdT[];
 type AllEventsVariables = void;
@@ -36,7 +38,7 @@ export const useEventIds = createQuery<
   fetcher: async () => {
     // Firestore implementation
     const snapshot = await getDocs(eventsRef);
-    return snapshot.docs.map((doc) => doc.id as EventIdT);
+    return snapshot.docs.map((eventDoc) => eventDoc.id).filter(isEventId);
   },
 });
 
