@@ -53,6 +53,7 @@ export type Item = ExpenseItem;
 export type UserWithId = User & { id: UserIdT };
 export type GroupWithId = Group & { id: GroupIdT };
 export type EventWithId = Event & { id: EventIdT };
+
 export type ExpenseWithId = Expense & { id: ExpenseIdT };
 export type ExpensePersonWithId = ExpensePerson & { id: UserIdT };
 export type ExpenseItemWithId = ExpenseItem & { id: ItemIdT };

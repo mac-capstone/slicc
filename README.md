@@ -145,8 +145,6 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
     details?: string;
     startDate?: Date;
     endDate?: Date;
-    startTime?: string;
-    endTime?: string;
     isRecurring?: boolean;
     recurringInterval?: number;
     recurringUnit?: 'day' | 'week' | 'month' | 'year';

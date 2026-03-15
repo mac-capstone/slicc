@@ -2,6 +2,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { deleteField, Timestamp } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -10,14 +11,28 @@ import {
   ScrollView,
   Switch,
 } from 'react-native';
+import { v4 as uuidv4 } from 'uuid';
 
-import { useEvent, useUpdateEvent } from '@/api/events/use-events';
+import {
+  useCreateEvent,
+  useEvent,
+  useUpdateEvent,
+} from '@/api/events/use-events';
 import { useUsersAsPeople } from '@/api/people/use-users';
 import { DateTimePick } from '@/components/date-time-pick';
 import { PersonAvatar } from '@/components/person-avatar';
-import { Button, colors, Input, Pressable, Text, View } from '@/components/ui';
+import {
+  Button,
+  colors,
+  Input,
+  Pressable,
+  Select,
+  Text,
+  View,
+} from '@/components/ui';
+import { getUserId } from '@/lib';
 import { useThemeConfig } from '@/lib/use-theme-config';
-import type { EventIdT, UserIdT } from '@/types';
+import type { EventIdT, GroupIdT, UserIdT } from '@/types';
 
 const avatarColorKeys = Object.keys(
   colors.avatar ?? {}
@@ -25,9 +40,15 @@ const avatarColorKeys = Object.keys(
 
 export default function EditEvent() {
   const theme = useThemeConfig();
-  const params = useLocalSearchParams<{ id?: EventIdT }>();
-  const eventId = params.id;
-  const isEditMode = !!eventId;
+  const params = useLocalSearchParams<{ id?: EventIdT; groupId?: GroupIdT }>();
+
+  // Generate a new eventId if not provided
+  const [eventId] = useState<EventIdT>(() => {
+    return (params.id || uuidv4()) as EventIdT;
+  });
+
+  const groupId = params.groupId;
+  const isEditMode = !!params.id;
 
   const {
     data: event,
@@ -35,17 +56,16 @@ export default function EditEvent() {
     isError,
   } = useEvent({
     variables: eventId as EventIdT,
-    enabled: !!eventId,
+    enabled: !!params.id, // Only fetch if we're editing
   });
 
+  const createEvent = useCreateEvent();
   const updateEvent = useUpdateEvent();
 
   // Event form state
   const [eventName, setEventName] = useState('');
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
-  const [startTime, setStartTime] = useState(new Date());
-  const [endTime, setEndTime] = useState(new Date());
 
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringInterval, setRecurringInterval] = useState('1');
@@ -58,61 +78,21 @@ export default function EditEvent() {
   const [location, setLocation] = useState('');
   const [details, setDetails] = useState('');
 
-  // Helper functions
-  const parseTimeToDate = (timeString: string): Date => {
-    // Parse time string (HH:MM) to Date object
-    const date = new Date();
-    if (!timeString || !timeString.includes(':')) {
-      return date; // Return current time as fallback
-    }
-    const [hours, minutes] = timeString.split(':').map(Number);
-    if (Number.isNaN(hours) || Number.isNaN(minutes)) {
-      return date;
-    }
-    date.setHours(hours, minutes, 0, 0);
-    return date;
-  };
-
-  const dateToTimeString = (date: Date): string => {
-    // Convert Date object to time string (HH:MM)
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    return `${hours}:${minutes}`;
-  };
-
-  // const toLocalDateString = (date: Date): string => {
-  //   // Convert Date to YYYY-MM-DD in local timezone
-  //   return date.toLocaleDateString('en-CA'); // en-CA format is YYYY-MM-DD
-  // };
-
-  const parseLocalDate = (dateStr: string): Date => {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    return new Date(year, month - 1, day);
-  };
-
-  const toDateString = (value: string | Date | undefined): string => {
-    if (!value) return '';
-    if (value instanceof Date) return value.toLocaleDateString('en-CA');
-    return value;
+  const dateToTimestamp = (date: Date): Timestamp => {
+    return Timestamp.fromDate(date);
   };
 
   // Initialize form with event data
   useEffect(() => {
     if (event) {
       setEventName(event.name);
-      const start = toDateString(event.startDate);
-      const end = toDateString(event.endDate);
-      if (start) setStartDate(parseLocalDate(start));
-      if (end) setEndDate(parseLocalDate(end));
-      const startTimeDate = parseTimeToDate(event.startTime ?? '');
-      const endTimeDate = parseTimeToDate(event.endTime ?? '');
-      setStartTime(startTimeDate);
-      setEndTime(endTimeDate);
+      setStartDate(event.startDate);
+      setEndDate(event.endDate);
       setIsRecurring(event.isRecurring ?? false);
       setRecurringInterval(event.recurringInterval?.toString() || '1');
       setRecurringUnit(event.recurringUnit || 'day');
       if (event.recurringEndDate) {
-        setRecurringEndDate(new Date(event.recurringEndDate));
+        setRecurringEndDate(event.recurringEndDate);
       }
       setLocation(event.location || '');
       setDetails(event.details || '');
@@ -137,44 +117,63 @@ export default function EditEvent() {
 
   // Validation handlers
   const handleStartDateChange = (date: Date) => {
-    if (date > endDate) {
-      Alert.alert('Invalid Date', 'Start date cannot be after end date.');
+    // Preserve the time from current startDate
+    const newDate = new Date(date);
+    newDate.setHours(startDate.getHours(), startDate.getMinutes(), 0, 0);
+
+    if (newDate > endDate) {
+      Alert.alert(
+        'Invalid Date',
+        'Start date/time cannot be after end date/time.'
+      );
       return;
     }
-    setStartDate(date);
+    setStartDate(newDate);
   };
 
   const handleEndDateChange = (date: Date) => {
-    if (date < startDate) {
-      Alert.alert('Invalid Date', 'End date cannot be before start date.');
+    // Preserve the time from current endDate
+    const newDate = new Date(date);
+    newDate.setHours(endDate.getHours(), endDate.getMinutes(), 0, 0);
+
+    if (newDate < startDate) {
+      Alert.alert(
+        'Invalid Date',
+        'End date/time cannot be before start date/time.'
+      );
       return;
     }
-    setEndDate(date);
+    setEndDate(newDate);
   };
 
   const handleStartTimeChange = (time: Date) => {
-    if (startDate.toDateString() === endDate.toDateString() && time > endTime) {
+    // Update the time on startDate
+    const newDate = new Date(startDate);
+    newDate.setHours(time.getHours(), time.getMinutes(), 0, 0);
+
+    if (newDate >= endDate) {
       Alert.alert(
         'Invalid Time',
-        'Start time must be before end time on the same day.'
+        'Start date/time must be before end date/time.'
       );
       return;
     }
-    setStartTime(time);
+    setStartDate(newDate);
   };
 
   const handleEndTimeChange = (time: Date) => {
-    if (
-      startDate.toDateString() === endDate.toDateString() &&
-      time < startTime
-    ) {
+    // Update the time on endDate
+    const newDate = new Date(endDate);
+    newDate.setHours(time.getHours(), time.getMinutes(), 0, 0);
+
+    if (newDate <= startDate) {
       Alert.alert(
         'Invalid Time',
-        'End time must be after start time on the same day.'
+        'End date/time must be after start date/time.'
       );
       return;
     }
-    setEndTime(time);
+    setEndDate(newDate);
   };
 
   const handleRecurringEndDateChange = (date: Date | undefined) => {
@@ -190,8 +189,11 @@ export default function EditEvent() {
 
   const handleSaveChanges = async () => {
     // Validate dates
-    if (startDate > endDate) {
-      Alert.alert('Invalid Dates', 'Start date must be before end date.');
+    if (startDate >= endDate) {
+      Alert.alert(
+        'Invalid Dates',
+        'Start date/time must be before end date/time.'
+      );
       return;
     }
 
@@ -200,18 +202,6 @@ export default function EditEvent() {
       Alert.alert(
         'Invalid Recurring End Date',
         'Recurring end date must be after start date.'
-      );
-      return;
-    }
-
-    // Validate times (only if start and end dates are the same)
-    if (
-      startDate.toDateString() === endDate.toDateString() &&
-      startTime >= endTime
-    ) {
-      Alert.alert(
-        'Invalid Times',
-        'Start time must be before end time when dates are the same.'
       );
       return;
     }
@@ -230,26 +220,71 @@ export default function EditEvent() {
     }
 
     try {
-      await updateEvent.mutateAsync({
-        eventId: eventId!,
-        data: {
+      if (isEditMode) {
+        // Update existing event
+        const updateData: any = {
           name: eventName,
-          startDate,
-          endDate,
-          startTime: dateToTimeString(startTime),
-          endTime: dateToTimeString(endTime),
-          isRecurring,
-          recurringInterval: isRecurring ? (interval as number) : undefined,
-          recurringUnit: isRecurring ? recurringUnit : undefined,
-          recurringEndDate:
-            isRecurring && recurringEndDate ? recurringEndDate : undefined,
+          startDate: dateToTimestamp(startDate),
+          endDate: dateToTimestamp(endDate),
           location,
           details,
           groupId: event!.groupId,
           createdBy: event!.createdBy,
           participants: event?.participants || [],
-        },
-      });
+        };
+
+        // Handle recurring fields - either set or delete
+        if (isRecurring) {
+          updateData.isRecurring = true;
+          updateData.recurringInterval = interval as number;
+          updateData.recurringUnit = recurringUnit;
+          updateData.recurringEndDate = recurringEndDate
+            ? dateToTimestamp(recurringEndDate)
+            : deleteField();
+        } else {
+          updateData.isRecurring = false;
+          updateData.recurringInterval = deleteField();
+          updateData.recurringUnit = deleteField();
+          updateData.recurringEndDate = deleteField();
+        }
+
+        await updateEvent.mutateAsync({
+          eventId: eventId!,
+          data: updateData,
+        });
+      } else {
+        // Create new event
+        if (!groupId) {
+          Alert.alert('Error', 'Group ID is required to create an event.');
+          return;
+        }
+
+        const createData: any = {
+          name: eventName,
+          startDate: dateToTimestamp(startDate),
+          endDate: dateToTimestamp(endDate),
+          isRecurring,
+          location,
+          details,
+          groupId: groupId as GroupIdT,
+          createdBy: getUserId(),
+          participants: [],
+        };
+
+        // Handle recurring fields
+        if (isRecurring) {
+          createData.recurringInterval = interval as number;
+          createData.recurringUnit = recurringUnit;
+          if (recurringEndDate) {
+            createData.recurringEndDate = dateToTimestamp(recurringEndDate);
+          }
+        }
+
+        await createEvent.mutateAsync({
+          eventId: eventId!,
+          data: createData,
+        });
+      }
 
       // Navigate to event details screen after creation/update
       router.replace(`/event/${eventId}` as any);
@@ -258,7 +293,10 @@ export default function EditEvent() {
         'Error',
         `Failed to ${isEditMode ? 'update' : 'create'} event. Please try again.`
       );
-      console.error('Error updating event:', error);
+      console.error(
+        `Error ${isEditMode ? 'updating' : 'creating'} event:`,
+        error
+      );
     }
   };
 
@@ -293,38 +331,26 @@ export default function EditEvent() {
     }
   };
 
-  const handleRecurringUnitPress = () => {
-    const units: ('day' | 'week' | 'month' | 'year')[] = [
-      'day',
-      'week',
-      'month',
-      'year',
-    ];
-    const currentIndex = units.indexOf(recurringUnit);
-    const nextIndex = (currentIndex + 1) % units.length;
-    setRecurringUnit(units[nextIndex]);
-  };
+  type RecurringUnit = 'day' | 'week' | 'month' | 'year';
 
-  const getRecurringUnitLabel = () => {
-    const labels = {
-      day: 'day(s)',
-      week: 'week(s)',
-      month: 'month(s)',
-      year: 'year(s)',
-    };
-    return labels[recurringUnit];
-  };
-
-  if (!eventId) {
+  function isRecurringUnit(value: string | number): value is RecurringUnit {
     return (
-      <View className="flex-1 items-center justify-center bg-background-950 p-4">
-        <Text className="mb-4 text-lg text-red-500">Missing event id</Text>
-        <Button label="Go Back" onPress={() => router.back()} />
-      </View>
+      value === 'day' ||
+      value === 'week' ||
+      value === 'month' ||
+      value === 'year'
     );
   }
 
-  if (isPending) {
+  const recurringUnitOptions: { label: string; value: RecurringUnit }[] = [
+    { label: 'day(s)', value: 'day' },
+    { label: 'week(s)', value: 'week' },
+    { label: 'month(s)', value: 'month' },
+    { label: 'year(s)', value: 'year' },
+  ];
+
+  // Only show loading/error states in edit mode
+  if (isEditMode && isPending) {
     return (
       <View className="flex-1 items-center justify-center bg-background-950">
         <ActivityIndicator size="large" />
@@ -332,10 +358,22 @@ export default function EditEvent() {
     );
   }
 
-  if (isError || !event) {
+  if (isEditMode && (isError || !event)) {
     return (
       <View className="flex-1 items-center justify-center bg-background-950 p-4">
         <Text className="mb-4 text-lg text-red-500">Error loading event</Text>
+        <Button label="Go Back" onPress={() => router.back()} />
+      </View>
+    );
+  }
+
+  // In create mode, validate groupId
+  if (!isEditMode && !groupId) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background-950 p-4">
+        <Text className="mb-4 text-lg text-red-500">
+          Group ID is required to create an event
+        </Text>
         <Button label="Go Back" onPress={() => router.back()} />
       </View>
     );
@@ -371,31 +409,34 @@ export default function EditEvent() {
             placeholder="Event Name"
             inputClassName="!text-3xl font-bold"
             containerClassName="mb-6"
-            raw
           />
 
           <View className="rounded-xl bg-neutral-850 p-4">
             {/* Date Section */}
             <View className="mb-4 flex-row items-center">
               <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
-                <Ionicons name="calendar-outline" size={24} color="#3EB489" />
+                <Ionicons name="calendar-outline" size={24} color="#00C8B3" />
               </View>
               <View className="flex-1">
-                <View className="mb-2">
-                  <DateTimePick
-                    value={startDate}
-                    onChange={handleStartDateChange}
-                    mode="date"
-                    label="Start"
-                  />
+                <View className="mb-2 flex-row items-baseline">
+                  <Text className="w-12 text-base !text-gray-400">Start</Text>
+                  <View className="flex-1">
+                    <DateTimePick
+                      value={startDate}
+                      onChange={handleStartDateChange}
+                      mode="date"
+                    />
+                  </View>
                 </View>
-                <View>
-                  <DateTimePick
-                    value={endDate}
-                    onChange={handleEndDateChange}
-                    mode="date"
-                    label="End"
-                  />
+                <View className="flex-row items-baseline">
+                  <Text className="w-12 text-base !text-gray-400">End</Text>
+                  <View className="flex-1">
+                    <DateTimePick
+                      value={endDate}
+                      onChange={handleEndDateChange}
+                      mode="date"
+                    />
+                  </View>
                 </View>
               </View>
             </View>
@@ -403,17 +444,17 @@ export default function EditEvent() {
             {/* Time Section */}
             <View className="mb-4 flex-row items-center">
               <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
-                <Ionicons name="time-outline" size={24} color="#3EB489" />
+                <Ionicons name="time-outline" size={24} color="#00C8B3" />
               </View>
               <View className="flex-1 flex-row items-center">
                 <DateTimePick
-                  value={startTime}
+                  value={startDate}
                   onChange={handleStartTimeChange}
                   mode="time"
                 />
                 <Text className="mx-2 text-sm text-text-800">to</Text>
                 <DateTimePick
-                  value={endTime}
+                  value={endDate}
                   onChange={handleEndTimeChange}
                   mode="time"
                 />
@@ -424,7 +465,7 @@ export default function EditEvent() {
             <View className="mb-4">
               <View className="flex-row items-center">
                 <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
-                  <Ionicons name="repeat" size={24} color="#3EB489" />
+                  <Ionicons name="repeat" size={24} color="#00C8B3" />
                 </View>
                 <View className="flex-1 flex-row items-center justify-between">
                   <View className="flex-row items-center">
@@ -435,7 +476,7 @@ export default function EditEvent() {
                   <Switch
                     value={isRecurring}
                     onValueChange={setIsRecurring}
-                    trackColor={{ false: '#767577', true: '#3EB489' }}
+                    trackColor={{ false: '#767577', true: '#00C8B3' }}
                     thumbColor={isRecurring ? '#fff' : '#f4f3f4'}
                   />
                 </View>
@@ -453,28 +494,56 @@ export default function EditEvent() {
                       containerClassName="mx-2 my-2 items-center"
                       raw
                     />
-                    <Pressable
-                      onPress={handleRecurringUnitPress}
-                      className="flex-row items-center"
-                    >
-                      <Text className="text-sm text-white">
-                        {getRecurringUnitLabel()}
-                      </Text>
-                      <Ionicons
-                        name="chevron-down"
-                        size={16}
-                        color={theme.dark ? '#3EB489' : '#000'}
-                        style={{ marginLeft: 4 }}
+                    <View className="relative w-24">
+                      <Select
+                        value={recurringUnit}
+                        options={recurringUnitOptions}
+                        onSelect={(value) => {
+                          if (isRecurringUnit(value)) setRecurringUnit(value);
+                        }}
+                        placeholder="Select unit"
                       />
-                    </Pressable>
+                      <View className="pointer-events-none absolute right-1 top-1/2 -translate-y-2/3">
+                        <Ionicons
+                          name="chevron-down"
+                          size={16}
+                          color="#00C8B3"
+                        />
+                      </View>
+                    </View>
                   </View>
                   <View className="mt-2">
-                    <DateTimePick
-                      value={recurringEndDate || new Date()}
-                      onChange={handleRecurringEndDateChange}
-                      mode="date"
-                      label="End Date (Optional)"
-                    />
+                    <Text className="mb-1 text-sm text-text-800">
+                      Recurring End Date (Optional)
+                    </Text>
+                    <View className="flex-row items-center">
+                      {recurringEndDate ? (
+                        <>
+                          <DateTimePick
+                            value={recurringEndDate}
+                            onChange={handleRecurringEndDateChange}
+                            mode="date"
+                          />
+                          <Pressable
+                            onPress={() => setRecurringEndDate(undefined)}
+                            className="ml-2 rounded-lg bg-neutral-750 p-2"
+                          >
+                            <Ionicons name="close" size={18} color="#FF6B6B" />
+                          </Pressable>
+                        </>
+                      ) : (
+                        <Pressable
+                          onPress={() =>
+                            handleRecurringEndDateChange(new Date(startDate))
+                          }
+                          className="rounded-lg bg-neutral-750 px-3 py-2"
+                        >
+                          <Text className="text-sm text-text-800">
+                            Set End Date
+                          </Text>
+                        </Pressable>
+                      )}
+                    </View>
                   </View>
                 </View>
               )}
@@ -488,7 +557,7 @@ export default function EditEvent() {
               <View className="mb-3 flex-row items-center justify-between">
                 <View className="flex-row items-center">
                   <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
-                    <Ionicons name="people-outline" size={24} color="#3EB489" />
+                    <Ionicons name="people-outline" size={24} color="#00C8B3" />
                   </View>
                   <Text className="text-base font-semibold text-text-800">
                     {participants.length} people
@@ -498,7 +567,7 @@ export default function EditEvent() {
                   onPress={handleAddPerson}
                   className="flex-row items-center rounded-lg bg-neutral-750 px-2 py-1"
                 >
-                  <Ionicons name="person-add" size={18} color="#3EB489" />
+                  <Ionicons name="person-add" size={18} color="#00C8B3" />
                   <Text className="ml-1 text-base font-semibold text-white">
                     Add
                   </Text>
@@ -506,30 +575,55 @@ export default function EditEvent() {
               </View>
 
               <View className="ml-0">
-                {participants.map((participant, index) => (
-                  <View
-                    key={participant.id}
-                    className="mb-3 flex-row items-center"
-                  >
-                    <View className="mr-3">
-                      <PersonAvatar
-                        userId={participant.id}
-                        color={avatarColorKeys[index % avatarColorKeys.length]}
-                        size="md"
-                      />
+                {isEditMode &&
+                  participants.map((participant, index) => (
+                    <View
+                      key={participant.id}
+                      className="mb-3 flex-row items-center"
+                    >
+                      <View className="mr-3">
+                        <PersonAvatar
+                          userId={participant.id}
+                          color={
+                            avatarColorKeys[index % avatarColorKeys.length]
+                          }
+                          size="md"
+                        />
+                      </View>
+                      <Text className="text-base text-white">
+                        {participant.name}
+                      </Text>
                     </View>
-                    <Text className="text-base text-white">
-                      {participant.name}
-                    </Text>
-                  </View>
-                ))}
+                  ))}
+                {!isEditMode &&
+                  participants.map((participant) => (
+                    <View
+                      key={participant.id}
+                      className="mb-3 flex-row items-center"
+                    >
+                      <View
+                        className="mr-3 size-8 items-center justify-center rounded-full"
+                        style={{ backgroundColor: participant.color }}
+                      >
+                        <Text className="text-base font-bold text-white">
+                          {participant.name
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')}
+                        </Text>
+                      </View>
+                      <Text className="text-base text-white">
+                        {participant.name}
+                      </Text>
+                    </View>
+                  ))}
               </View>
             </View>
 
             {/* Location Section */}
             <View className="mb-4 flex-row items-center">
               <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
-                <Ionicons name="location-outline" size={24} color="#3EB489" />
+                <Ionicons name="location-outline" size={24} color="#00C8B3" />
               </View>
               <View className="flex-1">
                 <Input
@@ -550,7 +644,7 @@ export default function EditEvent() {
                   <MaterialCommunityIcons
                     name="open-in-new"
                     size={16}
-                    color="#3EB489"
+                    color="#00C8B3"
                     style={{ marginLeft: 4 }}
                   />
                 </Pressable>
@@ -580,23 +674,23 @@ export default function EditEvent() {
             {/* Divider */}
             <View className="my-4 h-px bg-gray-500" />
           </View>
-
-          {/* Action Buttons */}
-          <View className="mx-6 mt-6 flex-row gap-24">
-            <Button
-              label="Cancel"
-              variant="outline"
-              onPress={handleCancel}
-              className="h-12 flex-1 border-2 !border-red-500"
-            />
-            <Button
-              label={isEditMode ? 'Save Changes' : 'Create Event'}
-              onPress={handleSaveChanges}
-              className="h-12 flex-1"
-            />
-          </View>
         </View>
       </ScrollView>
+      {/* Action Buttons */}
+      <View className="m-6 flex-row gap-24">
+        <Button
+          label="Cancel"
+          variant="outline"
+          onPress={handleCancel}
+          className="h-12 flex-1 border !border-red-500"
+        />
+        <Button
+          label={isEditMode ? 'Save Changes' : 'Create Event'}
+          onPress={handleSaveChanges}
+          className="h-12 flex-1 border !border-text-800 !bg-background-950"
+          textClassName="!text-white"
+        />
+      </View>
     </>
   );
 }

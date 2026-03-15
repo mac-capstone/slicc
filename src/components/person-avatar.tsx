@@ -44,21 +44,25 @@ export const PersonAvatar = ({
   return (
     <View
       className={cn(
-        'relative flex items-center justify-center overflow-hidden rounded-full',
+        'relative',
         SIZE_CLASSES[size],
         inSplitView && !isSelected ? 'opacity-65' : 'opacity-100'
       )}
-      style={photoURL ? undefined : { backgroundColor: avatarColor }}
     >
-      {photoURL ? (
-        <Image
-          source={{ uri: photoURL }}
-          className="size-full"
-          contentFit="cover"
-        />
-      ) : (
-        <Octicons name="person" size={ICON_SIZES[size]} color="#D4D4D4" />
-      )}
+      <View
+        className="size-full items-center justify-center overflow-hidden rounded-full"
+        style={photoURL ? undefined : { backgroundColor: avatarColor }}
+      >
+        {photoURL ? (
+          <Image
+            source={{ uri: photoURL }}
+            className="size-full"
+            contentFit="cover"
+          />
+        ) : (
+          <Octicons name="person" size={ICON_SIZES[size]} color="#D4D4D4" />
+        )}
+      </View>
       {isSelected && (
         <View className="absolute -right-1 -top-1">
           <Svg

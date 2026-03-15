@@ -112,6 +112,16 @@ export default defineConfig([
     },
   },
   {
+    files: ['src/lib/scripts/**/*.ts'],
+    languageOptions: {
+      parser: parser,
+      parserOptions: {
+        project: false,
+        sourceType: 'module',
+      },
+    },
+  },
+  {
     files: ['src/translations/*.json'],
     plugins: { 'i18n-json': i18nJsonPlugin },
     processor: {

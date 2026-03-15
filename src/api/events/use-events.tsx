@@ -12,15 +12,56 @@ import {
 import { createQuery } from 'react-query-kit';
 
 import { db } from '@/api/common/firebase';
-import { mockData } from '@/lib/mock-data';
+import { getItem, setItem } from '@/lib/storage';
 import {
   type Event,
   type EventIdT,
   type EventWithId,
   type UserIdT,
 } from '@/types';
+import { eventConverter } from '@/types/schema';
 
-const USE_MOCK_DATA = true; // Set to false when ready to use Firestore
+const eventsRef = collection(db, 'events').withConverter(eventConverter);
+
+const EVENT_IDS_CACHE_KEY = 'events:ids';
+const getEventCacheKey = (eventId: EventIdT) => `events:${eventId}`;
+
+const toDate = (value: unknown): Date | undefined => {
+  if (value instanceof Date) {
+    return value;
+  }
+
+  if (typeof value === 'string' || typeof value === 'number') {
+    const parsedDate = new Date(value);
+    if (!Number.isNaN(parsedDate.getTime())) {
+      return parsedDate;
+    }
+  }
+
+  return undefined;
+};
+
+const hydrateCachedEvent = (cachedEvent: EventWithId): EventWithId | null => {
+  const startDate = toDate(cachedEvent.startDate);
+  const endDate = toDate(cachedEvent.endDate);
+
+  if (!startDate || !endDate) {
+    return null;
+  }
+
+  return {
+    ...cachedEvent,
+    startDate,
+    endDate,
+    recurringEndDate: toDate(cachedEvent.recurringEndDate),
+    createdAt: toDate(cachedEvent.createdAt),
+    updatedAt: toDate(cachedEvent.updatedAt),
+  };
+};
+
+const saveEventToCache = async (event: EventWithId) => {
+  await setItem(getEventCacheKey(event.id), event);
+};
 
 // Query to get all event IDs
 type AllEventsResponse = EventIdT[];
@@ -33,14 +74,16 @@ export const useEventIds = createQuery<
 >({
   queryKey: ['events'],
   fetcher: async () => {
-    if (USE_MOCK_DATA) {
-      return mockData.events.map((e) => e.id as EventIdT);
+    const cachedEventIds = getItem<AllEventsResponse>(EVENT_IDS_CACHE_KEY);
+    if (cachedEventIds) {
+      return cachedEventIds;
     }
 
     // Firestore implementation
-    const eventsRef = collection(db, 'events');
     const snapshot = await getDocs(eventsRef);
-    return snapshot.docs.map((doc) => doc.id as EventIdT);
+    const eventIds = snapshot.docs.map((eventDoc) => eventDoc.id as EventIdT);
+    await setItem(EVENT_IDS_CACHE_KEY, eventIds);
+    return eventIds;
   },
 });
 
@@ -48,24 +91,25 @@ export const useEventIds = createQuery<
 export const useEvent = createQuery<EventWithId, EventIdT, Error>({
   queryKey: ['events', 'eventId'],
   fetcher: async (eventId) => {
-    if (USE_MOCK_DATA) {
-      const event = mockData.events.find((e) => e.id === eventId);
-      if (!event) throw new Error('Event not found');
-      return {
-        id: event.id as EventIdT,
-        ...event.doc,
-      } as unknown as EventWithId;
+    const cachedEvent = getItem<EventWithId>(getEventCacheKey(eventId));
+    if (cachedEvent) {
+      const hydratedEvent = hydrateCachedEvent(cachedEvent);
+      if (hydratedEvent) {
+        return hydratedEvent;
+      }
     }
 
     // Firestore implementation
-    const eventRef = doc(db, 'events', eventId);
+    const eventRef = doc(eventsRef, eventId);
     const eventSnap = await getDoc(eventRef);
 
     if (!eventSnap.exists()) {
       throw new Error('Event not found');
     }
 
-    return { id: eventSnap.id as EventIdT, ...eventSnap.data() } as EventWithId;
+    const event = { id: eventId, ...eventSnap.data() };
+    await saveEventToCache(event);
+    return event;
   },
 });
 
@@ -78,22 +122,21 @@ type CreateEventVariables = {
 export const useCreateEvent = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<EventWithId, Error, CreateEventVariables>({
     mutationFn: async ({ eventId, data }: CreateEventVariables) => {
-      if (USE_MOCK_DATA) {
-        // In mock mode, just add to mock data (temporary)
+      // Firestore implementation
+      const eventRef = doc(eventsRef, eventId);
+      await setDoc(eventRef, data);
+      const createdEvent = { id: eventId, ...data };
+      await saveEventToCache(createdEvent);
 
-        mockData.events.push({
-          id: eventId,
-          doc: data as any, // Cast to any for mock data flexibility
-        });
-        return { id: eventId, ...data };
+      const cachedEventIds =
+        getItem<AllEventsResponse>(EVENT_IDS_CACHE_KEY) ?? [];
+      if (!cachedEventIds.includes(eventId)) {
+        await setItem(EVENT_IDS_CACHE_KEY, [...cachedEventIds, eventId]);
       }
 
-      // Firestore implementation
-      const eventRef = doc(db, 'events', eventId);
-      await setDoc(eventRef, data);
-      return { id: eventId, ...data };
+      return createdEvent;
     },
     onSuccess: () => {
       // Invalidate and refetch events list
@@ -111,28 +154,20 @@ type UpdateEventVariables = {
 export const useUpdateEvent = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<EventWithId, Error, UpdateEventVariables>({
     mutationFn: async ({ eventId, data }: UpdateEventVariables) => {
-      if (USE_MOCK_DATA) {
-        // In mock mode, update the mock data
-
-        const eventIndex = mockData.events.findIndex((e) => e.id === eventId);
-        if (eventIndex === -1) throw new Error('Event not found');
-
-        // Cast to any for mock data flexibility
-        // eslint-disable-next-line react-compiler/react-compiler
-        mockData.events[eventIndex].doc = {
-          ...mockData.events[eventIndex].doc,
-          ...data,
-        } as any;
-        return { id: eventId, ...mockData.events[eventIndex].doc };
-      }
-
       // Firestore implementation
-      const eventRef = doc(db, 'events', eventId);
+      const eventRef = doc(eventsRef, eventId);
       await updateDoc(eventRef, data);
       const updatedSnap = await getDoc(eventRef);
-      return { id: eventId, ...updatedSnap.data() };
+
+      if (!updatedSnap.exists()) {
+        throw new Error('Event not found');
+      }
+
+      const updatedEvent = { id: eventId, ...updatedSnap.data() };
+      await saveEventToCache(updatedEvent);
+      return updatedEvent;
     },
     onSuccess: (_, variables) => {
       // Invalidate specific event query and events list
@@ -153,20 +188,10 @@ type AddParticipantVariables = {
 export const useAddParticipant = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<EventWithId, Error, AddParticipantVariables>({
     mutationFn: async ({ eventId, userId }: AddParticipantVariables) => {
-      if (USE_MOCK_DATA) {
-        const event = mockData.events.find((e) => e.id === eventId);
-        if (!event) throw new Error('Event not found');
-
-        if (!event.doc.participants.includes(userId)) {
-          event.doc.participants.push(userId);
-        }
-        return event.doc;
-      }
-
       // Firestore implementation
-      const eventRef = doc(db, 'events', eventId);
+      const eventRef = doc(eventsRef, eventId);
       const eventSnap = await getDoc(eventRef);
 
       if (!eventSnap.exists()) {
@@ -178,7 +203,14 @@ export const useAddParticipant = () => {
       });
 
       const updatedSnap = await getDoc(eventRef);
-      return updatedSnap.data();
+
+      if (!updatedSnap.exists()) {
+        throw new Error('Event not found');
+      }
+
+      const updatedEvent = { id: eventId, ...updatedSnap.data() };
+      await saveEventToCache(updatedEvent);
+      return updatedEvent;
     },
     onSuccess: (_, variables) => {
       // Invalidate specific event query
@@ -198,20 +230,10 @@ type RemoveParticipantVariables = {
 export const useRemoveParticipant = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<EventWithId, Error, RemoveParticipantVariables>({
     mutationFn: async ({ eventId, userId }: RemoveParticipantVariables) => {
-      if (USE_MOCK_DATA) {
-        const event = mockData.events.find((e) => e.id === eventId);
-        if (!event) throw new Error('Event not found');
-
-        event.doc.participants = event.doc.participants.filter(
-          (id) => id !== userId
-        );
-        return event.doc;
-      }
-
       // Firestore implementation
-      const eventRef = doc(db, 'events', eventId);
+      const eventRef = doc(eventsRef, eventId);
       const eventSnap = await getDoc(eventRef);
 
       if (!eventSnap.exists()) {
@@ -223,7 +245,14 @@ export const useRemoveParticipant = () => {
       });
 
       const updatedSnap = await getDoc(eventRef);
-      return updatedSnap.data();
+
+      if (!updatedSnap.exists()) {
+        throw new Error('Event not found');
+      }
+
+      const updatedEvent = { id: eventId, ...updatedSnap.data() };
+      await saveEventToCache(updatedEvent);
+      return updatedEvent;
     },
     onSuccess: (_, variables) => {
       // Invalidate specific event query
@@ -246,28 +275,12 @@ export const useEventParticipant = createQuery<
 >({
   queryKey: ['events', 'eventId', 'userId'],
   fetcher: async ({ eventId, userId }) => {
-    if (USE_MOCK_DATA) {
-      const event = mockData.events.find((e) => e.id === eventId);
-      if (!event) throw new Error('Event not found');
-
-      if (!event.doc.participants.includes(userId))
-        throw new Error('User not a participant');
-
-      const user = mockData.users.find((u) => u.id === userId);
-      if (!user) throw new Error('User not found');
-
-      return {
-        name: user.doc.displayName,
-        userRef: userId,
-      };
-    }
-
-    const eventRef = doc(db, 'events', eventId);
+    const eventRef = doc(eventsRef, eventId);
     const eventSnap = await getDoc(eventRef);
 
     if (!eventSnap.exists()) throw new Error('Event not found');
 
-    const event = eventSnap.data() as Event;
+    const event = eventSnap.data();
     if (!event.participants.includes(userId))
       throw new Error('User not a participant');
 

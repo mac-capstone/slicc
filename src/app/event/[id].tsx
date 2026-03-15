@@ -4,6 +4,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, Linking, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useEvent } from '@/api/events/use-events';
 import { PersonAvatar } from '@/components/person-avatar';
@@ -15,25 +16,17 @@ const avatarColorKeys = Object.keys(
   colors.avatar ?? {}
 ) as (keyof typeof colors.avatar)[];
 
-// Helper function to format time in AM/PM format
-const formatTimeAmPm = (timeString: string): string => {
-  if (!timeString || !timeString.includes(':')) {
-    return timeString;
-  }
-  const [hours, minutes] = timeString.split(':').map(Number);
-  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
-    return timeString;
-  }
+// Helper function to format time in AM/PM format from Timestamp
+const formatTimeAmPm = (date: Date): string => {
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
   const period = hours >= 12 ? 'PM' : 'AM';
   const displayHours = hours % 12 || 12;
   return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
 };
 
-// Helper function to format date
-const formatDate = (dateString: string): string => {
-  // Parse date in local timezone to avoid timezone offset issues
-  const [year, month, day] = dateString.split('-').map(Number);
-  const date = new Date(year, month - 1, day);
+// Helper function to format date from Timestamp
+const formatDate = (date: Date): string => {
   const options: Intl.DateTimeFormatOptions = {
     weekday: 'long',
     month: 'long',
@@ -42,21 +35,35 @@ const formatDate = (dateString: string): string => {
   return date.toLocaleDateString('en-US', options);
 };
 
-const toDateString = (value: string | Date | undefined): string => {
-  if (!value) return '';
-  if (value instanceof Date) {
-    return value.toLocaleDateString('en-CA');
-  }
-  return value;
+// Helper function to format date short (for "until" display)
+const formatDateShort = (date: Date): string => {
+  const options: Intl.DateTimeFormatOptions = {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  };
+  return date.toLocaleDateString('en-US', options);
 };
 
-// Helper function to get recurring text
-const getRecurringText = (
-  isRecurring: boolean,
-  interval?: number,
-  unit?: string
-): string => {
+// Helper function to get recurring text with calendar day
+const getRecurringText = ({
+  isRecurring,
+  startDate,
+  interval,
+  unit,
+  recurringEndDate,
+}: {
+  isRecurring: boolean;
+  startDate: Date;
+  interval?: number;
+  unit?: string;
+  recurringEndDate?: Date;
+}): string => {
   if (!isRecurring) return '';
+
+  const startDateObj = startDate;
+  const repeatInterval = interval ?? 1;
+
   const unitText =
     unit === 'year'
       ? 'year'
@@ -65,13 +72,63 @@ const getRecurringText = (
         : unit === 'week'
           ? 'week'
           : 'day';
-  if (interval === 1) {
-    return `Repeats every ${unitText}`;
+
+  let baseText = '';
+  if (repeatInterval === 1) {
+    baseText = `Repeats every ${unitText}`;
+  } else {
+    baseText = `Repeats every ${repeatInterval} ${unitText}s`;
   }
-  return `Repeats every ${interval} ${unitText}s`;
+
+  // Add specific day information
+  let dayInfo = '';
+  if (unit === 'week') {
+    const dayName = startDateObj.toLocaleDateString('en-US', {
+      weekday: 'long',
+    });
+    dayInfo = ` on ${dayName}`;
+  } else if (unit === 'month') {
+    const dayOfMonth = startDateObj.getDate();
+    const suffix = getDaySuffix(dayOfMonth);
+    dayInfo = ` on the ${dayOfMonth}${suffix}`;
+  } else if (unit === 'year') {
+    const monthDay = startDateObj.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+    });
+    dayInfo = ` on ${monthDay}`;
+  }
+
+  // Add "until" information if end date exists
+  let untilText = '';
+  if (recurringEndDate) {
+    untilText = ` until ${formatDateShort(recurringEndDate)}`;
+  }
+
+  return baseText + dayInfo + untilText;
+};
+
+// Helper function to get ordinal suffix for day
+const getDaySuffix = (day: number): string => {
+  if (day > 3 && day < 21) return 'th';
+  switch (day % 10) {
+    case 1:
+      return 'st';
+    case 2:
+      return 'nd';
+    case 3:
+      return 'rd';
+    default:
+      return 'th';
+  }
+};
+
+export const areDatesEqual = (date1: Date, date2: Date) => {
+  return date1.getTime() === date2.getTime();
 };
 
 export default function EventDetails() {
+  const { bottom } = useSafeAreaInsets();
   const theme = useThemeConfig();
   const params = useLocalSearchParams<{ id: EventIdT }>();
   const eventId = params.id;
@@ -99,7 +156,7 @@ export default function EventDetails() {
 
   const handleViewExpenses = () => {
     // Navigate to expenses filtered by this event
-    router.push(`/(app)` as any);
+    router.push(`/event/${eventId}/expenses`);
   };
 
   const handleEdit = () => {
@@ -155,209 +212,223 @@ export default function EventDetails() {
               />
             </Pressable>
           ),
-          headerRight: () => (
-            <Pressable onPress={handleEdit} className="px-2">
-              <Ionicons
-                name="create-outline"
-                size={24}
-                color={theme.dark ? '#fff' : '#000'}
-              />
-            </Pressable>
-          ),
         }}
       />
-      <ScrollView className="flex-1 bg-background-950">
-        <View className="flex-1 p-6">
-          {/* Event Title */}
-          <Text className="mb-8 text-3xl font-bold text-white">
-            {event.name}
-          </Text>
+      <View className="flex-1 bg-background-950">
+        <ScrollView className="flex-1">
+          <View className="p-6">
+            {/* Event Title and Edit Button */}
+            <View className="mb-8 flex-row items-center justify-between">
+              <Text className="flex-1 text-3xl font-bold text-white">
+                {event.name}
+              </Text>
+              <Pressable onPress={handleEdit} className="ml-2 p-2">
+                <Ionicons
+                  name="create-outline"
+                  size={24}
+                  color={theme.dark ? '#fff' : '#000'}
+                />
+              </Pressable>
+            </View>
 
-          {/* Event Details Card */}
-          <View className="rounded-2xl bg-neutral-850 p-5">
-            {/* Date Section */}
-            <View className="mb-4 flex-row items-start">
-              <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
-                <Ionicons name="calendar-outline" size={24} color="#3EB489" />
-              </View>
-              <View className="flex-1">
-                {toDateString(event.startDate) ===
-                toDateString(event.endDate) ? (
-                  <Text className="text-base font-medium text-white">
-                    {formatDate(toDateString(event.startDate))}
-                  </Text>
-                ) : (
-                  <>
-                    <Text className="text-sm text-text-800">Start</Text>
-                    <Text className="mb-2 text-base font-medium text-white">
-                      {formatDate(toDateString(event.startDate))}
-                    </Text>
-                    <Text className="text-sm text-text-800">End</Text>
+            {/* Event Details Card */}
+            <View className="rounded-2xl bg-neutral-850 p-5">
+              {/* Date Section */}
+              <View className="mb-4 flex-row items-start">
+                <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
+                  <Ionicons name="calendar-outline" size={24} color="#00C8B3" />
+                </View>
+                <View className="flex-1">
+                  {areDatesEqual(event.startDate, event.endDate) ? (
                     <Text className="text-base font-medium text-white">
-                      {formatDate(toDateString(event.endDate))}
+                      {formatDate(event.startDate)}
                     </Text>
-                  </>
-                )}
-              </View>
-            </View>
-
-            {/* Divider */}
-            <View className="mb-4 mt-0 h-px bg-gray-500" />
-
-            {/* Time Section */}
-            <View className="mb-4 flex-row items-start">
-              <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
-                <Ionicons name="time-outline" size={24} color="#3EB489" />
-              </View>
-              <View className="flex-1">
-                <Text className="text-base font-medium text-white">
-                  {formatTimeAmPm(event.startTime ?? '')} -{' '}
-                  {formatTimeAmPm(event.endTime ?? '')}
-                </Text>
-                {event.isRecurring && (
-                  <View className="mt-1 flex-row items-center">
-                    <Ionicons
-                      name="repeat"
-                      size={14}
-                      color="#A4A4A4"
-                      style={{ marginRight: 4 }}
-                    />
-                    <Text className="text-sm text-text-800">
-                      {getRecurringText(
-                        event.isRecurring,
-                        event.recurringInterval,
-                        event.recurringUnit
-                      )}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
-
-            {/* Divider */}
-            <View className="mb-4 mt-0 h-px bg-gray-500" />
-
-            {/* People Section */}
-            <View className="mb-4 flex-row items-start">
-              <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
-                <Ionicons name="people-outline" size={24} color="#3EB489" />
-              </View>
-              <View className="flex-1">
-                <View className="flex-row items-center">
-                  {/* Display participant avatars */}
-                  <View className="flex-row">
-                    {event.participants.slice(0, 3).map((userId, index) => (
-                      <View
-                        key={userId}
-                        style={{
-                          marginLeft: index > 0 ? -8 : 0,
-                          zIndex: event.participants.length - index,
-                        }}
-                      >
-                        <PersonAvatar
-                          userId={userId as UserIdT}
-                          color={
-                            avatarColorKeys[index % avatarColorKeys.length]
-                          }
-                          size="md"
-                        />
-                      </View>
-                    ))}
-                    {event.participants.length > 3 && (
-                      <View
-                        className="size-8 items-center justify-center rounded-full bg-neutral-750"
-                        style={{
-                          marginLeft: -8,
-                          zIndex: 0,
-                        }}
-                      >
-                        <Text className="text-xs font-semibold text-white">
-                          +{event.participants.length - 3}
+                  ) : (
+                    <>
+                      <View className="mb-2 flex-row items-baseline">
+                        <Text className="w-12 text-base !text-gray-400">
+                          Start
+                        </Text>
+                        <Text className="flex-1 text-base font-medium text-text-800">
+                          {formatDate(event.startDate)}
                         </Text>
                       </View>
-                    )}
+                      <View className="flex-row items-baseline">
+                        <Text className="w-12 text-base !text-gray-400">
+                          End
+                        </Text>
+                        <Text className="flex-1 text-base font-medium text-text-800">
+                          {formatDate(event.endDate)}
+                        </Text>
+                      </View>
+                    </>
+                  )}
+                </View>
+              </View>
+
+              {/* Divider */}
+              <View className="mb-4 mt-0 h-px bg-gray-500" />
+
+              {/* Time Section */}
+              <View className="mb-4 flex-row items-start">
+                <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
+                  <Ionicons name="time-outline" size={24} color="#00C8B3" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-base font-medium text-white">
+                    {formatTimeAmPm(event.startDate)} -{' '}
+                    {formatTimeAmPm(event.endDate)}
+                  </Text>
+                  {event.isRecurring && (
+                    <View className="mt-1 flex-row items-center">
+                      <Ionicons
+                        name="repeat"
+                        size={14}
+                        color="#A4A4A4"
+                        style={{ marginRight: 4 }}
+                      />
+                      <Text className="text-sm text-text-800">
+                        {getRecurringText({
+                          isRecurring: event.isRecurring,
+                          startDate: event.startDate,
+                          interval: event.recurringInterval,
+                          unit: event.recurringUnit,
+                          recurringEndDate: event.recurringEndDate,
+                        })}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+
+              {/* Divider */}
+              <View className="mb-4 mt-0 h-px bg-gray-500" />
+
+              {/* People Section */}
+              <View className="mb-4 flex-row items-start">
+                <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
+                  <Ionicons name="people-outline" size={24} color="#00C8B3" />
+                </View>
+                <View className="flex-1">
+                  <View className="flex-row items-center">
+                    {/* Display participant avatars */}
+                    <View className="flex-row">
+                      {event.participants.slice(0, 3).map((userId, index) => (
+                        <View
+                          key={userId}
+                          style={{
+                            marginLeft: index > 0 ? -8 : 0,
+                            zIndex: event.participants.length - index,
+                          }}
+                        >
+                          <PersonAvatar
+                            userId={userId as UserIdT}
+                            color={
+                              avatarColorKeys[index % avatarColorKeys.length]
+                            }
+                            size="md"
+                          />
+                        </View>
+                      ))}
+                      {event.participants.length > 3 && (
+                        <View
+                          className="size-8 items-center justify-center rounded-full bg-neutral-750"
+                          style={{
+                            marginLeft: -8,
+                            zIndex: 0,
+                          }}
+                        >
+                          <Text className="text-xs font-semibold text-white">
+                            +{event.participants.length - 3}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text className="ml-3 text-base font-medium text-white">
+                      {event.participants.length} people
+                    </Text>
                   </View>
-                  <Text className="ml-3 text-base font-medium text-white">
-                    {event.participants.length} people
+                </View>
+              </View>
+
+              {/* Divider */}
+              <View className="mb-4 mt-0 h-px bg-gray-500" />
+
+              {/* Location Section */}
+              {event.location && (
+                <>
+                  <View className="mb-4 flex-row items-start">
+                    <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
+                      <Ionicons
+                        name="location-outline"
+                        size={24}
+                        color="#00C8B3"
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="mb-1 text-base font-medium text-white">
+                        {event.location}
+                      </Text>
+                      <Pressable
+                        onPress={handleOpenGoogleMaps}
+                        className="flex-row items-center"
+                      >
+                        <Text className="text-sm font-semibold text-text-800">
+                          Open in Google Maps
+                        </Text>
+                        <MaterialCommunityIcons
+                          name="open-in-new"
+                          size={16}
+                          color="#00C8B3"
+                          style={{ marginLeft: 4 }}
+                        />
+                      </Pressable>
+                    </View>
+                  </View>
+
+                  {/* Divider */}
+                  {event.details && (
+                    <View className="mb-4 mt-0 h-px bg-gray-500" />
+                  )}
+                </>
+              )}
+
+              {/* Divider (if no location but has details) */}
+              {!event.location && event.details && (
+                <View className="mb-4 mt-0 h-px bg-gray-500" />
+              )}
+
+              {/* Details Section */}
+              {event.details && (
+                <View className="mb-0">
+                  <Text className="mb-2 text-base font-semibold text-text-800">
+                    Details
+                  </Text>
+                  <Text className="text-sm leading-5 text-text-50">
+                    {event.details}
                   </Text>
                 </View>
-              </View>
+              )}
             </View>
-
-            {/* Divider */}
-            <View className="mb-4 mt-0 h-px bg-gray-500" />
-
-            {/* Location Section */}
-            {event.location && (
-              <>
-                <View className="mb-4 flex-row items-start">
-                  <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
-                    <Ionicons
-                      name="location-outline"
-                      size={24}
-                      color="#3EB489"
-                    />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="mb-1 text-base font-medium text-white">
-                      {event.location}
-                    </Text>
-                    <Pressable
-                      onPress={handleOpenGoogleMaps}
-                      className="flex-row items-center"
-                    >
-                      <Text className="text-sm font-semibold text-text-800">
-                        Open in Google Maps
-                      </Text>
-                      <MaterialCommunityIcons
-                        name="open-in-new"
-                        size={16}
-                        color="#3EB489"
-                        style={{ marginLeft: 4 }}
-                      />
-                    </Pressable>
-                  </View>
-                </View>
-
-                {/* Divider */}
-                {event.details && (
-                  <View className="mb-4 mt-0 h-px bg-gray-500" />
-                )}
-              </>
-            )}
-
-            {/* Divider (if no location but has details) */}
-            {!event.location && event.details && (
-              <View className="mb-4 mt-0 h-px bg-gray-500" />
-            )}
-
-            {/* Details Section */}
-            {event.details && (
-              <View className="mb-0">
-                <Text className="mb-2 text-base font-semibold text-text-800">
-                  Details
-                </Text>
-                <Text className="text-sm leading-5 text-text-50">
-                  {event.details}
-                </Text>
-              </View>
-            )}
           </View>
+        </ScrollView>
 
-          {/* View Expenses Button */}
-          <View className="mt-6">
-            <Pressable
-              onPress={handleViewExpenses}
-              className="flex-row items-center justify-between rounded-xl bg-neutral-850 p-4"
-            >
-              <Text className="text-base font-semibold text-white">
-                View Expenses
-              </Text>
-              <Ionicons name="chevron-forward" size={24} color="#fff" />
-            </Pressable>
-          </View>
+        {/* View Expenses Button - Sticky at bottom */}
+        <View
+          className="border-t border-neutral-800 bg-background-950 p-4"
+          style={{ paddingBottom: bottom + 16 }}
+        >
+          <Pressable
+            onPress={handleViewExpenses}
+            className="flex-row items-center justify-between rounded-xl bg-neutral-850 p-4"
+          >
+            <Text className="text-base font-semibold text-white">
+              View Expenses
+            </Text>
+            <Ionicons name="chevron-forward" size={24} color="#fff" />
+          </Pressable>
         </View>
-      </ScrollView>
+      </View>
     </>
   );
 }
