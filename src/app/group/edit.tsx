@@ -114,6 +114,42 @@ function GroupHeaderRow({
 }
 
 // ---------------------------------------------------------------------------
+// Bottom action buttons
+// ---------------------------------------------------------------------------
+function GroupFormBottomButtons({
+  hasGroupId,
+  groupLoaded,
+  isSaving,
+  onSave,
+  onCancel,
+}: {
+  hasGroupId: boolean;
+  groupLoaded: boolean;
+  isSaving: boolean;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <View className="mt-8 gap-3">
+      <Button
+        label={hasGroupId ? 'Save Changes' : 'Create group'}
+        variant="outline"
+        onPress={onSave}
+        fullWidth
+        disabled={!groupLoaded || isSaving}
+      />
+      <Pressable
+        onPress={onCancel}
+        className="h-11 items-center justify-center rounded-xl border
+  border-red-600"
+      >
+        <Text className="text-base font-semibold text-red-500">Cancel</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Member list item
 // ---------------------------------------------------------------------------
 function MemberRow({
@@ -218,9 +254,12 @@ export default function GroupFormScreen() {
   const createGroup = useCreateGroup();
   const updateGroup = useUpdateGroup();
 
+  const isSaving = createGroup.isPending || updateGroup.isPending;
+
   const handleSave = async () => {
     if (!currentUserId) return;
     if (!groupLoaded) return;
+    if (isSaving) return;
 
     const members = Array.from(selectedMemberIds);
     if (!members.includes(currentUserId)) {
@@ -373,25 +412,13 @@ export default function GroupFormScreen() {
             ))}
           </View>
 
-          {/* ── Bottom buttons ── */}
-          <View className="mt-8 gap-3">
-            <Button
-              label={hasGroupId ? 'Save Changes' : 'Create group'}
-              variant="outline"
-              onPress={handleSave}
-              fullWidth
-              disabled={!groupLoaded}
-            />
-            <Pressable
-              onPress={() => router.back()}
-              className="h-11 items-center justify-center rounded-xl border
-  border-red-600"
-            >
-              <Text className="text-base font-semibold text-red-500">
-                Cancel
-              </Text>
-            </Pressable>
-          </View>
+          <GroupFormBottomButtons
+            hasGroupId={hasGroupId}
+            groupLoaded={groupLoaded}
+            isSaving={isSaving}
+            onSave={handleSave}
+            onCancel={() => router.back()}
+          />
         </ScrollView>
       </SafeAreaView>
     </>
