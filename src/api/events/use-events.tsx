@@ -122,7 +122,9 @@ export const useEvent = createQuery<EventWithId, EventIdT, Error>({
       }
     }
 
-    return fetchEvent(eventId);
+    const event = await fetchEvent(eventId);
+    await saveEventToCache(event);
+    return event;
   },
 });
 
@@ -141,6 +143,15 @@ export const useCreateEvent = () => {
       const eventRef = doc(eventsRef, eventId);
       await setDoc(eventRef, data);
 
+      const createdEvent = { id: eventId, ...data };
+      await saveEventToCache(createdEvent);
+
+      const cachedEventIds =
+        getItem<AllEventsResponse>(EVENT_IDS_CACHE_KEY) ?? [];
+      if (!cachedEventIds.includes(eventId)) {
+        await setItem(EVENT_IDS_CACHE_KEY, [...cachedEventIds, eventId]);
+      }
+
       if (data.groupId) {
         const groupRef = doc(db, 'groups', data.groupId);
         await updateDoc(groupRef, {
@@ -152,7 +163,7 @@ export const useCreateEvent = () => {
         });
       }
 
-      return { id: eventId, ...data };
+      return createdEvent;
     },
     onSuccess: () => {
       // Invalidate and refetch events list
