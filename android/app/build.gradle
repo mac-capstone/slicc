@@ -87,26 +87,15 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.app.development'
+    namespace 'com.slicc.app'
     defaultConfig {
-        applicationId 'com.app.development'
+        applicationId 'com.slicc.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "0.0.1"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
-
-        // Only run externalNativeBuild on your windows
-        def isWindows = System.getProperty("os.name").toLowerCase().contains("windows")
-        if (isWindows) {
-            def ninjaPath = System.getenv("NINJA_HOME") ?: "C:\\ninja"
-            externalNativeBuild {
-                cmake {
-                    arguments "-DCMAKE_MAKE_PROGRAM=${ninjaPath}\\ninja.exe", "-DCMAKE_OBJECT_PATH_MAX=1024"
-                }
-            }
-        }
     }
     signingConfigs {
         debug {
@@ -191,3 +180,5 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+apply plugin: 'com.google.gms.google-services'

@@ -1,4 +1,4 @@
-package com.app.development
+package com.slicc.app
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build
