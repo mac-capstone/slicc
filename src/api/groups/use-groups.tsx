@@ -53,12 +53,9 @@ export const useGroupIds = createQuery<
 >({
   queryKey: ['groups', 'userId'],
   fetcher: async (userId) => {
-    if (userId) {
-      const q = query(groupsRef, where('members', 'array-contains', userId));
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map((d) => d.id as GroupIdT);
-    }
-    const snapshot = await getDocs(groupsRef);
+    if (!userId) return [];
+    const q = query(groupsRef, where('members', 'array-contains', userId));
+    const snapshot = await getDocs(q);
     return snapshot.docs.map((d) => d.id as GroupIdT);
   },
 });
@@ -76,7 +73,7 @@ type CreateGroupVariables = {
 export const useCreateGroup = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<GroupWithId, Error, CreateGroupVariables>({
     mutationFn: async ({ groupId, data }: CreateGroupVariables) => {
       const groupRef = doc(groupsRef, groupId);
       await setDoc(groupRef, data);
@@ -96,7 +93,7 @@ type UpdateGroupVariables = {
 export const useUpdateGroup = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<GroupWithId, Error, UpdateGroupVariables>({
     mutationFn: async ({ groupId, data }: UpdateGroupVariables) => {
       const groupRef = doc(groupsRef, groupId);
       await updateDoc(groupRef, data);
@@ -122,7 +119,7 @@ type LeaveGroupVariables = {
 export const useLeaveGroup = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<void, Error, LeaveGroupVariables>({
     mutationFn: async ({ groupId, userId }: LeaveGroupVariables) => {
       const rawRef = doc(db, 'groups', groupId);
       const groupSnap = await getDoc(rawRef);

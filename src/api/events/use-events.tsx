@@ -192,7 +192,10 @@ export const useUpdateEvent = () => {
         throw new Error('Event not found');
       }
 
-      const updatedEvent = { id: eventId, ...updatedSnap.data() } as EventWithId;
+      const updatedEvent = {
+        id: eventId,
+        ...updatedSnap.data(),
+      } as EventWithId;
       await saveEventToCache(updatedEvent);
       return updatedEvent;
     },
@@ -235,7 +238,10 @@ export const useAddParticipant = () => {
         throw new Error('Event not found');
       }
 
-      const updatedEvent = { id: eventId, ...updatedSnap.data() };
+      const updatedEvent = {
+        id: eventId,
+        ...updatedSnap.data(),
+      } as EventWithId;
       await saveEventToCache(updatedEvent);
       return updatedEvent;
     },
@@ -277,7 +283,10 @@ export const useRemoveParticipant = () => {
         throw new Error('Event not found');
       }
 
-      const updatedEvent = { id: eventId, ...updatedSnap.data() };
+      const updatedEvent = {
+        id: eventId,
+        ...updatedSnap.data(),
+      } as EventWithId;
       await saveEventToCache(updatedEvent);
       return updatedEvent;
     },
@@ -307,8 +316,8 @@ export const useEventParticipant = createQuery<
 
     if (!eventSnap.exists()) throw new Error('Event not found');
 
-    const event = eventSnap.data();
-    if (!event.participants.includes(userId))
+    const event = eventSnap.data() as Event;
+    if (!event?.participants.includes(userId))
       throw new Error('User not a participant');
 
     const userRef = doc(db, 'users', userId);
@@ -316,8 +325,9 @@ export const useEventParticipant = createQuery<
 
     if (!userSnap.exists()) throw new Error('User not found');
 
+    const userData = userSnap.data();
     return {
-      name: userSnap.data().displayName,
+      name: userData?.displayName ?? '',
       userRef: userId,
     };
   },
