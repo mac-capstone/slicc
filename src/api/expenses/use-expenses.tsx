@@ -33,6 +33,45 @@ type ExpenseResponse = Expense & {
 
 const expensesRef = collection(db, 'expenses').withConverter(expenseConverter);
 
+export async function fetchExpense(
+  expenseId: ExpenseIdT
+): Promise<ExpenseResponse> {
+  if (expenseId === 'temp-expense') {
+    const tempExpense = getTempExpense();
+    if (!tempExpense) throw new Error('Temp expense not found');
+    return tempExpense;
+  }
+
+  const expenseRef = doc(expensesRef, expenseId);
+  const expenseSnap = await getDoc(expenseRef);
+
+  if (!expenseSnap.exists()) {
+    throw new Error(`Expense ${expenseId} not found`);
+  }
+
+  const expense = expenseSnap.data();
+
+  const [peopleSnap, itemsSnap] = await Promise.all([
+    getDocs(
+      collection(expenseRef, 'people').withConverter(expensePersonConverter)
+    ),
+    getDocs(
+      collection(expenseRef, 'items').withConverter(expenseItemConverter)
+    ),
+  ]);
+
+  const people: PersonWithId[] = peopleSnap.docs.map((d) => ({
+    id: d.id,
+    ...d.data(),
+  }));
+  const items: ItemWithId[] = itemsSnap.docs.map((d) => ({
+    id: d.id as ItemIdT,
+    ...d.data(),
+  }));
+
+  return { id: expenseId, ...expense, people, items };
+}
+
 export const useExpenseIds = createQuery<ExpenseIdT[], void, Error>({
   queryKey: ['expenses'],
   fetcher: async () => {
@@ -58,40 +97,5 @@ export const useExpenseIdsByEvent = createQuery<ExpenseIdT[], EventIdT, Error>({
 
 export const useExpense = createQuery<ExpenseResponse, ExpenseIdT, Error>({
   queryKey: ['expenses', 'expenseId'],
-  fetcher: async (expenseId) => {
-    if (expenseId === 'temp-expense') {
-      const tempExpense = getTempExpense();
-      if (!tempExpense) throw new Error('Temp expense not found');
-      return tempExpense;
-    }
-
-    const expenseRef = doc(expensesRef, expenseId);
-    const expenseSnap = await getDoc(expenseRef);
-
-    if (!expenseSnap.exists()) {
-      throw new Error(`Expense ${expenseId} not found`);
-    }
-
-    const expense = expenseSnap.data();
-
-    const [peopleSnap, itemsSnap] = await Promise.all([
-      getDocs(
-        collection(expenseRef, 'people').withConverter(expensePersonConverter)
-      ),
-      getDocs(
-        collection(expenseRef, 'items').withConverter(expenseItemConverter)
-      ),
-    ]);
-
-    const people: PersonWithId[] = peopleSnap.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    }));
-    const items: ItemWithId[] = itemsSnap.docs.map((d) => ({
-      id: d.id as ItemIdT,
-      ...d.data(),
-    }));
-
-    return { id: expenseId, ...expense, people, items };
-  },
+  fetcher: fetchExpense,
 });

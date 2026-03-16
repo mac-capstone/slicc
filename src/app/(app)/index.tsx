@@ -1,44 +1,85 @@
-import { FlashList } from '@shopify/flash-list';
 import React from 'react';
+import { ScrollView } from 'react-native';
 
-import { useExpenseIds } from '@/api/expenses/use-expenses';
-import { DottedAddButton } from '@/components/dotted-add-button';
-import { ExpenseCard } from '@/components/expense-card';
+import { useUpcomingEvents } from '@/api/events/use-upcoming-events';
+import { useBalances } from '@/api/expenses/use-balances';
+import { usePendingExpenses } from '@/api/expenses/use-pending-expenses';
+import { BalanceProgress } from '@/components/dashboard/balance-progress';
+import { PendingExpensesSection } from '@/components/dashboard/pending-expenses-section';
+import { PinnedGroupsSection } from '@/components/dashboard/pinned-groups-section';
+import { UpcomingEventsSection } from '@/components/dashboard/upcoming-events-section';
 import { ActivityIndicator, Text, View } from '@/components/ui';
+import { useAuth } from '@/lib';
 
-export default function Feed() {
-  const { data, isPending, isError } = useExpenseIds();
-  if (isPending) {
-    return <ActivityIndicator />;
-  }
-  if (isError) {
+export default function Home() {
+  const userId = useAuth.use.userId();
+  const {
+    youOwe,
+    owedToYou,
+    isPending: balancesPending,
+    isError: balancesError,
+  } = useBalances(userId);
+  const {
+    data: pendingExpenseIds,
+    isPending: pendingPending,
+    isError: pendingError,
+  } = usePendingExpenses(userId, 3);
+  const {
+    data: upcomingEvents,
+    isPending: eventsPending,
+    isError: eventsError,
+  } = useUpcomingEvents(userId, 3);
+
+  const isLoading = balancesPending || pendingPending || eventsPending;
+
+  if (isLoading && !userId) {
     return (
-      <View className="flex-1 justify-center p-3">
-        <Text>Error loading expenses</Text>
+      <View className="flex-1 items-center justify-center">
+        <ActivityIndicator />
       </View>
     );
   }
+
   return (
-    <View className="flex-1 px-3">
-      <FlashList
-        data={data}
-        renderItem={({ item: expenseId }) => (
-          <ExpenseCard id={expenseId} config="progress" />
-        )}
-        keyExtractor={(expenseId) => expenseId}
-        ListEmptyComponent={
-          <DottedAddButton text="Add new expense" path="/expense/add-expense" />
-        }
-        ListFooterComponent={
-          <View className="pt-5">
-            <DottedAddButton
-              text="Add new expense"
-              path="/expense/add-expense"
-            />
-          </View>
-        }
-        ItemSeparatorComponent={() => <View className="h-5" />} // 12px gap
-      />
-    </View>
+    <ScrollView
+      className="flex-1"
+      contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
+    >
+      <View className="gap-8 py-6">
+        <View className="rounded-xl bg-background-900 p-4">
+          <Text className="mb-3 font-futuraDemi text-base">
+            Balance Overview
+          </Text>
+          {balancesError ? (
+            <Text className="py-2" style={{ color: '#F87171' }}>
+              Error loading balances
+            </Text>
+          ) : (
+            <BalanceProgress youOwe={youOwe} owedToYou={owedToYou} />
+          )}
+        </View>
+
+        <View>
+          <PendingExpensesSection
+            expenseIds={pendingExpenseIds}
+            userId={userId}
+            isPending={pendingPending}
+            isError={pendingError}
+          />
+        </View>
+
+        <View>
+          <UpcomingEventsSection
+            events={upcomingEvents ?? []}
+            isPending={eventsPending}
+            isError={eventsError}
+          />
+        </View>
+
+        <View>
+          <PinnedGroupsSection />
+        </View>
+      </View>
+    </ScrollView>
   );
 }
