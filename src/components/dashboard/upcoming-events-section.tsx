@@ -1,30 +1,10 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
+import { Pressable } from 'react-native';
 
-import {
-  GroupEventCard,
-  type GroupEventCardData,
-} from '@/components/group-event-card';
+import { eventToCardData, GroupEventCard } from '@/components/group-event-card';
 import { ActivityIndicator, colors, Text, View } from '@/components/ui';
 import type { EventWithId } from '@/types';
-
-function eventToCardData(event: EventWithId): GroupEventCardData {
-  const startDate =
-    event.startDate instanceof Date
-      ? event.startDate
-      : new Date(event.startDate);
-  return {
-    id: event.id,
-    name: event.name,
-    startDate: startDate.toISOString(),
-    startTime: startDate.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-    }),
-    location: event.location,
-    participants: event.participants as GroupEventCardData['participants'],
-  };
-}
 
 type Props = {
   events: EventWithId[];
@@ -57,6 +37,15 @@ export function UpcomingEventsSection({ events, isPending, isError }: Props) {
     <View className="gap-3">
       <View className="flex-row items-center justify-between">
         <Text className="font-futuraDemi text-lg">Upcoming Events</Text>
+        <Pressable
+          onPress={() => router.push('/groups')}
+          accessibilityLabel="See all groups"
+          accessibilityRole="button"
+        >
+          <Text className="text-sm" style={{ color: colors.accent[100] }}>
+            See all
+          </Text>
+        </Pressable>
       </View>
       {events.length === 0 ? (
         <Text className="py-4 text-center" style={{ color: colors.text[800] }}>

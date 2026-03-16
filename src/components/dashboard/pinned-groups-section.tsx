@@ -8,33 +8,9 @@ import { fetchGroup } from '@/api/groups/use-groups';
 import { GroupItem, type GroupItemData } from '@/components/group-item';
 import { colors, Text, View } from '@/components/ui';
 import { formatCreationDate, formatEventDescription } from '@/lib/date-utils';
+import { getMostRelevantEventId } from '@/lib/event-utils';
 import { useGroupPreferences } from '@/lib/group-preferences';
 import type { EventIdT, EventWithId, UserIdT } from '@/types';
-
-function getMostUpcomingEventId(
-  eventIds: string[],
-  eventMap: Map<string, EventWithId>
-): EventIdT | null {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const events = eventIds
-    .map((id) => eventMap.get(id))
-    .filter((e): e is EventWithId => e != null);
-
-  const futureOrToday = events
-    .filter((e) => e.startDate.getTime() >= today.getTime())
-    .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
-
-  if (futureOrToday.length > 0) {
-    return futureOrToday[0].id;
-  }
-
-  const past = events.sort(
-    (a, b) => b.startDate.getTime() - a.startDate.getTime()
-  );
-  return past[0]?.id ?? null;
-}
 
 export function PinnedGroupsSection() {
   const router = useRouter();
@@ -77,7 +53,7 @@ export function PinnedGroupsSection() {
   const groupItems = useMemo((): GroupItemData[] => {
     return groups.map((g) => {
       const primaryEventId =
-        getMostUpcomingEventId(g.events, eventMap) ?? undefined;
+        getMostRelevantEventId(g.events, eventMap) ?? undefined;
       const event = primaryEventId ? eventMap.get(primaryEventId) : undefined;
       const eventDescription = event
         ? formatEventDescription(event.name, event.startDate)
