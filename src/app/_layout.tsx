@@ -14,14 +14,16 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { APIProvider } from '@/api';
 import { hydrateAuth, hydrateGroupPreferences, loadSelectedTheme } from '@/lib';
+import { configureGoogleSignIn } from '@/lib/auth/google-auth';
 import { useThemeConfig } from '@/lib/use-theme-config';
 
 export { ErrorBoundary } from 'expo-router';
 
 export const unstable_settings = {
-  initialRouteName: '(app)',
+  initialRouteName: 'login',
 };
 
+configureGoogleSignIn();
 hydrateAuth();
 hydrateGroupPreferences();
 loadSelectedTheme();

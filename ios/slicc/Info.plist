@@ -7,7 +7,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleDisplayName</key>
-    <string>app</string>
+    <string>slicc</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -28,7 +28,7 @@
         <key>CFBundleURLSchemes</key>
         <array>
           <string>app</string>
-          <string>com.app.development</string>
+          <string>com.slicc.app</string>
         </array>
       </dict>
       <dict>
@@ -53,6 +53,12 @@
       <key>NSAllowsLocalNetworking</key>
       <true/>
     </dict>
+    <key>NSCameraUsageDescription</key>
+    <string>Allow $(PRODUCT_NAME) to access your camera</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Allow this app to use the microphone.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>Allow this app to use speech recognition.</string>
     <key>NSUserActivityTypes</key>
     <array>
       <string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>
@@ -62,6 +68,13 @@
     <key>UIAppFonts</key>
     <array>
       <string>Inter.ttf</string>
+      <string>FuturaCyrillicBold.ttf</string>
+      <string>FuturaCyrillicBook.ttf</string>
+      <string>FuturaCyrillicDemi.ttf</string>
+      <string>FuturaCyrillicExtraBold.ttf</string>
+      <string>FuturaCyrillicHeavy.ttf</string>
+      <string>FuturaCyrillicLight.ttf</string>
+      <string>FuturaCyrillicMedium.ttf</string>
     </array>
     <key>UILaunchStoryboardName</key>
     <string>SplashScreen</string>
