@@ -34,7 +34,7 @@ export async function fetchGroup(groupId: GroupIdT): Promise<GroupWithId> {
 
   try {
     const group = groupSnap.data();
-    return { id: groupSnap.id as GroupIdT, ...group } as GroupWithId;
+    return { id: groupSnap.id as GroupIdT, ...group };
   } catch (err) {
     console.error('Invalid group structure:', err);
     throw new Error('Unable to load group data.');
