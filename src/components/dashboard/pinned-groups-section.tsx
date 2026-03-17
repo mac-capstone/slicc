@@ -10,7 +10,7 @@ import { colors, Text, View } from '@/components/ui';
 import { formatCreationDate, formatEventDescription } from '@/lib/date-utils';
 import { getMostRelevantEventId } from '@/lib/event-utils';
 import { useGroupPreferences } from '@/lib/group-preferences';
-import type { EventIdT, EventWithId, UserIdT } from '@/types';
+import type { EventIdT, EventWithId, GroupIdT, UserIdT } from '@/types';
 
 export function PinnedGroupsSection() {
   const router = useRouter();
@@ -21,7 +21,7 @@ export function PinnedGroupsSection() {
   const groupQueries = useQueries({
     queries: pinnedGroupIds.map((id) => ({
       queryKey: ['groups', 'groupId', id] as const,
-      queryFn: () => fetchGroup(id),
+      queryFn: () => fetchGroup(id as GroupIdT),
     })),
   });
 
