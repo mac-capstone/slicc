@@ -16,12 +16,16 @@ function getRemainingAmount(expense: {
 export function usePendingExpenses(userId: UserIdT | null, limit = 5) {
   const { data: expenseIds = [], isPending: idsPending } = useExpenseIds();
 
-  const expenseQueries = useQueries({
-    queries: expenseIds.map((id) => ({
-      queryKey: ['expenses', 'expenseId', id] as const,
-      queryFn: () => fetchExpense(id as ExpenseIdT),
-    })),
-  });
+  const queries = useMemo(
+    () =>
+      expenseIds.map((id) => ({
+        queryKey: ['expenses', 'expenseId', id] as const,
+        queryFn: () => fetchExpense(id as ExpenseIdT),
+      })),
+    [expenseIds]
+  );
+
+  const expenseQueries = useQueries({ queries });
 
   const pendingExpenseIds = useMemo(() => {
     const expenses = expenseQueries

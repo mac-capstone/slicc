@@ -12,11 +12,10 @@ export function filterAndSortUpcomingEvents(
   events: EventWithId[],
   limit?: number
 ): EventWithId[] {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const now = new Date();
 
   const result = events
-    .filter((e) => toEventDate(e.startDate).getTime() >= today.getTime())
+    .filter((e) => toEventDate(e.startDate).getTime() >= now.getTime())
     .sort(
       (a, b) =>
         toEventDate(a.startDate).getTime() - toEventDate(b.startDate).getTime()
@@ -33,15 +32,14 @@ export function getMostRelevantEventId(
   eventIds: string[],
   eventMap: Map<string, EventWithId>
 ): EventIdT | null {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const now = new Date();
 
   const events = eventIds
     .map((id) => eventMap.get(id))
     .filter((e): e is EventWithId => e != null);
 
   const upcoming = events
-    .filter((e) => toEventDate(e.startDate).getTime() >= today.getTime())
+    .filter((e) => toEventDate(e.startDate).getTime() >= now.getTime())
     .sort(
       (a, b) =>
         toEventDate(a.startDate).getTime() - toEventDate(b.startDate).getTime()

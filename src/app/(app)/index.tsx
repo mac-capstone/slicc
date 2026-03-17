@@ -32,7 +32,7 @@ export default function Home() {
 
   const isLoading = balancesPending || pendingPending || eventsPending;
 
-  if (isLoading && !userId) {
+  if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center">
         <ActivityIndicator />

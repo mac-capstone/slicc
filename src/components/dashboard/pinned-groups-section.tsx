@@ -6,7 +6,7 @@ import { Pressable } from 'react-native';
 import { fetchEvent } from '@/api/events/use-events';
 import { fetchGroup } from '@/api/groups/use-groups';
 import { GroupItem, type GroupItemData } from '@/components/group-item';
-import { colors, Text, View } from '@/components/ui';
+import { ActivityIndicator, colors, Text, View } from '@/components/ui';
 import { formatCreationDate, formatEventDescription } from '@/lib/date-utils';
 import { getMostRelevantEventId } from '@/lib/event-utils';
 import { useGroupPreferences } from '@/lib/group-preferences';
@@ -49,6 +49,11 @@ export function PinnedGroupsSection() {
     });
     return map;
   }, [allEventIds, eventQueries]);
+
+  const groupsLoading = groupQueries.some((q) => q.isPending);
+  const eventsLoading = eventQueries.some((q) => q.isPending);
+  const groupsError = groupQueries.some((q) => q.isError);
+  const eventsError = eventQueries.some((q) => q.isError);
 
   const groupItems = useMemo((): GroupItemData[] => {
     return groups.map((g) => {
@@ -98,6 +103,58 @@ export function PinnedGroupsSection() {
         </View>
         <Text className="py-4 text-center" style={{ color: colors.text[800] }}>
           No pinned groups. Swipe left on a group in the Groups tab to pin it.
+        </Text>
+      </View>
+    );
+  }
+
+  if (groupsLoading || eventsLoading) {
+    return (
+      <View className="gap-3">
+        <View className="flex-row items-center justify-between">
+          <Text className="font-futuraDemi text-lg">Pinned Groups</Text>
+          <Pressable
+            onPress={() => router.push('/groups')}
+            accessibilityLabel="See all groups"
+            accessibilityRole="button"
+          >
+            <Text className="text-sm" style={{ color: colors.accent[100] }}>
+              See all
+            </Text>
+          </Pressable>
+        </View>
+        <View className="py-4">
+          <ActivityIndicator />
+        </View>
+      </View>
+    );
+  }
+
+  if (groupsError || eventsError) {
+    const firstError =
+      groupQueries.find((q) => q.isError)?.error ??
+      eventQueries.find((q) => q.isError)?.error;
+    const errorMessage =
+      firstError instanceof Error
+        ? firstError.message
+        : 'Error loading pinned groups';
+
+    return (
+      <View className="gap-3">
+        <View className="flex-row items-center justify-between">
+          <Text className="font-futuraDemi text-lg">Pinned Groups</Text>
+          <Pressable
+            onPress={() => router.push('/groups')}
+            accessibilityLabel="See all groups"
+            accessibilityRole="button"
+          >
+            <Text className="text-sm" style={{ color: colors.accent[100] }}>
+              See all
+            </Text>
+          </Pressable>
+        </View>
+        <Text className="py-4 text-center" style={{ color: colors.text[800] }}>
+          {errorMessage}
         </Text>
       </View>
     );
