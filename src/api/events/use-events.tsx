@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 
 import { db } from '@/api/common/firebase';
+import { useUser } from '@/api/people/use-users';
 import { setGroupUnread } from '@/lib/group-preferences';
 import {
   type Event,
@@ -96,7 +97,7 @@ export function useCreateEvent() {
   return useMutation<EventWithId, Error, CreateEventVariables>({
     mutationFn: async ({ eventId, data }) => {
       const eventRef = doc(eventsRef, eventId);
-      await setDoc(eventRef, data);
+      await setDoc(eventRef, data, { merge: true });
       return { id: eventId, ...data };
     },
     onSuccess: () => {
@@ -194,26 +195,23 @@ export function useEventParticipant({
   variables: { eventId, userId },
   enabled = true,
 }: UseEventParticipantOptions) {
-  return useQuery<EventParticipant>({
-    queryKey: eventKeys.participant(eventId, userId),
-    queryFn: async () => {
-      const eventRef = doc(eventsRef, eventId);
-      const eventSnap = await getDoc(eventRef);
-      if (!eventSnap.exists()) throw new Error('Event not found');
+  const eventQuery = useEvent({ variables: eventId, enabled });
 
-      const event = eventSnap.data();
-      if (!event.participants.includes(userId))
-        throw new Error('User not a participant');
+  const isParticipant = eventQuery.data?.participants.includes(userId) ?? false;
 
-      const userRef = doc(db, 'users', userId);
-      const userSnap = await getDoc(userRef);
-      if (!userSnap.exists()) throw new Error('User not found');
-
-      return {
-        name: userSnap.data().displayName,
-        userRef: userId,
-      };
-    },
-    enabled,
+  const userQuery = useUser({
+    variables: userId,
+    enabled: enabled && isParticipant,
   });
+
+  const data: EventParticipant | undefined = userQuery.data
+    ? { name: userQuery.data.displayName, userRef: userId }
+    : undefined;
+
+  return {
+    data,
+    isLoading: eventQuery.isLoading || (isParticipant && userQuery.isLoading),
+    isError: eventQuery.isError || userQuery.isError,
+    error: eventQuery.error || userQuery.error,
+  };
 }
