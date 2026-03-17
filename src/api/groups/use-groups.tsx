@@ -15,7 +15,7 @@ import { createQuery } from 'react-query-kit';
 
 import { db } from '@/api/common/firebase';
 import type { Group, GroupIdT, GroupWithId, UserIdT } from '@/types';
-import { groupConverter, groupSchema } from '@/types/schema';
+import { groupConverter } from '@/types/schema';
 
 type CreateGroupData = Omit<Group, 'createdAt' | 'updatedAt'> & {
   createdAt?: ReturnType<typeof Timestamp.now>;
@@ -25,23 +25,20 @@ type CreateGroupData = Omit<Group, 'createdAt' | 'updatedAt'> & {
 const groupsRef = collection(db, 'groups').withConverter(groupConverter);
 
 export async function fetchGroup(groupId: GroupIdT): Promise<GroupWithId> {
-  // Use raw ref (no converter) so we get Firestore Timestamps for parsing
-  const rawRef = doc(db, 'groups', groupId);
-  const groupSnap = await getDoc(rawRef);
+  const groupRef = doc(groupsRef, groupId);
+  const groupSnap = await getDoc(groupRef);
 
   if (!groupSnap.exists()) {
     throw new Error('Group not found');
   }
 
-  const rawData = groupSnap.data();
-  const parsedGroup = groupSchema.safeParse(rawData);
-  if (!parsedGroup.success) {
-    console.error('Invalid group structure:', parsedGroup.error.flatten());
+  try {
+    const group = groupSnap.data();
+    return { id: groupSnap.id as GroupIdT, ...group };
+  } catch (err) {
+    console.error('Invalid group structure:', err);
     throw new Error('Unable to load group data.');
   }
-  const validatedGroup = parsedGroup.data;
-
-  return { id: groupSnap.id as GroupIdT, ...validatedGroup } as GroupWithId;
 }
 
 type GroupIdsResponse = GroupIdT[];
@@ -109,10 +106,7 @@ export const useUpdateGroup = () => {
     mutationFn: async ({ groupId, data }: UpdateGroupVariables) => {
       const groupRef = doc(groupsRef, groupId);
       await updateDoc(groupRef, { ...data, updatedAt: Timestamp.now() });
-      const rawRef = doc(db, 'groups', groupId);
-      const updatedSnap = await getDoc(rawRef);
-      const parsedGroup = groupSchema.parse(updatedSnap.data());
-      return { id: groupId, ...parsedGroup } as GroupWithId;
+      return fetchGroup(groupId);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
@@ -133,26 +127,22 @@ export const useLeaveGroup = () => {
 
   return useMutation<void, Error, LeaveGroupVariables>({
     mutationFn: async ({ groupId, userId }: LeaveGroupVariables) => {
-      const rawRef = doc(db, 'groups', groupId);
       const groupRef = doc(groupsRef, groupId);
 
       await runTransaction(db, async (transaction) => {
-        const groupSnap = await transaction.get(rawRef);
+        const groupSnap = await transaction.get(groupRef);
 
         if (!groupSnap.exists()) {
           throw new Error('Group not found');
         }
 
-        const rawData = groupSnap.data();
-        const parsedGroup = groupSchema.safeParse(rawData);
-        if (!parsedGroup.success) {
-          console.error(
-            'Invalid group structure:',
-            parsedGroup.error.flatten()
-          );
+        let groupData: Group;
+        try {
+          groupData = groupSnap.data();
+        } catch (err) {
+          console.error('Invalid group structure:', err);
           throw new Error('Unable to load group data.');
         }
-        const groupData = parsedGroup.data;
 
         const newMembers = groupData.members.filter((id) => id !== userId);
 

@@ -4,7 +4,7 @@ import { Pressable, View } from 'react-native';
 
 import { StackedAvatars } from '@/components/stacked-avatars';
 import { colors, Text } from '@/components/ui';
-import type { EventIdT, UserIdT } from '@/types';
+import type { EventIdT, EventWithId, UserIdT } from '@/types';
 
 export type GroupEventCardData = {
   id: string;
@@ -14,6 +14,24 @@ export type GroupEventCardData = {
   location?: string;
   participants: UserIdT[];
 };
+
+export function eventToCardData(event: EventWithId): GroupEventCardData {
+  const startDate =
+    event.startDate instanceof Date
+      ? event.startDate
+      : new Date(event.startDate);
+  return {
+    id: event.id,
+    name: event.name,
+    startDate: startDate.toISOString(),
+    startTime: startDate.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }),
+    location: event.location,
+    participants: event.participants as UserIdT[],
+  };
+}
 
 function formatMonthDay(dateStr: string): { month: string; day: string } {
   const date = new Date(dateStr);

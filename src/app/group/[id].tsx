@@ -8,33 +8,13 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { fetchEvent } from '@/api/events/use-events';
 import { useGroup } from '@/api/groups/use-groups';
 import { AddButton } from '@/components/add-button';
-import {
-  GroupEventCard,
-  type GroupEventCardData,
-} from '@/components/group-event-card';
+import { eventToCardData, GroupEventCard } from '@/components/group-event-card';
 import { SearchableSectionHeader } from '@/components/searchable-section-header';
 import { colors, Text } from '@/components/ui';
+import { filterAndSortUpcomingEvents } from '@/lib/event-utils';
 import { markGroupAsRead } from '@/lib/group-preferences';
 import { useThemeConfig } from '@/lib/use-theme-config';
-import type { EventIdT, EventWithId, GroupIdT, UserIdT } from '@/types';
-
-function eventToCardData(event: EventWithId): GroupEventCardData {
-  const startDate =
-    event.startDate instanceof Date
-      ? event.startDate
-      : new Date(event.startDate);
-  return {
-    id: event.id,
-    name: event.name,
-    startDate: startDate.toISOString(),
-    startTime: startDate.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-    }),
-    location: event.location,
-    participants: event.participants as UserIdT[],
-  };
-}
+import type { EventIdT, EventWithId, GroupIdT } from '@/types';
 
 export default function GroupDetailScreen() {
   const theme = useThemeConfig();
@@ -76,25 +56,10 @@ export default function GroupDetailScreen() {
     }, [groupId])
   );
 
-  const allUpcomingEvents = useMemo((): GroupEventCardData[] => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    return events
-      .filter((e) => {
-        const start =
-          e.startDate instanceof Date ? e.startDate : new Date(e.startDate);
-        return start.getTime() >= today.getTime();
-      })
-      .sort((a, b) => {
-        const startA =
-          a.startDate instanceof Date ? a.startDate : new Date(a.startDate);
-        const startB =
-          b.startDate instanceof Date ? b.startDate : new Date(b.startDate);
-        return startA.getTime() - startB.getTime();
-      })
-      .map(eventToCardData);
-  }, [events]);
+  const allUpcomingEvents = useMemo(
+    () => filterAndSortUpcomingEvents(events).map(eventToCardData),
+    [events]
+  );
 
   const upcomingEvents = useMemo(() => {
     if (!searchQuery.trim()) return allUpcomingEvents;
