@@ -6,20 +6,19 @@ import {
   doc,
   getDoc,
   getDocs,
-  runTransaction,
+  setDoc,
   updateDoc,
 } from 'firebase/firestore';
 
 import { db } from '@/api/common/firebase';
 import { useUser } from '@/api/people/use-users';
-import { setGroupUnread } from '@/lib/group-preferences';
 import {
   type Event,
   type EventIdT,
   type EventWithId,
   type UserIdT,
 } from '@/types';
-import { eventConverter, eventSchema } from '@/types/schema';
+import { eventConverter } from '@/types/schema';
 
 const eventsRef = collection(db, 'events').withConverter(eventConverter);
 
@@ -30,7 +29,7 @@ export const eventKeys = {
     ['events', eventId, 'participant', userId] as const,
 };
 
-async function fetchEvents(): Promise<EventWithId[]> {
+export async function fetchEvents(): Promise<EventWithId[]> {
   const snapshot = await getDocs(eventsRef);
   return snapshot.docs.map((eventDoc) => ({
     id: eventDoc.id as EventIdT,
@@ -38,7 +37,7 @@ async function fetchEvents(): Promise<EventWithId[]> {
   }));
 }
 
-async function fetchEvent(eventId: EventIdT): Promise<EventWithId> {
+export async function fetchEvent(eventId: EventIdT): Promise<EventWithId> {
   const eventRef = doc(eventsRef, eventId);
   const eventSnap = await getDoc(eventRef);
   if (!eventSnap.exists()) throw new Error('Event not found');
