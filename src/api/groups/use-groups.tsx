@@ -106,9 +106,7 @@ export const useUpdateGroup = () => {
     mutationFn: async ({ groupId, data }: UpdateGroupVariables) => {
       const groupRef = doc(groupsRef, groupId);
       await updateDoc(groupRef, { ...data, updatedAt: Timestamp.now() });
-      const updatedSnap = await getDoc(groupRef);
-      const group = updatedSnap.data();
-      return { id: groupId, ...group } as GroupWithId;
+      return fetchGroup(groupId);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
