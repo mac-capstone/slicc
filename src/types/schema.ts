@@ -30,6 +30,7 @@ function zodConverter<Out>(
 export const userSchema = z.object({
   username: z.string(),
   displayName: z.string(),
+  photoURL: z.string().nullable().optional(),
   createdAt: firestoreTimestamp.optional(),
   updatedAt: firestoreTimestamp.optional(),
 });

@@ -22,7 +22,7 @@ export default function Login() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   if (status === 'signIn') {
-    return <Redirect href="/(app)" />;
+    return <Redirect href="/" />;
   }
 
   const handleGoogleSignIn = async (): Promise<void> => {
