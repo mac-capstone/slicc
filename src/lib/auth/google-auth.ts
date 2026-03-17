@@ -22,10 +22,6 @@ export function configureGoogleSignIn(): void {
     webClientId: Env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
   });
 }
-console.log(
-  'Env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID',
-  Env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
-);
 
 export async function signInWithGoogle(): Promise<GoogleAuthResult> {
   await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });

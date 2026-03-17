@@ -67,6 +67,7 @@ const inputTv = tv({
 
 export interface NInputProps extends TextInputProps {
   label?: string;
+  hint?: string;
   disabled?: boolean;
   error?: string;
   /** Use raw style - no background, borders, or padding */
@@ -101,6 +102,7 @@ interface ControlledInputProps<T extends FieldValues>
 export const Input = React.forwardRef<NTextInput, NInputProps>((props, ref) => {
   const {
     label,
+    hint,
     error,
     testID,
     containerClassName,
@@ -183,6 +185,14 @@ export const Input = React.forwardRef<NTextInput, NInputProps>((props, ref) => {
           className="text-sm text-danger-400 dark:text-danger-600"
         >
           {error}
+        </Text>
+      )}
+      {hint && !error && (
+        <Text
+          testID={testID ? `${testID}-hint` : undefined}
+          className="mt-1 text-sm text-charcoal-400 dark:text-neutral-400"
+        >
+          {hint}
         </Text>
       )}
     </View>

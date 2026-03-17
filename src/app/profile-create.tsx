@@ -1,13 +1,15 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
 } from 'react-native';
 import { z } from 'zod';
@@ -33,10 +35,7 @@ const profileFormSchema = z.object({
     .string()
     .min(2, 'Username must be at least 2 characters')
     .max(30, 'Username must be at most 30 characters')
-    .regex(
-      /^[a-zA-Z0-9_]+$/,
-      'Username can only contain letters, numbers, and underscores'
-    ),
+    .regex(/^[a-zA-Z0-9._]+$/, 'Letters, numbers, dots and underscores only.'),
 });
 
 type ProfileFormData = z.infer<typeof profileFormSchema>;
@@ -140,6 +139,20 @@ export default function ProfileCreate() {
   return (
     <>
       <FocusAwareStatusBar />
+      <Stack.Screen
+        options={{
+          title: 'Set Up Profile',
+          headerShown: true,
+          headerBackVisible: false,
+          headerShadowVisible: false,
+          headerStyle: { backgroundColor: '#1A1A1A' },
+          headerTitleStyle: {
+            color: '#ffffff',
+            fontFamily: 'FuturaCyrillicBold',
+            fontSize: 18,
+          },
+        }}
+      />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1 bg-background-950"
@@ -150,65 +163,61 @@ export default function ProfileCreate() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View className="flex-1 px-6 pt-12">
-            <Text className="mb-2 font-futuraBold text-3xl text-white">
-              Create your profile
-            </Text>
-            <Text className="mb-8 text-charcoal-400">
-              Add a photo and choose how you will appear to others
-            </Text>
-
+          <View className="flex-1 px-6 pt-6">
             <View className="mb-8 items-center">
-              <Button
-                variant="ghost"
+              <Pressable
                 onPress={pickImage}
-                className="mb-2"
                 accessibilityLabel="Add profile picture"
                 accessibilityRole="button"
+                className="relative"
               >
                 {profileImageUri ? (
                   <Image
                     source={{ uri: profileImageUri }}
-                    className="size-24 rounded-full"
+                    className="size-32 rounded-full"
                     contentFit="cover"
                   />
                 ) : (
-                  <View className="size-24 items-center justify-center rounded-full bg-charcoal-800">
-                    <Text className="text-4xl text-charcoal-400">+</Text>
+                  <View className="size-32 items-center justify-center rounded-full bg-charcoal-800">
+                    <Ionicons name="person-outline" size={64} color="#969696" />
                   </View>
                 )}
-              </Button>
-              <Text className="text-sm text-charcoal-400">
-                {profileImageUri
-                  ? 'Change photo'
-                  : 'Add profile picture (optional)'}
+                <View className="absolute bottom-0 right-0 size-10 items-center justify-center rounded-full bg-accent-100">
+                  <Ionicons name="camera-outline" size={20} color="#000000" />
+                </View>
+              </Pressable>
+              <Text className="mt-2 text-sm text-charcoal-400">
+                Tap to add a photo.
               </Text>
             </View>
 
             <View className="gap-4">
               <ControlledInput
-                name="displayName"
-                control={control}
-                label="Display name"
-                placeholder="How should we call you?"
-                autoCapitalize="words"
-              />
-              <ControlledInput
                 name="username"
                 control={control}
                 label="Username"
-                placeholder="Choose a unique username"
+                placeholder="@yourname."
+                hint="Letters, numbers, dots and underscores only."
                 autoCapitalize="none"
                 autoCorrect={false}
+              />
+              <ControlledInput
+                name="displayName"
+                control={control}
+                label="Display Name"
+                placeholder="How others will see you."
+                autoCapitalize="words"
               />
             </View>
 
             <View className="mt-auto py-8">
               <Button
-                label="Continue"
+                label="Save Profile"
                 onPress={handleSubmit(onSubmit)}
                 loading={isSubmitting}
                 disabled={isSubmitting}
+                className="bg-accent-100"
+                textClassName="text-white"
               />
             </View>
           </View>
