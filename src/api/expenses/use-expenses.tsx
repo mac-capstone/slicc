@@ -25,7 +25,7 @@ import {
 
 import { db } from '../common/firebase';
 
-type ExpenseResponse = Expense & {
+export type ExpenseResponse = Expense & {
   id: ExpenseIdT;
   items: ItemWithId[];
   people: PersonWithId[];

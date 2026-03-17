@@ -3,9 +3,11 @@ import { useCallback } from 'react';
 
 import type { ExpenseIdT, UserIdT } from '@/types';
 
-import { fetchExpense, useExpenseIds } from './use-expenses';
-
-type ExpenseResult = Awaited<ReturnType<typeof fetchExpense>>;
+import {
+  type ExpenseResponse,
+  fetchExpense,
+  useExpenseIds,
+} from './use-expenses';
 
 export function useBalances(userId: UserIdT | null) {
   const { data: expenseIds = [], isPending: idsPending } = useExpenseIds();
@@ -13,7 +15,7 @@ export function useBalances(userId: UserIdT | null) {
   const combine = useCallback(
     (
       results: {
-        data?: ExpenseResult;
+        data?: ExpenseResponse;
         isPending: boolean;
         isError: boolean;
       }[]
