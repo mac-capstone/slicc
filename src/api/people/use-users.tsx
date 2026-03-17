@@ -11,7 +11,7 @@ const USE_MOCK_DATA = true; // Set to false when ready to use Firestore
 type User = {
   displayName: string;
   email: string;
-  photoURL: string | null;
+  photoURL?: string | null;
 };
 
 export type UserWithId = User & { id: UserIdT };

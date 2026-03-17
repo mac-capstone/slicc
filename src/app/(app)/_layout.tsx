@@ -10,11 +10,15 @@ export default function TabLayout() {
   const status = useAuth.use.status();
   const userId = useAuth.use.userId();
   const [isFirstTime] = useIsFirstTime();
-  const { exists: userExistsInFirestore, isLoading: isUserCheckLoading } =
-    useUserExistsInFirestore(userId);
+  const {
+    exists: userExistsInFirestore,
+    isChecking: isUserCheckRunning,
+    hasError: hasUserCheckError,
+  } = useUserExistsInFirestore(userId);
   const hideSplash = useCallback(async () => {
     await SplashScreen.hideAsync();
   }, []);
+
   useEffect(() => {
     if (status !== 'idle') {
       setTimeout(() => {
@@ -29,13 +33,14 @@ export default function TabLayout() {
   if (status === 'signOut') {
     return <Redirect href="/login" />;
   }
-  if (status === 'signIn' && userId !== 'guest_user' && isUserCheckLoading) {
+  if (status === 'signIn' && userId !== 'guest_user' && isUserCheckRunning) {
     return null;
   }
   if (
     status === 'signIn' &&
-    !isUserCheckLoading &&
-    userExistsInFirestore === false
+    userId !== 'guest_user' &&
+    !isUserCheckRunning &&
+    (userExistsInFirestore !== true || hasUserCheckError)
   ) {
     return <Redirect href="/profile-create" />;
   }

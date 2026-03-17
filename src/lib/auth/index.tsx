@@ -34,12 +34,18 @@ const _useAuth = create<AuthState>((set, get) => ({
   userId: null,
   token: null,
   signIn: ({ token, userId }) => {
+    console.log('[auth] signIn', { userId });
     setToken(token);
     setUserIdInStorage(userId);
     set({ status: 'signIn', token, userId: userId as UserIdT });
   },
   googleSignIn: async () => {
+    console.log('[auth] googleSignIn start');
     const result = await signInWithGoogle();
+    console.log('[auth] googleSignIn success', {
+      uid: result.uid,
+      email: result.email,
+    });
     get().signIn({
       token: { access: result.idToken, refresh: '' },
       userId: result.uid,
@@ -47,6 +53,7 @@ const _useAuth = create<AuthState>((set, get) => ({
   },
   signOut: () => {
     const wasSignedIn = get().status === 'signIn';
+    console.log('[auth] signOut', { wasSignedIn, userId: get().userId });
     removeToken();
     removeUserIdFromStorage();
     set({ status: 'signOut', token: null, userId: null });
@@ -58,6 +65,10 @@ const _useAuth = create<AuthState>((set, get) => ({
     try {
       const userToken = getToken();
       const userId = getUserIdFromStorage();
+      console.log('[auth] hydrate', {
+        hasToken: userToken !== null,
+        userId,
+      });
       if (userToken !== null && userId !== null) {
         get().signIn({ token: userToken, userId });
       } else {

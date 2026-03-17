@@ -48,13 +48,14 @@ export default function ProfileCreate() {
   const [profileImageUri, setProfileImageUri] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { control, handleSubmit, setError } = useForm<ProfileFormData>({
-    resolver: zodResolver(profileFormSchema),
-    defaultValues: {
-      displayName: '',
-      username: '',
-    },
-  });
+  const { control, handleSubmit, setError, setFocus } =
+    useForm<ProfileFormData>({
+      resolver: zodResolver(profileFormSchema),
+      defaultValues: {
+        displayName: '',
+        username: '',
+      },
+    });
 
   const pickImage = useCallback(async (): Promise<void> => {
     const { status: permStatus } =
@@ -90,15 +91,17 @@ export default function ProfileCreate() {
       try {
         const usernameTaken = await checkUsernameExists(data.username);
         if (usernameTaken) {
-          setError('username', { message: 'This username is already taken' });
+          setError('username', {
+            message: 'This username is already taken',
+          });
+          setFocus('username');
           setIsSubmitting(false);
           return;
         }
 
-        let photoURL: string | null = null;
         if (profileImageUri) {
           try {
-            photoURL = await uploadProfilePicture(userId, profileImageUri);
+            await uploadProfilePicture(userId, profileImageUri);
           } catch (uploadError) {
             console.warn(
               'Profile picture upload failed, continuing without:',
@@ -110,9 +113,9 @@ export default function ProfileCreate() {
         await createUserInFirestore(userId, {
           displayName: data.displayName,
           username: data.username,
-          photoURL,
         });
 
+        queryClient.setQueryData(['userExists', userId], true);
         await queryClient.invalidateQueries({
           queryKey: ['userExists', userId],
         });
@@ -124,7 +127,7 @@ export default function ProfileCreate() {
         setIsSubmitting(false);
       }
     },
-    [userId, status, profileImageUri, router, setError, queryClient]
+    [userId, status, profileImageUri, router, setError, setFocus, queryClient]
   );
 
   if (status === 'signOut') {
