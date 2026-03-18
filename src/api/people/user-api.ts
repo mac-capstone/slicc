@@ -4,7 +4,7 @@ import {
   getDoc,
   getDocs,
   query,
-  setDoc,
+  runTransaction,
   Timestamp,
   where,
 } from 'firebase/firestore';
@@ -78,6 +78,13 @@ export type CreateUserData = {
   username: string;
 };
 
+export class UserAlreadyExistsError extends Error {
+  constructor(userId: string) {
+    super(`User profile already exists for ${userId}`);
+    this.name = 'UserAlreadyExistsError';
+  }
+}
+
 export async function createUserInFirestore(
   userId: string,
   data: CreateUserData
@@ -98,6 +105,14 @@ export async function createUserInFirestore(
   };
 
   const userRef = doc(db, 'users', userId);
-  await setDoc(userRef, userDoc);
+  await runTransaction(db, async (transaction) => {
+    const userSnap = await transaction.get(userRef);
+
+    if (userSnap.exists()) {
+      throw new UserAlreadyExistsError(userId);
+    }
+
+    transaction.set(userRef, userDoc);
+  });
   console.log('[user-api] firestore user created', { userId });
 }

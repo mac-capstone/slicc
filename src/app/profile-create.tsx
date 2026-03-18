@@ -18,6 +18,7 @@ import {
   checkUsernameExists,
   createUserInFirestore,
   uploadProfilePicture,
+  UserAlreadyExistsError,
 } from '@/api/people/user-api';
 import {
   Button,
@@ -122,6 +123,16 @@ export default function ProfileCreate() {
         router.replace('/(app)');
       } catch (error) {
         console.error('Profile creation failed:', error);
+
+        if (error instanceof UserAlreadyExistsError) {
+          queryClient.setQueryData(['userExists', userId], true);
+          await queryClient.invalidateQueries({
+            queryKey: ['userExists', userId],
+          });
+          router.replace('/(app)');
+          return;
+        }
+
         Alert.alert('Error', 'Failed to create profile. Please try again.');
       } finally {
         setIsSubmitting(false);

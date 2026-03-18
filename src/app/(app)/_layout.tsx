@@ -40,7 +40,8 @@ export default function TabLayout() {
     status === 'signIn' &&
     userId !== 'guest_user' &&
     !isUserCheckRunning &&
-    (userExistsInFirestore !== true || hasUserCheckError)
+    userExistsInFirestore === false &&
+    !hasUserCheckError
   ) {
     return <Redirect href="/profile-create" />;
   }
