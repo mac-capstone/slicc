@@ -48,7 +48,6 @@ function AuthButton({
 
 export default function Login() {
   const router = useRouter();
-  const signIn = useAuth.use.signIn();
   const googleSignIn = useAuth.use.googleSignIn();
   const status = useAuth.use.status();
   const userId = useAuth.use.userId();
@@ -83,15 +82,6 @@ export default function Login() {
     }
   };
 
-  const handleGuestSignIn = (): void => {
-    console.log('[login] guest sign in');
-    signIn({
-      token: { access: 'guest-token', refresh: '' },
-      userId: 'guest_user',
-    });
-    router.push('/');
-  };
-
   return (
     <>
       <FocusAwareStatusBar />
@@ -111,7 +101,7 @@ export default function Login() {
               </Text>
             </View>
 
-            <View className="mt-24 w-full gap-[17px]">
+            <View className="mt-28 w-full gap-[17px]">
               <AuthButton
                 label="Log in with Google"
                 onPress={handleGoogleSignIn}
@@ -135,15 +125,6 @@ export default function Login() {
                 }
                 icon={<Ionicons name="logo-apple" size={29} color="#D9D9D9" />}
               />
-
-              <Pressable
-                className="mt-[18px] items-center"
-                onPress={handleGuestSignIn}
-              >
-                <Text className="text-sm font-semibold tracking-[-0.28px] text-accent-100 dark:text-accent-100">
-                  Continue as guest
-                </Text>
-              </Pressable>
             </View>
           </View>
 

@@ -8,7 +8,7 @@ import {
   Timestamp,
   where,
 } from 'firebase/firestore';
-import { ref, uploadBytes } from 'firebase/storage';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 
 import { db, storage } from '@/api/common/firebase';
 import type { User } from '@/types';
@@ -47,6 +47,30 @@ export async function uploadProfilePicture(
 
   const storageRef = ref(storage, `profile_pic/${userId}`);
   await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
+}
+
+export async function getProfilePictureUrl(
+  userId: string
+): Promise<string | null> {
+  try {
+    const storageRef = ref(storage, `profile_pic/${userId}`);
+    return await getDownloadURL(storageRef);
+  } catch (error) {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 'storage/object-not-found'
+    ) {
+      return null;
+    }
+
+    console.warn('[user-api] failed to fetch profile picture url', {
+      userId,
+      error,
+    });
+    return null;
+  }
 }
 
 export type CreateUserData = {

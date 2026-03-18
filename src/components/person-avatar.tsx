@@ -1,7 +1,9 @@
 import Octicons from '@expo/vector-icons/Octicons';
+import { useQuery } from '@tanstack/react-query';
 import { Circle, Path, Svg } from 'react-native-svg';
 
 import { useUser } from '@/api/people/use-users';
+import { getProfilePictureUrl } from '@/api/people/user-api';
 import { colors, Image, View } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { type UserIdT } from '@/types';
@@ -33,8 +35,14 @@ export const PersonAvatar = ({
     variables: userId!,
     enabled: !!userId,
   });
+  const { data: storagePhotoURL } = useQuery({
+    queryKey: ['users', 'profile-picture', userId],
+    queryFn: () => getProfilePictureUrl(userId!),
+    enabled: Boolean(userId),
+    staleTime: 5 * 60 * 1000,
+  });
 
-  const photoURL = user?.photoURL;
+  const photoURL = storagePhotoURL ?? user?.photoURL ?? null;
   const avatarColor = colors.avatar?.[color ?? 'white'] ?? colors.avatar.white;
 
   const checkmarkSize = size === 'sm' ? 10 : size === 'md' ? 14 : 18;
