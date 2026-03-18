@@ -13,7 +13,6 @@ type GoogleAuthResult = {
   uid: string;
   email: string | null;
   displayName: string | null;
-  photoURL: string | null;
   idToken: string;
 };
 
@@ -45,7 +44,6 @@ export async function signInWithGoogle(): Promise<GoogleAuthResult> {
     uid: userCredential.user.uid,
     email: userCredential.user.email,
     displayName: userCredential.user.displayName,
-    photoURL: userCredential.user.photoURL,
     idToken: firebaseIdToken,
   };
 }
