@@ -1,10 +1,7 @@
 import { Env } from '@env';
-// import firebaseApp from '@react-native-firebase/app'; // Deprecated - using modular Web SDK instead
 import { getReactNativePersistence, initializeAuth } from '@firebase/auth';
 import { getApps, initializeApp } from 'firebase/app';
-// import { connectFunctionsEmulator } from 'firebase/functions';
 import { getFirestore } from 'firebase/firestore';
-// import { connectFirestoreEmulator } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
 import { getStorage } from 'firebase/storage';
 
