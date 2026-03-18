@@ -1,12 +1,15 @@
 import { Env } from '@env';
 // import firebaseApp from '@react-native-firebase/app'; // Deprecated - using modular Web SDK instead
+import { getReactNativePersistence, initializeAuth } from '@firebase/auth';
 import { getApps, initializeApp } from 'firebase/app';
 // import { connectFunctionsEmulator } from 'firebase/functions';
-import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 // import { connectFirestoreEmulator } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
 import { getStorage } from 'firebase/storage';
+
+import { reactNativeAsyncStorage } from '@/lib/storage';
+
 const firebaseConfig = {
   apiKey: Env.EXPO_PUBLIC_FIREBASE_API_KEY,
   authDomain: Env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -26,4 +29,6 @@ export const functions = getFunctions(app);
 
 export const storage = getStorage(app);
 
-export const auth = getAuth(app);
+export const auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(reactNativeAsyncStorage),
+});
