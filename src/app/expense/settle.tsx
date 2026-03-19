@@ -1,7 +1,8 @@
 import Octicons from '@expo/vector-icons/Octicons';
+import * as Clipboard from 'expo-clipboard';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { FlatList } from 'react-native';
+import { Alert, FlatList } from 'react-native';
 
 import { queryClient } from '@/api';
 import { useExpense } from '@/api/expenses/use-expenses';
@@ -17,8 +18,9 @@ import {
   View,
 } from '@/components/ui';
 import { mockData } from '@/lib/mock-data';
+import { getBankLabel, openBankFlow } from '@/lib/payment-utils';
 import { useThemeConfig } from '@/lib/use-theme-config';
-import { type ExpenseIdT, type UserIdT } from '@/types';
+import { type BankPreference, type ExpenseIdT, type UserIdT } from '@/types';
 
 export default function SettleScreen() {
   const router = useRouter();
@@ -28,6 +30,11 @@ export default function SettleScreen() {
 
   const { data, isPending, isError } = useExpense({
     variables: expenseId,
+  });
+  const payerUserId = data?.payerUserId ?? data?.createdBy ?? null;
+  const { data: payerUser } = useUser({
+    variables: payerUserId,
+    enabled: Boolean(payerUserId),
   });
 
   const [payments, setPayments] = useState<Record<string, number>>({});
@@ -122,6 +129,22 @@ export default function SettleScreen() {
           Settle Up
         </Text>
 
+        {payerUser && (
+          <View className="mt-4 rounded-xl border border-accent-100 bg-background-900 px-4 py-3">
+            <Text className="!dark:text-text-200 text-base uppercase tracking-wide">
+              Main payer
+            </Text>
+            <Text className="mt-1 font-futuraDemi text-base text-text-50 dark:text-text-50">
+              {payerUser.displayName ?? 'Unknown'}
+            </Text>
+            {payerUser.eTransferEmail && (
+              <Text className="text-text-200 mt-1 text-sm">
+                {payerUser.eTransferEmail}
+              </Text>
+            )}
+          </View>
+        )}
+
         {/* Overall collected summary */}
         <View className="mt-4 rounded-xl bg-background-900 px-4 py-3">
           <View className="flex-row items-center justify-between">
@@ -153,6 +176,12 @@ export default function SettleScreen() {
               personId={item.id as UserIdT}
               expenseId={expenseId}
               currentPaid={payments[item.id] ?? item.paid}
+              payerInfo={{
+                payerUserId,
+                displayName: payerUser?.displayName,
+                eTransferEmail: payerUser?.eTransferEmail ?? payerUser?.email,
+                bankPreference: payerUser?.bankPreference,
+              }}
               onUpdatePaid={(newPaid) =>
                 setPayments((prev) => ({ ...prev, [item.id]: newPaid }))
               }
@@ -179,11 +208,18 @@ function SettlePersonCard({
   personId,
   expenseId,
   currentPaid,
+  payerInfo,
   onUpdatePaid,
 }: {
   personId: UserIdT;
   expenseId: ExpenseIdT;
   currentPaid: number;
+  payerInfo: {
+    payerUserId: string | null;
+    displayName?: string;
+    eTransferEmail?: string;
+    bankPreference?: BankPreference;
+  };
   onUpdatePaid: (newPaid: number) => void;
 }) {
   const { data, isPending, isError } = usePerson({
@@ -209,6 +245,7 @@ function SettlePersonCard({
   }
 
   const subtotal = data.subtotal;
+  const remainingAmount = Math.max(subtotal - currentPaid, 0);
   const parsedInput = parseFloat(inputValue);
   const isSaveDisabled =
     inputValue.trim() === '' ||
@@ -217,6 +254,10 @@ function SettlePersonCard({
     parsedInput > subtotal;
 
   const isFullyPaid = currentPaid >= subtotal;
+  const shouldShowPayToPayer =
+    payerInfo.payerUserId !== null &&
+    personId !== payerInfo.payerUserId &&
+    remainingAmount > 0;
 
   const handleMarkPaid = () => {
     onUpdatePaid(subtotal);
@@ -238,6 +279,24 @@ function SettlePersonCard({
 
   const handleCancel = () => {
     setIsEditing(false);
+  };
+
+  const copyValue = async (value: string, label: string) => {
+    if (!value.trim()) return;
+    await Clipboard.setStringAsync(value);
+    Alert.alert('Copied', `${label} copied to clipboard.`);
+  };
+
+  const handleOpenBank = async () => {
+    try {
+      await openBankFlow(payerInfo.bankPreference);
+    } catch (error) {
+      console.error('[settle] failed to open bank flow', error);
+      Alert.alert(
+        'Unable to open bank',
+        'Please open your banking app manually.'
+      );
+    }
   };
 
   return (
@@ -320,6 +379,56 @@ function SettlePersonCard({
           </>
         )}
       </View>
+
+      {shouldShowPayToPayer && (
+        <View className="mt-3 rounded-lg border border-charcoal-600 p-3">
+          <Text className="text-xs uppercase tracking-wide text-text-800">
+            Pay to
+          </Text>
+
+          <View className="mt-2 flex-row items-center justify-between">
+            <Text className="font-futuraMedium dark:text-text-50">
+              {payerInfo.displayName ?? 'Main payer'}
+            </Text>
+            <Pressable
+              className="rounded-md border border-charcoal-600 px-2 py-1"
+              onPress={() =>
+                copyValue(payerInfo.displayName ?? '', 'Display name')
+              }
+            >
+              <View className="flex-row items-center gap-2">
+                <Octicons name="copy" size={14} color="#A5A9B5" />
+                <Text className="text-xs dark:text-text-800">Copy</Text>
+              </View>
+            </Pressable>
+          </View>
+
+          <View className="mt-2 flex-row items-center justify-between">
+            <Text className="dark:text-text-200 text-sm">
+              {payerInfo.eTransferEmail ?? 'No e-transfer email saved'}
+            </Text>
+            <Pressable
+              className="rounded-md border border-charcoal-600 px-2 py-1"
+              onPress={() => copyValue(payerInfo.eTransferEmail ?? '', 'Email')}
+              disabled={!payerInfo.eTransferEmail}
+            >
+              <View className="flex-row items-center gap-2">
+                <Octicons name="copy" size={14} color="#A5A9B5" />
+                <Text className="text-xs dark:text-text-800">Copy</Text>
+              </View>
+            </Pressable>
+          </View>
+
+          <Pressable
+            className="mt-3 items-center justify-center rounded-lg border border-accent-100 bg-accent-100/10 py-2"
+            onPress={handleOpenBank}
+          >
+            <Text className="font-futuraDemi text-sm text-accent-100">
+              Open {getBankLabel(payerInfo.bankPreference)}
+            </Text>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }

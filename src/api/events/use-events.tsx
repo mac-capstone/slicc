@@ -6,8 +6,10 @@ import {
   doc,
   getDoc,
   getDocs,
+  query,
   setDoc,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 
 import { db } from '@/api/common/firebase';
@@ -67,8 +69,34 @@ export function useEventIds(options?: UseEventsOptions) {
   });
 }
 
+type UseEventsByGroupOptions = {
+  variables: string;
+  enabled?: boolean;
+};
+
+export function useEventsByGroupId({
+  variables: groupId,
+  enabled = true,
+}: UseEventsByGroupOptions) {
+  return useQuery({
+    queryKey: [...eventKeys.all, 'groupId', groupId],
+    queryFn: async () => {
+      const groupEventsQuery = query(
+        eventsRef,
+        where('groupId', '==', groupId)
+      );
+      const snapshot = await getDocs(groupEventsQuery);
+      return snapshot.docs.map((eventDoc) => ({
+        id: eventDoc.id as EventIdT,
+        ...eventDoc.data(),
+      }));
+    },
+    enabled: enabled && Boolean(groupId),
+  });
+}
+
 type UseEventOptions = {
-  variables: EventIdT;
+  variables?: EventIdT;
   enabled?: boolean;
 };
 
@@ -76,10 +104,14 @@ export function useEvent({
   variables: eventId,
   enabled = true,
 }: UseEventOptions) {
+  const hasEventId = Boolean(eventId);
   return useQuery({
-    queryKey: eventKeys.detail(eventId),
-    queryFn: () => fetchEvent(eventId),
-    enabled,
+    queryKey: eventId ? eventKeys.detail(eventId) : [...eventKeys.all, 'none'],
+    queryFn: () => {
+      if (!eventId) throw new Error('Event id is required');
+      return fetchEvent(eventId);
+    },
+    enabled: enabled && hasEventId,
   });
 }
 
@@ -204,7 +236,7 @@ export function useEventParticipant({
   });
 
   const data: EventParticipant | undefined = userQuery.data
-    ? { name: userQuery.data.displayName, userRef: userId }
+    ? { name: userQuery.data.displayName ?? 'Unknown', userRef: userId }
     : undefined;
 
   return {

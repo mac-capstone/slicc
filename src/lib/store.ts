@@ -26,6 +26,7 @@ export const setTempExpense = (value: TempExpense) => {
 interface ExpenseCreationState {
   tempExpense: TempExpense | null;
   setExpenseName: (name: string) => void;
+  setPayerUserId: (payerUserId: string) => void;
   addItem: (item: ItemWithId) => void;
   removeItem: (itemId: ItemIdT) => void;
   updateItem: (itemId: string, updates: Partial<ItemWithId>) => void;
@@ -70,6 +71,7 @@ const _useExpenseCreation = create<ExpenseCreationState>((set, get) => ({
       name: '',
       date: new Date().toISOString(),
       createdBy: createdBy as string,
+      payerUserId: createdBy,
       remainingAmount: 0,
       participantCount: 0,
       items: [],
@@ -84,6 +86,15 @@ const _useExpenseCreation = create<ExpenseCreationState>((set, get) => ({
     const current = get().tempExpense;
     if (current) {
       const updated = { ...current, name };
+      set({ tempExpense: updated });
+      setTempExpense(updated);
+    }
+  },
+
+  setPayerUserId: (payerUserId) => {
+    const current = get().tempExpense;
+    if (current) {
+      const updated = { ...current, payerUserId };
       set({ tempExpense: updated });
       setTempExpense(updated);
     }

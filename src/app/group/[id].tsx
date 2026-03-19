@@ -1,11 +1,10 @@
 import Feather from '@expo/vector-icons/Feather';
 import { useFocusEffect } from '@react-navigation/native';
-import { useQueries } from '@tanstack/react-query';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 
-import { fetchEvent } from '@/api/events/use-events';
+import { useEventsByGroupId } from '@/api/events/use-events';
 import { useGroup } from '@/api/groups/use-groups';
 import { AddButton } from '@/components/add-button';
 import { eventToCardData, GroupEventCard } from '@/components/group-event-card';
@@ -14,7 +13,7 @@ import { colors, Text } from '@/components/ui';
 import { filterAndSortUpcomingEvents } from '@/lib/event-utils';
 import { markGroupAsRead } from '@/lib/group-preferences';
 import { useThemeConfig } from '@/lib/use-theme-config';
-import type { EventIdT, EventWithId, GroupIdT } from '@/types';
+import type { GroupIdT } from '@/types';
 
 export default function GroupDetailScreen() {
   const theme = useThemeConfig();
@@ -28,21 +27,10 @@ export default function GroupDetailScreen() {
   } = useGroup({
     variables: groupId,
   });
-
-  const eventQueries = useQueries({
-    queries: (group?.events ?? []).map((eventId) => ({
-      queryKey: ['events', 'eventId', eventId] as const,
-      queryFn: () => fetchEvent(eventId as EventIdT),
-    })),
+  const { data: events = [] } = useEventsByGroupId({
+    variables: groupId,
+    enabled: Boolean(groupId),
   });
-
-  const events = useMemo(
-    () =>
-      eventQueries
-        .map((q) => q.data)
-        .filter((e): e is EventWithId => e != null),
-    [eventQueries]
-  );
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchInputVisible, setIsSearchInputVisible] = useState(false);

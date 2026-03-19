@@ -55,6 +55,9 @@ importers:
       expo-camera:
         specifier: ^17.0.10
         version: 17.0.10(expo@54.0.33)(react-native-web@0.21.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@20.1.2(typescript@5.9.3))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      expo-clipboard:
+        specifier: ^55.0.9
+        version: 55.0.9(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@20.1.2(typescript@5.9.3))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       expo-constants:
         specifier: ~18.0.13
         version: 18.0.13(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@20.1.2(typescript@5.9.3))(@types/react@19.1.17)(react@19.1.0))
@@ -4352,6 +4355,13 @@ packages:
     peerDependenciesMeta:
       react-native-web:
         optional: true
+
+  expo-clipboard@55.0.9:
+    resolution: {integrity: sha512-WJ9ougE8fEDu3/RV5Vz3gE5aNgnj1C0WByXCz3WUj8y/06bJyaIUDMq8FDLv3n0AO3guiErmkUunsD0EzSDUUw==}
+    peerDependencies:
+      expo: '*'
+      react: '*'
+      react-native: '*'
 
   expo-constants@18.0.13:
     resolution: {integrity: sha512-FnZn12E1dRYKDHlAdIyNFhBurKTS3F9CrfrBDJI5m3D7U17KBHMQ6JEfYlSj7LG7t+Ulr+IKaj58L1k5gBwTcQ==}
@@ -13533,6 +13543,12 @@ snapshots:
       react-native: 0.81.5(@babel/core@7.29.0)(@react-native-community/cli@20.1.2(typescript@5.9.3))(@types/react@19.1.17)(react@19.1.0)
     optionalDependencies:
       react-native-web: 0.21.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+
+  expo-clipboard@55.0.9(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@20.1.2(typescript@5.9.3))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
+    dependencies:
+      expo: 54.0.33(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@20.1.2(typescript@5.9.3))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      react: 19.1.0
+      react-native: 0.81.5(@babel/core@7.29.0)(@react-native-community/cli@20.1.2(typescript@5.9.3))(@types/react@19.1.17)(react@19.1.0)
 
   expo-constants@18.0.13(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@20.1.2(typescript@5.9.3))(@types/react@19.1.17)(react@19.1.0)):
     dependencies:

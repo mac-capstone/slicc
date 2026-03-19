@@ -18,6 +18,7 @@ export default function SplitExpense() {
   const { eventId } = useLocalSearchParams<{ eventId?: EventIdT }>();
   const tempExpense = useExpenseCreation.use.tempExpense();
   const hydrate = useExpenseCreation.use.hydrate();
+
   const [selectedItemId, setSelectedItemId] = useState<ItemIdT | undefined>(
     tempExpense?.items?.[0]?.id
   );

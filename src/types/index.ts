@@ -19,6 +19,30 @@ export type EventIdT = string & { readonly __brand: unique symbol };
 export type GroupIdT = string & { readonly __brand: unique symbol };
 export type NotificationIdT = string & { readonly __brand: unique symbol };
 
+export type BankPreference =
+  | 'none'
+  | 'all-banks'
+  | 'interac'
+  | 'rbc'
+  | 'td'
+  | 'scotia'
+  | 'cibc'
+  | 'bmo'
+  | 'national-bank'
+  | 'desjardins'
+  | 'tangerine'
+  | 'simplii'
+  | 'laurentian'
+  | 'meridian'
+  | 'coast-capital'
+  | 'vancity'
+  | 'atb'
+  | 'eq-bank'
+  | 'wealthsimple'
+  | 'koho'
+  | 'neo'
+  | 'other';
+
 // ── Types derived from Zod schemas ─────────────────────────────────────────
 
 export type User = z.infer<typeof userSchema>;
