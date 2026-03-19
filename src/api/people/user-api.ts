@@ -13,6 +13,22 @@ import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from '@/api/common/firebase';
 import type { User } from '@/types';
 
+const MIME_TYPE_BY_EXTENSION: Record<string, string> = {
+  heic: 'image/heic',
+  heif: 'image/heif',
+  jpeg: 'image/jpeg',
+  jpg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+};
+
+function getMimeTypeFromUri(imageUri: string): string | null {
+  const sanitizedUri = imageUri.split('?')[0] ?? imageUri;
+  const extension = sanitizedUri.match(/\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase();
+
+  return extension ? (MIME_TYPE_BY_EXTENSION[extension] ?? null) : null;
+}
+
 export async function checkUserExistsInFirestore(
   userId: string
 ): Promise<boolean> {
@@ -44,9 +60,10 @@ export async function uploadProfilePicture(
 ): Promise<void> {
   const response = await fetch(imageUri);
   const blob = await response.blob();
+  const contentType = blob.type || getMimeTypeFromUri(imageUri) || 'image/jpeg';
 
   const storageRef = ref(storage, `profile_pic/${userId}`);
-  await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
+  await uploadBytes(storageRef, blob, { contentType });
 }
 
 export async function getProfilePictureUrl(
