@@ -13,12 +13,6 @@ type User = {
 export type UserWithId = User & { id: UserIdT };
 
 export async function fetchUser(userId: UserIdT): Promise<UserWithId> {
-  if (USE_MOCK_DATA) {
-    const user = mockData.users.find((u) => u.id === userId);
-    if (!user) throw new Error('User not found');
-    return { id: user.id as UserIdT, ...user.doc } as UserWithId;
-  }
-
   const userRef = doc(db, 'users', userId);
   const userSnap = await getDoc(userRef);
 
@@ -37,9 +31,6 @@ export async function fetchUser(userId: UserIdT): Promise<UserWithId> {
 export const useUserIds = createQuery<UserIdT[], void, Error>({
   queryKey: ['users'],
   fetcher: async () => {
-    if (USE_MOCK_DATA) {
-      return mockData.users.map((u) => u.id as UserIdT);
-    }
     const usersRef = collection(db, 'users');
     const snapshot = await getDocs(usersRef);
     return snapshot.docs.map((d) => d.id as UserIdT);
