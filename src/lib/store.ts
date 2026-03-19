@@ -195,6 +195,7 @@ const _useExpenseCreation = create<ExpenseCreationState>((set, get) => ({
     // Update items
     const updatedItems = current.items.map((item) => {
       if (item.id !== itemId) return item;
+      if (item.assignedPersonIds?.includes(personId)) return item;
       return {
         ...item,
         assignedPersonIds: [...(item.assignedPersonIds || []), personId],

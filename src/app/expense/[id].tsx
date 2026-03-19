@@ -3,11 +3,10 @@ import Octicons from '@expo/vector-icons/Octicons';
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  addDoc,
   collection,
   doc,
   serverTimestamp,
-  setDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import React, { useState } from 'react';
 import { Alert } from 'react-native';
@@ -63,8 +62,10 @@ export default function ExpenseView() {
     setLoading(true);
     try {
       if (id === 'temp-expense') {
-        // Write expense document to Firestore
-        const expenseDocRef = await addDoc(collection(db, 'expenses'), {
+        const batch = writeBatch(db);
+        const expenseDocRef = doc(collection(db, 'expenses'));
+
+        batch.set(expenseDocRef, {
           name: data.name,
           date: data.date,
           createdBy: data.createdBy,
@@ -75,36 +76,37 @@ export default function ExpenseView() {
           updatedAt: serverTimestamp(),
         });
 
-        // Write people subcollection
         if (data.people) {
-          await Promise.all(
-            data.people.map((person) =>
-              setDoc(doc(expenseDocRef, 'people', person.id), {
-                subtotal: person.subtotal,
-                paid: person.paid ?? 0,
-              })
-            )
-          );
+          data.people.forEach((person) => {
+            const personDocRef = doc(expenseDocRef, 'people', person.id);
+            batch.set(personDocRef, {
+              subtotal: person.subtotal,
+              paid: person.paid ?? 0,
+            });
+          });
         }
 
-        // Write items subcollection
         if (data.items) {
-          await Promise.all(
-            data.items.map((item) =>
-              setDoc(doc(expenseDocRef, 'items', item.id), {
-                name: item.name,
-                amount: item.amount,
-                split: item.split,
-                assignedPersonIds: item.assignedPersonIds,
-              })
-            )
-          );
+          data.items.forEach((item) => {
+            const itemDocRef = doc(expenseDocRef, 'items', item.id);
+            batch.set(itemDocRef, {
+              name: item.name,
+              amount: item.amount,
+              taxRate: item.taxRate,
+              split: item.split,
+              assignedPersonIds: item.assignedPersonIds,
+              isTip: item.isTip,
+            });
+          });
         }
 
+        await batch.commit();
         clearTempExpense();
         await queryClient.invalidateQueries({
           queryKey: ['expenses'],
         });
+        router.push('/');
+        return;
       }
       router.push('/');
     } catch (error) {
