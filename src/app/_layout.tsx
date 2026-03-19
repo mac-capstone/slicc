@@ -14,14 +14,16 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { APIProvider } from '@/api';
 import { hydrateAuth, hydrateGroupPreferences, loadSelectedTheme } from '@/lib';
+import { configureGoogleSignIn } from '@/lib/auth/google-auth';
 import { useThemeConfig } from '@/lib/use-theme-config';
 
 export { ErrorBoundary } from 'expo-router';
 
 export const unstable_settings = {
-  initialRouteName: '(app)',
+  initialRouteName: 'login',
 };
 
+configureGoogleSignIn();
 hydrateAuth();
 hydrateGroupPreferences();
 loadSelectedTheme();
@@ -57,6 +59,7 @@ export default function RootLayout() {
         <Stack.Screen name="group" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="profile-create" />
       </Stack>
     </Providers>
   );

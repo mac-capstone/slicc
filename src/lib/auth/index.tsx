@@ -3,14 +3,28 @@ import { create } from 'zustand';
 import { type UserIdT } from '@/types';
 
 import { createSelectors } from '../utils';
+import { googleSignOut, signInWithGoogle } from './google-auth';
 import type { TokenType } from './utils';
-import { getToken, removeToken, setToken } from './utils';
+import {
+  getToken,
+  getUserIdFromStorage,
+  removeToken,
+  removeUserIdFromStorage,
+  setToken,
+  setUserIdInStorage,
+} from './utils';
+
+type SignInData = {
+  token: TokenType;
+  userId: string;
+};
 
 interface AuthState {
   userId: UserIdT | null;
   token: TokenType | null;
   status: 'idle' | 'signOut' | 'signIn';
-  signIn: (data: TokenType) => void;
+  signIn: (data: SignInData) => void;
+  googleSignIn: () => Promise<void>;
   signOut: () => void;
   hydrate: () => void;
 }
@@ -19,34 +33,57 @@ const _useAuth = create<AuthState>((set, get) => ({
   status: 'idle',
   userId: null,
   token: null,
-  signIn: (token) => {
+  signIn: ({ token, userId }) => {
+    console.log('[auth] signIn', { userId });
     setToken(token);
-    set({ status: 'signIn', token, userId: 'user_ankush' as UserIdT });
+    setUserIdInStorage(userId);
+    set({ status: 'signIn', token, userId: userId as UserIdT });
+  },
+  googleSignIn: async () => {
+    console.log('[auth] googleSignIn start');
+    const result = await signInWithGoogle();
+    console.log('[auth] googleSignIn success', {
+      uid: result.uid,
+      email: result.email,
+    });
+    get().signIn({
+      token: { access: result.idToken, refresh: '' },
+      userId: result.uid,
+    });
   },
   signOut: () => {
+    const wasSignedIn = get().status === 'signIn';
+    console.log('[auth] signOut', { wasSignedIn, userId: get().userId });
     removeToken();
+    removeUserIdFromStorage();
     set({ status: 'signOut', token: null, userId: null });
+    if (wasSignedIn) {
+      googleSignOut().catch(() => {});
+    }
   },
   hydrate: () => {
     try {
       const userToken = getToken();
-      if (userToken !== null) {
-        get().signIn(userToken);
+      const userId = getUserIdFromStorage();
+      console.log('[auth] hydrate', {
+        hasToken: userToken !== null,
+        userId,
+      });
+      if (userToken !== null && userId !== null) {
+        get().signIn({ token: userToken, userId });
       } else {
-        get().signOut();
+        set({ status: 'signOut', token: null, userId: null });
       }
     } catch (e) {
-      // only to remove eslint error, handle the error properly
       console.error(e);
-      // catch error here
-      // Maybe sign_out user!
     }
   },
 }));
 
 export const useAuth = createSelectors(_useAuth);
 
-export const getUserId = () => _useAuth.getState().userId as UserIdT;
-export const signOut = () => _useAuth.getState().signOut();
-export const signIn = (token: TokenType) => _useAuth.getState().signIn(token);
-export const hydrateAuth = () => _useAuth.getState().hydrate();
+export const getUserId = (): UserIdT => _useAuth.getState().userId as UserIdT;
+export const signOut = (): void => _useAuth.getState().signOut();
+export const signIn = (data: SignInData): void =>
+  _useAuth.getState().signIn(data);
+export const hydrateAuth = (): void => _useAuth.getState().hydrate();

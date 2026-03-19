@@ -6,6 +6,8 @@ exit_code=$?
 
 # Output file location
 output_file=".expo/expo-doctor.md"
+mkdir -p "$(dirname "$output_file")"
+
 {
   # Add summary based on exit code
   if [ $exit_code -eq 0 ]; then

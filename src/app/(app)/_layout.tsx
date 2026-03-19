@@ -4,14 +4,21 @@ import React, { useCallback, useEffect } from 'react';
 import { Text, TouchableOpacity } from 'react-native';
 
 import { colors } from '@/components/ui';
-import { useAuth, useIsFirstTime } from '@/lib';
+import { useAuth, useIsFirstTime, useUserExistsInFirestore } from '@/lib';
 
 export default function TabLayout() {
   const status = useAuth.use.status();
+  const userId = useAuth.use.userId();
   const [isFirstTime] = useIsFirstTime();
+  const {
+    exists: userExistsInFirestore,
+    isChecking: isUserCheckRunning,
+    hasError: hasUserCheckError,
+  } = useUserExistsInFirestore(userId);
   const hideSplash = useCallback(async () => {
     await SplashScreen.hideAsync();
   }, []);
+
   useEffect(() => {
     if (status !== 'idle') {
       setTimeout(() => {
@@ -25,6 +32,18 @@ export default function TabLayout() {
   }
   if (status === 'signOut') {
     return <Redirect href="/login" />;
+  }
+  if (status === 'signIn' && userId !== 'guest_user' && isUserCheckRunning) {
+    return null;
+  }
+  if (
+    status === 'signIn' &&
+    userId !== 'guest_user' &&
+    !isUserCheckRunning &&
+    userExistsInFirestore === false &&
+    !hasUserCheckError
+  ) {
+    return <Redirect href="/profile-create" />;
   }
   return (
     <Tabs

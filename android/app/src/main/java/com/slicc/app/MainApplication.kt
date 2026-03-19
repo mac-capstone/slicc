@@ -1,4 +1,4 @@
-package com.app.development
+package com.slicc.app
 import com.facebook.react.common.assets.ReactFontManager
 
 import android.app.Application

@@ -34,8 +34,8 @@ const inputTv = tv({
     },
     error: {
       true: {
-        input: 'border-danger-600',
-        label: 'text-danger-600 dark:text-danger-600',
+        input: 'border-danger-400',
+        label: 'text-danger-500 dark:text-danger-400',
       },
     },
     disabled: {
@@ -67,6 +67,7 @@ const inputTv = tv({
 
 export interface NInputProps extends TextInputProps {
   label?: string;
+  hint?: string;
   disabled?: boolean;
   error?: string;
   /** Use raw style - no background, borders, or padding */
@@ -101,6 +102,7 @@ interface ControlledInputProps<T extends FieldValues>
 export const Input = React.forwardRef<NTextInput, NInputProps>((props, ref) => {
   const {
     label,
+    hint,
     error,
     testID,
     containerClassName,
@@ -180,9 +182,17 @@ export const Input = React.forwardRef<NTextInput, NInputProps>((props, ref) => {
       {error && (
         <Text
           testID={testID ? `${testID}-error` : undefined}
-          className="text-sm text-danger-400 dark:text-danger-600"
+          className="text-sm text-danger-400 dark:text-danger-400"
         >
           {error}
+        </Text>
+      )}
+      {hint && !error && (
+        <Text
+          testID={testID ? `${testID}-hint` : undefined}
+          className="mt-1 text-sm text-charcoal-400 dark:text-neutral-400"
+        >
+          {hint}
         </Text>
       )}
     </View>

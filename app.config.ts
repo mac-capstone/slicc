@@ -1,7 +1,7 @@
 import type { ConfigContext, ExpoConfig } from '@expo/config';
 import type { AppIconBadgeConfig } from 'app-icon-badge/types';
 
-import { Env } from './env';
+import { Env } from './env.js';
 
 const appIconBadgeConfig: AppIconBadgeConfig = {
   enabled: Env.APP_ENV !== 'production',
@@ -96,6 +96,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         androidSpeechServicePackages: [
           'com.google.android.googlequicksearchbox',
         ],
+      },
+    ],
+    '@react-native-google-signin/google-signin',
+    [
+      'expo-image-picker',
+      {
+        photosPermission:
+          'Allow $(PRODUCT_NAME) to access your photos for your profile picture.',
       },
     ],
   ],
