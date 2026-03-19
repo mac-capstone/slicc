@@ -1,4 +1,4 @@
-import React, { forwardRef, useImperativeHandle } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle } from 'react';
 import { View } from 'react-native';
 import Animated, {
   Easing,
@@ -22,6 +22,14 @@ export type ProgressBarRef = {
 export const ProgressBar = forwardRef<ProgressBarRef, Props>(
   ({ initialProgress = 0, className = '' }, ref) => {
     const progress = useSharedValue<number>(initialProgress ?? 0);
+
+    useEffect(() => {
+      progress.value = withTiming(initialProgress ?? 0, {
+        duration: 250,
+        easing: Easing.inOut(Easing.quad),
+      });
+    }, [initialProgress, progress]);
+
     useImperativeHandle(ref, () => {
       return {
         setProgress: (value: number) => {

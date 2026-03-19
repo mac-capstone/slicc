@@ -97,6 +97,7 @@ export const calculatePersonShare = (
   item: ItemWithId,
   personId: string
 ): number => {
+  if (!item.split.shares[personId]) return 0;
   const totalShares = Object.values(item.split.shares).reduce(
     (acc: number, share: number) => acc + share,
     0

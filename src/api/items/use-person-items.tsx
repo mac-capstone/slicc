@@ -1,9 +1,10 @@
+import { collection, doc, getDocs } from 'firebase/firestore';
 import { createQuery } from 'react-query-kit';
 
-import { mapMockItemToItemWithId } from '@/lib';
-import { mockData } from '@/lib/mock-data';
+import { db } from '@/api/common/firebase';
 import { getTempExpense } from '@/lib/store';
-import { type ExpenseIdT, type ItemWithId } from '@/types';
+import { type ExpenseIdT, type ItemIdT, type ItemWithId } from '@/types';
+import { expenseItemConverter } from '@/types/schema';
 
 export const usePersonItems = createQuery<
   ItemWithId[],
@@ -19,11 +20,17 @@ export const usePersonItems = createQuery<
         i.assignedPersonIds.includes(personId)
       );
     }
-    const expense = mockData.expenses.find((e) => e.id === expenseId);
-    if (!expense) throw new Error('Expense not found');
-    // go into items, find every item.assignedPersonIds that includes the personId, and return the items
-    return expense.items
-      .filter((item) => item.doc.assignedPersonIds.includes(personId))
-      .map(mapMockItemToItemWithId);
+
+    const expenseRef = doc(db, 'expenses', expenseId);
+    const itemsSnap = await getDocs(
+      collection(expenseRef, 'items').withConverter(expenseItemConverter)
+    );
+
+    return itemsSnap.docs
+      .map((d) => ({
+        id: d.id as ItemIdT,
+        ...d.data(),
+      }))
+      .filter((item) => item.assignedPersonIds.includes(personId));
   },
 });

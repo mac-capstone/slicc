@@ -43,6 +43,7 @@ export const ExpenseCard = ({ id, config }: Props) => {
   const totalAmount = data.totalAmount;
   const totalPaid = data.people.reduce((acc, person) => acc + person.paid, 0);
   const remainingAmount = Math.max(totalAmount - totalPaid, 0);
+  const progressPercent = totalAmount > 0 ? (totalPaid / totalAmount) * 100 : 0;
 
   return (
     <Pressable
@@ -81,14 +82,7 @@ export const ExpenseCard = ({ id, config }: Props) => {
             </Text>
           </View>
           {config === 'progress' && (
-            <ProgressBar
-              className=""
-              initialProgress={
-                ((data.totalAmount - (data.remainingAmount ?? 0)) /
-                  data.totalAmount) *
-                100
-              }
-            />
+            <ProgressBar className="" initialProgress={progressPercent} />
           )}
         </View>
       </View>

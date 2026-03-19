@@ -2,11 +2,18 @@ import { Ionicons } from '@expo/vector-icons';
 import Octicons from '@expo/vector-icons/Octicons';
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import {
+  addDoc,
+  collection,
+  doc,
+  serverTimestamp,
+  setDoc,
+} from 'firebase/firestore';
 import React, { useState } from 'react';
 import { Alert } from 'react-native';
-import { v4 as uuidv4 } from 'uuid';
 
 import { queryClient } from '@/api';
+import { db } from '@/api/common/firebase';
 import { useExpense } from '@/api/expenses/use-expenses';
 import { useItems } from '@/api/items/use-items';
 import { usePeopleIds } from '@/api/people/use-people';
@@ -15,7 +22,6 @@ import { ItemCard } from '@/components/item-card';
 import { PersonCard } from '@/components/person-card';
 import { SegmentToggle } from '@/components/segment-toggle';
 import { ActivityIndicator, Pressable, Text, View } from '@/components/ui';
-import { mockData } from '@/lib/mock-data';
 import { clearTempExpense } from '@/lib/store';
 import { useThemeConfig } from '@/lib/use-theme-config';
 import { type ExpenseIdT } from '@/types';
@@ -54,54 +60,59 @@ export default function ExpenseView() {
   });
 
   const handleConfirmExpense = async () => {
-    // TODO: will be a firebase write
     setLoading(true);
-    let people: any[] = [];
-    let items: any[] = [];
-
-    if (id === 'temp-expense') {
-      if (data.people && data.items) {
-        people = data.people.map((person) => ({
-          id: person.id,
-          doc: {
-            name: person.name,
-            color: person.color,
-            userRef: person.userRef,
-            subtotal: person.subtotal,
-            paid: person.paid,
-          },
-        }));
-        items = data.items.map((item) => ({
-          id: item.id,
-          doc: {
-            name: item.name,
-            amount: item.amount,
-            split: item.split,
-            assignedPersonIds: item.assignedPersonIds,
-          },
-        }));
-      }
-
-      mockData.expenses.push({
-        id: uuidv4(),
-        doc: {
+    try {
+      if (id === 'temp-expense') {
+        // Write expense document to Firestore
+        const expenseDocRef = await addDoc(collection(db, 'expenses'), {
           name: data.name,
           date: data.date,
           createdBy: data.createdBy,
           totalAmount: data.totalAmount,
-          remainingAmount: data.remainingAmount,
-          participantCount: data.participantCount,
-        },
-        people,
-        items,
-      } as (typeof mockData.expenses)[number]);
-      clearTempExpense();
-      await queryClient.invalidateQueries({
-        queryKey: ['expenses', 'expenseId', id],
-      });
+          remainingAmount: data.remainingAmount ?? 0,
+          participantCount: data.participantCount ?? 0,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+
+        // Write people subcollection
+        if (data.people) {
+          await Promise.all(
+            data.people.map((person) =>
+              setDoc(doc(expenseDocRef, 'people', person.id), {
+                subtotal: person.subtotal,
+                paid: person.paid ?? 0,
+              })
+            )
+          );
+        }
+
+        // Write items subcollection
+        if (data.items) {
+          await Promise.all(
+            data.items.map((item) =>
+              setDoc(doc(expenseDocRef, 'items', item.id), {
+                name: item.name,
+                amount: item.amount,
+                split: item.split,
+                assignedPersonIds: item.assignedPersonIds,
+              })
+            )
+          );
+        }
+
+        clearTempExpense();
+        await queryClient.invalidateQueries({
+          queryKey: ['expenses'],
+        });
+      }
+      router.push('/');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save expense. Please try again.');
+      console.error('Error saving expense:', error);
+    } finally {
+      setLoading(false);
     }
-    router.push('/');
-    setLoading(false);
   };
 
   return (
