@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { z } from 'zod';
 
+import { auth } from '@/api/common/firebase';
 import {
   checkUsernameExists,
   createUserInFirestore,
@@ -111,9 +112,19 @@ export default function ProfileCreate() {
           }
         }
 
+        const userEmail = auth.currentUser?.email;
+        if (!userEmail) {
+          Alert.alert(
+            'Missing email',
+            'Unable to read your account email. Please sign in again.'
+          );
+          return;
+        }
+
         await createUserInFirestore(userId, {
           displayName: data.displayName,
           username: data.username,
+          email: userEmail,
         });
 
         queryClient.setQueryData(['userExists', userId], true);
