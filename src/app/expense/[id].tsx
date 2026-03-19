@@ -72,6 +72,7 @@ export default function ExpenseView() {
           name: data.name,
           date: data.date,
           createdBy: data.createdBy,
+          payerUserId: data.payerUserId,
           totalAmount: data.totalAmount,
           remainingAmount: data.remainingAmount ?? 0,
           participantCount: data.participantCount ?? 0,

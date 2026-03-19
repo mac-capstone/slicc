@@ -116,7 +116,10 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
   [userId: UserId]: {
     username: string; // unique
     displayName: string;
-
+    eTransferEmail?: string;
+    locationPreference?: string;
+    bankPreference?: string;
+    dietaryPreferences?: string[];
     createdAt?: Date;
     updatedAt?: Date;
   };

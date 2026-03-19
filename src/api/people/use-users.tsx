@@ -1,18 +1,62 @@
 import { useQueries } from '@tanstack/react-query';
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  query,
+  where,
+} from 'firebase/firestore';
 import { createQuery } from 'react-query-kit';
 
 import { db } from '@/api/common/firebase';
-import { type EventPerson, type UserIdT } from '@/types';
+import {
+  type BankPreference,
+  type EventPerson,
+  type UserIdT,
+  type UserWithId,
+} from '@/types';
 
-type User = {
-  displayName: string;
-  email: string;
+// Re-export so callers importing from this file still work
+export type { UserWithId };
+
+type UserDoc = {
+  username?: string;
+  displayName?: string;
+  dietaryPreferences?: string[];
+  locationPreference?: string;
+  eTransferEmail?: string;
+  bankPreference?: BankPreference;
 };
 
-export type UserWithId = User & { id: UserIdT };
+function mapUserDataToUserWithId(id: string, data: UserDoc): UserWithId {
+  const { displayName } = data;
 
-export async function fetchUser(userId: UserIdT): Promise<UserWithId> {
+  if (typeof displayName !== 'string') {
+    throw new Error('User profile is missing display name');
+  }
+
+  return {
+    id: id as UserIdT,
+    username: typeof data.username === 'string' ? data.username : '',
+    displayName,
+    dietaryPreferences: Array.isArray(data.dietaryPreferences)
+      ? data.dietaryPreferences.filter(
+          (p): p is string => typeof p === 'string'
+        )
+      : [],
+    locationPreference:
+      typeof data.locationPreference === 'string'
+        ? data.locationPreference
+        : undefined,
+    eTransferEmail:
+      typeof data.eTransferEmail === 'string' ? data.eTransferEmail : undefined,
+    bankPreference: data.bankPreference,
+  };
+}
+
+export async function fetchUser(userId: string): Promise<UserWithId> {
   const userRef = doc(db, 'users', userId);
   const userSnap = await getDoc(userRef);
 
@@ -20,12 +64,27 @@ export async function fetchUser(userId: UserIdT): Promise<UserWithId> {
     throw new Error('User not found');
   }
 
-  const data = userSnap.data();
-  return {
-    id: userSnap.id as UserIdT,
-    displayName: data.displayName ?? '',
-    email: data.email ?? '',
-  } as UserWithId;
+  return mapUserDataToUserWithId(userSnap.id, userSnap.data());
+}
+
+// Firestore prefix search on username (stored lowercase — reliable & case-safe).
+// For display-name search use client-side filtering via fetchAllUsers.
+export async function searchUsersByUsername(
+  searchQuery: string,
+  resultLimit = 10
+): Promise<UserWithId[]> {
+  if (!searchQuery.trim()) return [];
+
+  const q = searchQuery.trim().toLowerCase();
+  const usersRef = collection(db, 'users');
+  const firestoreQuery = query(
+    usersRef,
+    where('username', '>=', q),
+    where('username', '<=', q + '\uf8ff'),
+    limit(resultLimit)
+  );
+  const snapshot = await getDocs(firestoreQuery);
+  return snapshot.docs.map((d) => mapUserDataToUserWithId(d.id, d.data()));
 }
 
 export const useUserIds = createQuery<UserIdT[], void, Error>({
@@ -39,58 +98,52 @@ export const useUserIds = createQuery<UserIdT[], void, Error>({
 
 export const useUser = createQuery<UserWithId, UserIdT, Error>({
   queryKey: ['users', 'userId'],
-  fetcher: async (userId) => {
-    const userRef = doc(db, 'users', userId);
-    const userSnap = await getDoc(userRef);
-
-    if (!userSnap.exists()) {
-      throw new Error('User not found');
-    }
-
-    return { id: userSnap.id as UserIdT, ...userSnap.data() } as UserWithId;
-  },
+  fetcher: async (userId) => fetchUser(userId),
 });
 
-export const useUsersAsPeople = (userIds: UserIdT[], colors: string[]) => {
+export const useSearchUsers = createQuery<UserWithId[], string, Error>({
+  queryKey: ['users', 'search'],
+  fetcher: async (searchQuery) => searchUsersByUsername(searchQuery),
+});
+
+export function useUsersAsPeople(
+  userIds: UserIdT[],
+  colors: string[]
+): {
+  people: (EventPerson & { id: UserIdT })[];
+  isLoading: boolean;
+  isError: boolean;
+} {
   const queries = useQueries({
     queries: userIds.map((userId) => ({
       queryKey: ['users', 'userId', userId],
-      queryFn: async () => {
-        const userRef = doc(db, 'users', userId);
-        const userSnap = await getDoc(userRef);
-
-        if (!userSnap.exists()) {
-          throw new Error('User not found');
-        }
-
-        return {
-          id: userSnap.id as UserIdT,
-          ...userSnap.data(),
-        } as UserWithId;
-      },
+      queryFn: () => fetchUser(userId),
       staleTime: 5 * 60 * 1000,
     })),
   });
 
-  const isLoading = queries.some((query) => query.isLoading);
-  const isError = queries.some((query) => query.isError);
+  const isLoading = queries.some((q) => q.isLoading);
+  const isError = queries.some((q) => q.isError);
 
-  const people: (EventPerson & { id: UserIdT })[] = queries.map(
-    (query, index) => {
-      const user = query.data;
-      const userId = userIds[index];
-      const color = colors[index % colors.length];
+  const people = queries
+    .map((q, index) => {
+      const user = q.data;
+      if (!user) return null;
 
-      return {
-        id: userId,
-        name: user?.displayName || `User ${userId}`,
-        color: color,
-        userRef: userId,
+      const person: EventPerson & { id: UserIdT } = {
+        id: user.id,
+        name: user.displayName,
+        color: colors[index % colors.length] ?? '',
+        userRef: user.id,
         subtotal: 0,
         paid: 0,
       };
-    }
-  );
+
+      return person;
+    })
+    .filter(
+      (person): person is EventPerson & { id: UserIdT } => person !== null
+    );
 
   return { people, isLoading, isError };
-};
+}

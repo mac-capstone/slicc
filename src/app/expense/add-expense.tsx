@@ -22,8 +22,18 @@ import Animated, {
 } from 'react-native-reanimated';
 import { v4 as uuidv4 } from 'uuid';
 
+import { useEvent } from '@/api/events/use-events';
+import { useUser, useUsersAsPeople } from '@/api/people/use-users';
 import ExpenseCreationFooter from '@/components/expense-creation-footer';
-import { Button, Input, Pressable, Text, View } from '@/components/ui';
+import {
+  Button,
+  colors,
+  Input,
+  Pressable,
+  Select,
+  Text,
+  View,
+} from '@/components/ui';
 import { useAuth, useDefaultTaxRate } from '@/lib';
 import { storage } from '@/lib/storage';
 import { clearTempExpense, useExpenseCreation } from '@/lib/store';
@@ -44,9 +54,88 @@ const sanitizeNumeric = (text: string): string => {
   return cleaned;
 };
 
+type PayerOption = {
+  label: string;
+  value: string;
+};
+
+function useMainPayerOptions({
+  eventId,
+  tempPeople,
+  userId,
+  signedInUserName,
+  currentPayerId,
+  setPayerUserId,
+}: {
+  eventId?: EventIdT;
+  tempPeople: { id: string; name?: string }[];
+  userId: string | null;
+  signedInUserName?: string;
+  currentPayerId?: string;
+  setPayerUserId: (payerUserId: string) => void;
+}) {
+  const eventQuery = useEvent({
+    variables: eventId,
+    enabled: Boolean(eventId),
+  });
+  const participantUserIds = eventQuery.data?.participants ?? [];
+  const avatarColors = useMemo(() => Object.keys(colors.avatar ?? {}), []);
+  const { people: eventParticipants } = useUsersAsPeople(
+    participantUserIds,
+    avatarColors
+  );
+
+  const payerOptions = useMemo<PayerOption[]>(() => {
+    if (eventId) {
+      return eventParticipants.map((participant) => ({
+        label: participant.name ?? 'Unnamed person',
+        value: participant.id,
+      }));
+    }
+
+    const options = tempPeople.map((person) => ({
+      label: person.name ?? 'Unnamed person',
+      value: person.id,
+    }));
+
+    if (userId && signedInUserName) {
+      const isAlreadyPresent = options.some(
+        (option) => option.value === userId
+      );
+      if (!isAlreadyPresent) {
+        options.unshift({
+          label: signedInUserName,
+          value: userId,
+        });
+      }
+    }
+
+    return options;
+  }, [eventId, eventParticipants, signedInUserName, tempPeople, userId]);
+
+  useEffect(() => {
+    if (!eventId || payerOptions.length === 0) {
+      return;
+    }
+
+    const hasSelectedPayer = payerOptions.some(
+      (option) => option.value === currentPayerId
+    );
+    if (!hasSelectedPayer) {
+      setPayerUserId(payerOptions[0].value);
+    }
+  }, [currentPayerId, eventId, payerOptions, setPayerUserId]);
+
+  return payerOptions;
+}
+
 export default function AddExpense() {
   const theme = useThemeConfig();
   const userId = useAuth.use.userId();
+  const { data: signedInUser } = useUser({
+    variables: userId,
+    enabled: Boolean(userId),
+  });
   const { eventId } = useLocalSearchParams<{ eventId?: EventIdT }>();
   const pathname = usePathname();
   const tempExpense = useExpenseCreation.use.tempExpense();
@@ -56,12 +145,23 @@ export default function AddExpense() {
 
   const {
     setExpenseName: setExpenseNameInStore,
+    setPayerUserId,
     getTotalAmount,
     initializeTempExpense,
     hydrate,
     removeItem,
     addItem,
   } = useExpenseCreation();
+
+  const currentPayerId = tempExpense?.payerUserId;
+  const payerOptions = useMainPayerOptions({
+    eventId,
+    tempPeople: tempExpense?.people ?? [],
+    userId,
+    signedInUserName: signedInUser?.displayName,
+    currentPayerId,
+    setPayerUserId,
+  });
 
   // Track items count and trigger nudge when adding first item (list length goes from 0 to 1)
   useEffect(() => {
@@ -190,6 +290,21 @@ export default function AddExpense() {
             onChangeText={(text) => {
               setExpenseName(text);
               setExpenseNameInStore(text);
+            }}
+          />
+        </View>
+        <View className="pb-2">
+          <Text className="!dark:text-text-200 pb-2 text-base font-semibold">
+            Main payer
+          </Text>
+          <Select
+            value={currentPayerId}
+            placeholder="Select who paid all or most of the expense"
+            options={payerOptions}
+            onSelect={(value) => {
+              if (typeof value === 'string') {
+                setPayerUserId(value);
+              }
             }}
           />
         </View>

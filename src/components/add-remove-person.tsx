@@ -116,7 +116,7 @@ export const AddRemovePerson = ({ itemID, expenseId }: Props) => {
             <Text className="mb-4 text-center text-lg font-bold text-white">
               Manage People
             </Text>
-    
+
             {people.length > 0 && (
               <ScrollView
                 className="mb-4"

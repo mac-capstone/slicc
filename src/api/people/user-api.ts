@@ -6,12 +6,13 @@ import {
   query,
   runTransaction,
   Timestamp,
+  updateDoc,
   where,
 } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 
 import { db, storage } from '@/api/common/firebase';
-import type { User } from '@/types';
+import type { BankPreference, User } from '@/types';
 
 const MIME_TYPE_BY_EXTENSION: Record<string, string> = {
   heic: 'image/heic',
@@ -95,6 +96,13 @@ export type CreateUserData = {
   username: string;
 };
 
+export type UpdateUserSettingsData = {
+  dietaryPreferences: string[];
+  locationPreference: string;
+  eTransferEmail: string;
+  bankPreference: BankPreference;
+};
+
 export class UserAlreadyExistsError extends Error {
   constructor(userId: string) {
     super(`User profile already exists for ${userId}`);
@@ -117,6 +125,7 @@ export async function createUserInFirestore(
   } = {
     username: data.username.toLowerCase().trim(),
     displayName: data.displayName.trim(),
+    dietaryPreferences: [],
     createdAt: now,
     updatedAt: now,
   };
@@ -132,4 +141,16 @@ export async function createUserInFirestore(
     transaction.set(userRef, userDoc);
   });
   console.log('[user-api] firestore user created', { userId });
+}
+
+export async function updateUserSettingsInFirestore(
+  userId: string,
+  data: UpdateUserSettingsData
+): Promise<void> {
+  const userRef = doc(db, 'users', userId);
+
+  await updateDoc(userRef, {
+    ...data,
+    updatedAt: Timestamp.now(),
+  });
 }

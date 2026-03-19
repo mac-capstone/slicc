@@ -1,9 +1,10 @@
 /* eslint-disable max-lines-per-function */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useQueries } from '@tanstack/react-query';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { deleteField, Timestamp } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,35 +19,46 @@ import {
   useEvent,
   useUpdateEvent,
 } from '@/api/events/use-events';
-import { useUsersAsPeople } from '@/api/people/use-users';
+import { useGroup } from '@/api/groups/use-groups';
+import { fetchUser, useUsersAsPeople } from '@/api/people/use-users';
 import { DateTimePick } from '@/components/date-time-pick';
-import { PersonAvatar } from '@/components/person-avatar';
-import {
-  Button,
-  colors,
-  Input,
-  Pressable,
-  Select,
-  Text,
-  View,
-} from '@/components/ui';
+import { EventParticipantsSection } from '@/components/event-participants-section';
+import { Button, Input, Pressable, Select, Text, View } from '@/components/ui';
 import { getUserId } from '@/lib';
 import { useThemeConfig } from '@/lib/use-theme-config';
-import type { EventIdT, GroupIdT, UserIdT } from '@/types';
+import type { EventIdT, GroupIdT, UserIdT, UserWithId } from '@/types';
 
-const avatarColorKeys = Object.keys(
-  colors.avatar ?? {}
-) as (keyof typeof colors.avatar)[];
+type RecurringUnit = 'day' | 'week' | 'month' | 'year';
+
+function isRecurringUnit(value: string | number): value is RecurringUnit {
+  return (
+    value === 'day' || value === 'week' || value === 'month' || value === 'year'
+  );
+}
+
+const recurringUnitOptions: { label: string; value: RecurringUnit }[] = [
+  { label: 'day(s)', value: 'day' },
+  { label: 'week(s)', value: 'week' },
+  { label: 'month(s)', value: 'month' },
+  { label: 'year(s)', value: 'year' },
+];
+
+const colorsvar = [
+  '#FF6B6B',
+  '#FFD93D',
+  '#6BCB77',
+  '#4ECDC4',
+  '#95E1D3',
+  '#F38181',
+];
 
 export default function EditEvent() {
   const theme = useThemeConfig();
   const params = useLocalSearchParams<{ id?: EventIdT; groupId?: GroupIdT }>();
 
-  // Generate a new eventId if not provided
-  const [eventId] = useState<EventIdT>(() => {
-    return (params.id || uuidv4()) as EventIdT;
-  });
-
+  const [eventId] = useState<EventIdT>(
+    () => (params.id || uuidv4()) as EventIdT
+  );
   const groupId = params.groupId;
   const isEditMode = !!params.id;
 
@@ -56,33 +68,26 @@ export default function EditEvent() {
     isError,
   } = useEvent({
     variables: eventId as EventIdT,
-    enabled: !!params.id, // Only fetch if we're editing
+    enabled: !!params.id,
   });
 
   const createEvent = useCreateEvent();
   const updateEvent = useUpdateEvent();
 
-  // Event form state
   const [eventName, setEventName] = useState('');
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
-
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringInterval, setRecurringInterval] = useState('1');
-  const [recurringUnit, setRecurringUnit] = useState<
-    'day' | 'week' | 'month' | 'year'
-  >('day');
+  const [recurringUnit, setRecurringUnit] = useState<RecurringUnit>('day');
   const [recurringEndDate, setRecurringEndDate] = useState<Date | undefined>(
     undefined
   );
   const [location, setLocation] = useState('');
   const [details, setDetails] = useState('');
+  const [participantIds, setParticipantIds] = useState<UserIdT[]>([]);
+  const [showPicker, setShowPicker] = useState(false);
 
-  const dateToTimestamp = (date: Date): Timestamp => {
-    return Timestamp.fromDate(date);
-  };
-
-  // Initialize form with event data
   useEffect(() => {
     if (event) {
       setEventName(event.name);
@@ -91,36 +96,47 @@ export default function EditEvent() {
       setIsRecurring(event.isRecurring ?? false);
       setRecurringInterval(event.recurringInterval?.toString() || '1');
       setRecurringUnit(event.recurringUnit || 'day');
-      if (event.recurringEndDate) {
-        setRecurringEndDate(event.recurringEndDate);
-      }
+      if (event.recurringEndDate) setRecurringEndDate(event.recurringEndDate);
       setLocation(event.location || '');
       setDetails(event.details || '');
+      setParticipantIds((event.participants ?? []) as UserIdT[]);
     }
   }, [event]);
 
-  // Participants - using users API
-  // Color palette for participants
-  const colorsvar = [
-    '#FF6B6B',
-    '#FFD93D',
-    '#6BCB77',
-    '#4ECDC4',
-    '#95E1D3',
-    '#F38181',
-  ];
-
-  const { people: participants } = useUsersAsPeople(
-    (event?.participants ?? []) as UserIdT[],
-    colorsvar
+  // Fetch group to get its members as candidates
+  const activeGroupId = groupId ?? (event?.groupId as GroupIdT | undefined);
+  const { data: group } = useGroup({
+    variables: activeGroupId!,
+    enabled: !!activeGroupId,
+  });
+  const groupMemberIds = useMemo(
+    () => (group?.members ?? []) as UserIdT[],
+    [group]
   );
 
-  // Validation handlers
-  const handleStartDateChange = (date: Date) => {
-    // Preserve the time from current startDate
+  // Fetch group member user details for the picker
+  const memberQueries = useQueries({
+    queries: groupMemberIds.map((id) => ({
+      queryKey: ['users', 'userId', id] as const,
+      queryFn: () => fetchUser(id),
+    })),
+  });
+  const groupMembers = useMemo(
+    () =>
+      memberQueries
+        .map((q) => q.data)
+        .filter((u): u is UserWithId => u != null),
+    [memberQueries]
+  );
+
+  // Map participantIds to EventPerson for display
+  const { people: participants } = useUsersAsPeople(participantIds, colorsvar);
+
+  const dateToTimestamp = (date: Date): Timestamp => Timestamp.fromDate(date);
+
+  const handleStartDateChange = (date: Date): void => {
     const newDate = new Date(date);
     newDate.setHours(startDate.getHours(), startDate.getMinutes(), 0, 0);
-
     if (newDate > endDate) {
       Alert.alert(
         'Invalid Date',
@@ -131,11 +147,9 @@ export default function EditEvent() {
     setStartDate(newDate);
   };
 
-  const handleEndDateChange = (date: Date) => {
-    // Preserve the time from current endDate
+  const handleEndDateChange = (date: Date): void => {
     const newDate = new Date(date);
     newDate.setHours(endDate.getHours(), endDate.getMinutes(), 0, 0);
-
     if (newDate < startDate) {
       Alert.alert(
         'Invalid Date',
@@ -146,11 +160,9 @@ export default function EditEvent() {
     setEndDate(newDate);
   };
 
-  const handleStartTimeChange = (time: Date) => {
-    // Update the time on startDate
+  const handleStartTimeChange = (time: Date): void => {
     const newDate = new Date(startDate);
     newDate.setHours(time.getHours(), time.getMinutes(), 0, 0);
-
     if (newDate >= endDate) {
       Alert.alert(
         'Invalid Time',
@@ -161,11 +173,9 @@ export default function EditEvent() {
     setStartDate(newDate);
   };
 
-  const handleEndTimeChange = (time: Date) => {
-    // Update the time on endDate
+  const handleEndTimeChange = (time: Date): void => {
     const newDate = new Date(endDate);
     newDate.setHours(time.getHours(), time.getMinutes(), 0, 0);
-
     if (newDate <= startDate) {
       Alert.alert(
         'Invalid Time',
@@ -176,7 +186,7 @@ export default function EditEvent() {
     setEndDate(newDate);
   };
 
-  const handleRecurringEndDateChange = (date: Date | undefined) => {
+  const handleRecurringEndDateChange = (date: Date | undefined): void => {
     if (date && date < startDate) {
       Alert.alert(
         'Invalid Date',
@@ -187,8 +197,7 @@ export default function EditEvent() {
     setRecurringEndDate(date);
   };
 
-  const handleSaveChanges = async () => {
-    // Validate dates
+  const handleSaveChanges = async (): Promise<void> => {
     if (startDate >= endDate) {
       Alert.alert(
         'Invalid Dates',
@@ -196,8 +205,6 @@ export default function EditEvent() {
       );
       return;
     }
-
-    // Validate recurring end date
     if (isRecurring && recurringEndDate && recurringEndDate < startDate) {
       Alert.alert(
         'Invalid Recurring End Date',
@@ -205,8 +212,6 @@ export default function EditEvent() {
       );
       return;
     }
-
-    // Validate recurring interval
     const interval = isRecurring ? Number(recurringInterval) : undefined;
     if (
       isRecurring &&
@@ -221,7 +226,6 @@ export default function EditEvent() {
 
     try {
       if (isEditMode) {
-        // Update existing event
         const updateData: any = {
           name: eventName,
           startDate: dateToTimestamp(startDate),
@@ -230,10 +234,8 @@ export default function EditEvent() {
           details,
           groupId: event!.groupId,
           createdBy: event!.createdBy,
-          participants: event?.participants || [],
+          participants: participantIds,
         };
-
-        // Handle recurring fields - either set or delete
         if (isRecurring) {
           updateData.isRecurring = true;
           updateData.recurringInterval = interval as number;
@@ -247,18 +249,12 @@ export default function EditEvent() {
           updateData.recurringUnit = deleteField();
           updateData.recurringEndDate = deleteField();
         }
-
-        await updateEvent.mutateAsync({
-          eventId: eventId!,
-          data: updateData,
-        });
+        await updateEvent.mutateAsync({ eventId: eventId!, data: updateData });
       } else {
-        // Create new event
         if (!groupId) {
           Alert.alert('Error', 'Group ID is required to create an event.');
           return;
         }
-
         const createData: any = {
           name: eventName,
           startDate: dateToTimestamp(startDate),
@@ -268,25 +264,16 @@ export default function EditEvent() {
           details,
           groupId: groupId as GroupIdT,
           createdBy: getUserId(),
-          participants: [],
+          participants: participantIds,
         };
-
-        // Handle recurring fields
         if (isRecurring) {
           createData.recurringInterval = interval as number;
           createData.recurringUnit = recurringUnit;
-          if (recurringEndDate) {
+          if (recurringEndDate)
             createData.recurringEndDate = dateToTimestamp(recurringEndDate);
-          }
         }
-
-        await createEvent.mutateAsync({
-          eventId: eventId!,
-          data: createData,
-        });
+        await createEvent.mutateAsync({ eventId: eventId!, data: createData });
       }
-
-      // Navigate to event details screen after creation/update
       router.replace(`/event/${eventId}` as any);
     } catch (error) {
       Alert.alert(
@@ -300,7 +287,7 @@ export default function EditEvent() {
     }
   };
 
-  const handleCancel = () => {
+  const handleCancel = (): void => {
     Alert.alert(
       isEditMode ? 'Cancel Editing' : 'Cancel Creation',
       `Are you sure you want to discard ${isEditMode ? 'changes' : 'this event'}?`,
@@ -311,45 +298,19 @@ export default function EditEvent() {
     );
   };
 
-  const handleAddPerson = () => {
-    // TODO: Navigate to add person screen
-    Alert.alert('Add Person', 'This feature will be implemented soon');
-  };
-
-  const handleOpenGoogleMaps = async () => {
+  const handleOpenGoogleMaps = async (): Promise<void> => {
     if (!location.trim()) {
       Alert.alert('Missing Location', 'Please enter a location first.');
       return;
     }
-    const query = encodeURIComponent(location);
-    const url = `https://www.google.com/maps/search/?api=1&query=${query}`;
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
     try {
       await Linking.openURL(url);
     } catch {
       Alert.alert('Cannot Open Maps', 'No app available to open this link.');
-      return;
     }
   };
 
-  type RecurringUnit = 'day' | 'week' | 'month' | 'year';
-
-  function isRecurringUnit(value: string | number): value is RecurringUnit {
-    return (
-      value === 'day' ||
-      value === 'week' ||
-      value === 'month' ||
-      value === 'year'
-    );
-  }
-
-  const recurringUnitOptions: { label: string; value: RecurringUnit }[] = [
-    { label: 'day(s)', value: 'day' },
-    { label: 'week(s)', value: 'week' },
-    { label: 'month(s)', value: 'month' },
-    { label: 'year(s)', value: 'year' },
-  ];
-
-  // Only show loading/error states in edit mode
   if (isEditMode && isPending) {
     return (
       <View className="flex-1 items-center justify-center bg-background-950">
@@ -367,7 +328,6 @@ export default function EditEvent() {
     );
   }
 
-  // In create mode, validate groupId
   if (!isEditMode && !groupId) {
     return (
       <View className="flex-1 items-center justify-center bg-background-950 p-4">
@@ -385,9 +345,7 @@ export default function EditEvent() {
         options={{
           title: isEditMode ? 'Edit Event' : 'Create Event',
           headerShown: true,
-          headerStyle: {
-            backgroundColor: theme.dark ? '#1A1A1A' : '#fff',
-          },
+          headerStyle: { backgroundColor: theme.dark ? '#1A1A1A' : '#fff' },
           headerTintColor: theme.dark ? '#fff' : '#000',
           headerLeft: () => (
             <Pressable onPress={handleCancel} className="px-2">
@@ -402,7 +360,6 @@ export default function EditEvent() {
       />
       <ScrollView className="flex-1 bg-background-950">
         <View className="flex-1 p-4">
-          {/* Event Name */}
           <Input
             value={eventName}
             onChangeText={setEventName}
@@ -461,18 +418,16 @@ export default function EditEvent() {
               </View>
             </View>
 
-            {/* Recurring Event Section */}
+            {/* Recurring Section */}
             <View className="mb-4">
               <View className="flex-row items-center">
                 <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
                   <Ionicons name="repeat" size={24} color="#00C8B3" />
                 </View>
                 <View className="flex-1 flex-row items-center justify-between">
-                  <View className="flex-row items-center">
-                    <Text className="text-base font-semibold text-white">
-                      Recurring Event
-                    </Text>
-                  </View>
+                  <Text className="text-base font-semibold text-white">
+                    Recurring Event
+                  </Text>
                   <Switch
                     value={isRecurring}
                     onValueChange={setIsRecurring}
@@ -549,76 +504,22 @@ export default function EditEvent() {
               )}
             </View>
 
-            {/* Divider */}
             <View className="my-4 h-px bg-gray-500" />
 
-            {/* People Section */}
-            <View className="mb-4">
-              <View className="mb-3 flex-row items-center justify-between">
-                <View className="flex-row items-center">
-                  <View className="mr-3 size-10 items-center justify-center rounded-xl bg-neutral-750">
-                    <Ionicons name="people-outline" size={24} color="#00C8B3" />
-                  </View>
-                  <Text className="text-base font-semibold text-text-800">
-                    {participants.length} people
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={handleAddPerson}
-                  className="flex-row items-center rounded-lg bg-neutral-750 px-2 py-1"
-                >
-                  <Ionicons name="person-add" size={18} color="#00C8B3" />
-                  <Text className="ml-1 text-base font-semibold text-white">
-                    Add
-                  </Text>
-                </Pressable>
-              </View>
-
-              <View className="ml-0">
-                {isEditMode &&
-                  participants.map((participant, index) => (
-                    <View
-                      key={participant.id}
-                      className="mb-3 flex-row items-center"
-                    >
-                      <View className="mr-3">
-                        <PersonAvatar
-                          userId={participant.id}
-                          color={
-                            avatarColorKeys[index % avatarColorKeys.length]
-                          }
-                          size="md"
-                        />
-                      </View>
-                      <Text className="text-base text-white">
-                        {participant.name}
-                      </Text>
-                    </View>
-                  ))}
-                {!isEditMode &&
-                  participants.map((participant) => (
-                    <View
-                      key={participant.id}
-                      className="mb-3 flex-row items-center"
-                    >
-                      <View
-                        className="mr-3 size-8 items-center justify-center rounded-full"
-                        style={{ backgroundColor: participant.color }}
-                      >
-                        <Text className="text-base font-bold text-white">
-                          {participant.name
-                            .split(' ')
-                            .map((n) => n[0])
-                            .join('')}
-                        </Text>
-                      </View>
-                      <Text className="text-base text-white">
-                        {participant.name}
-                      </Text>
-                    </View>
-                  ))}
-              </View>
-            </View>
+            {/* Participants Section */}
+            <EventParticipantsSection
+              participants={participants}
+              isEditMode={isEditMode}
+              showPicker={showPicker}
+              groupMembers={groupMembers}
+              selectedParticipantIds={participantIds}
+              onAddPress={() => setShowPicker(true)}
+              onPickerClose={() => setShowPicker(false)}
+              onPickerConfirm={(ids) => {
+                setParticipantIds(ids);
+                setShowPicker(false);
+              }}
+            />
 
             {/* Location Section */}
             <View className="mb-4 flex-row items-center">
@@ -651,7 +552,6 @@ export default function EditEvent() {
               </View>
             </View>
 
-            {/* Divider */}
             <View className="my-4 h-px bg-gray-500" />
 
             {/* Details Section */}
@@ -671,12 +571,11 @@ export default function EditEvent() {
               />
             </View>
 
-            {/* Divider */}
             <View className="my-4 h-px bg-gray-500" />
           </View>
         </View>
       </ScrollView>
-      {/* Action Buttons */}
+
       <View className="m-6 flex-row gap-24">
         <Button
           label="Cancel"

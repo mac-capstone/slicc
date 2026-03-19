@@ -122,9 +122,33 @@ const getDaySuffix = (day: number): string => {
   }
 };
 
-export const areDatesEqual = (date1: Date, date2: Date) => {
-  return date1.getTime() === date2.getTime();
-};
+export const areDatesEqual = (date1: Date, date2: Date): boolean =>
+  date1.getTime() === date2.getTime();
+
+function ViewExpensesFooter({
+  eventId,
+  bottom,
+}: {
+  eventId: string;
+  bottom: number;
+}) {
+  return (
+    <View
+      className="border-t border-neutral-800 bg-background-950 p-4"
+      style={{ paddingBottom: bottom + 16 }}
+    >
+      <Pressable
+        onPress={() => router.push(`/event/${eventId}/expenses`)}
+        className="flex-row items-center justify-between rounded-xl bg-neutral-850 p-4"
+      >
+        <Text className="text-base font-semibold text-white">
+          View Expenses
+        </Text>
+        <Ionicons name="chevron-forward" size={24} color="#fff" />
+      </Pressable>
+    </View>
+  );
+}
 
 export default function EventDetails() {
   const { bottom } = useSafeAreaInsets();
@@ -151,11 +175,6 @@ export default function EventDetails() {
       // Silently fail if can't open maps
       return;
     }
-  };
-
-  const handleViewExpenses = () => {
-    // Navigate to expenses filtered by this event
-    router.push(`/event/${eventId}/expenses`);
   };
 
   const handleEdit = () => {
@@ -412,21 +431,7 @@ export default function EventDetails() {
           </View>
         </ScrollView>
 
-        {/* View Expenses Button - Sticky at bottom */}
-        <View
-          className="border-t border-neutral-800 bg-background-950 p-4"
-          style={{ paddingBottom: bottom + 16 }}
-        >
-          <Pressable
-            onPress={handleViewExpenses}
-            className="flex-row items-center justify-between rounded-xl bg-neutral-850 p-4"
-          >
-            <Text className="text-base font-semibold text-white">
-              View Expenses
-            </Text>
-            <Ionicons name="chevron-forward" size={24} color="#fff" />
-          </Pressable>
-        </View>
+        <ViewExpensesFooter eventId={eventId} bottom={bottom} />
       </View>
     </>
   );
