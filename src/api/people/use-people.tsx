@@ -58,12 +58,8 @@ export const usePerson = createQuery<
   queryKey: ['people', 'expenseId', 'personId'],
   fetcher: async ({ expenseId, personId }) => {
     if (expenseId === 'temp-expense') {
-      // console.log('GETTING TEMP EXPENSE FROM usePerson');
       const tempExpense = getTempExpense();
       if (!tempExpense) throw new Error('Person not found');
-      // console.log("--------------------------------")
-      // console.log(tempExpense);
-      // console.log("--------------------------------")
       const person = tempExpense.people.find((p) => p.id === personId);
       if (!person) throw new Error('Person not found');
       return { ...person, id: personId };
