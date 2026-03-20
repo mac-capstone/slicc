@@ -1,8 +1,8 @@
 <h1 align="center">
 <img alt="logo" src="./assets/icon.png" width="124px" style="border-radius:10px"/><br/>
-Unnamed App </h1>
+slicc </h1>
 
-> This Project is based on [Obytes starter](https://starter.obytes.com)
+slicc is a cross-platform mobile app (iOS & Android) built with React Native and Expo that helps groups of people organize shared events and split expenses. Users can create and join groups, schedule one-time or recurring events, and track costs with fine-grained bill splitting — assigning individual line items to specific participants with flexible split modes. A built-in notification system keeps members in the loop with group invites, event invites, and upcoming-event reminders.
 
 ## Prerequiste
 
@@ -207,17 +207,6 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
   };
 }
 ```
-
-## ✍️ Documentation
-
-- [Rules and Conventions](https://starter.obytes.com/getting-started/rules-and-conventions/)
-- [Project structure](https://starter.obytes.com/getting-started/project-structure)
-- [Environment vars and config](https://starter.obytes.com/getting-started/environment-vars-config)
-- [UI and Theming](https://starter.obytes.com/ui-and-theme/ui-theming)
-- [Components](https://starter.obytes.com/ui-and-theme/components)
-- [Forms](https://starter.obytes.com/ui-and-theme/Forms)
-- [Data fetching](https://starter.obytes.com/guides/data-fetching)
-- [Contribute to starter](https://starter.obytes.com/how-to-contribute/)
 
 ## 📄 License
 
