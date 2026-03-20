@@ -61,12 +61,7 @@ export default function ExpenseView() {
   });
 
   const handleConfirmExpense = async () => {
-<<<<<<< viransh/refactor-settings
-    if (isProcessingRef.current) return;
-    isProcessingRef.current = true;
-=======
     if (loading) return;
->>>>>>> main
     setLoading(true);
     try {
       if (id === 'temp-expense') {
