@@ -4,8 +4,8 @@ import {
   arrayRemove,
   arrayUnion,
   doc,
-  setDoc,
   updateDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import React, { useMemo, useState } from 'react';
 import {
@@ -50,6 +50,39 @@ type Props = {
 };
 
 const MAX_PEOPLE = 16;
+
+function getCombinedEventParticipantRows(
+  eventId: EventIdT | undefined,
+  eventParticipants: (EventPerson & { id: UserIdT })[],
+  expensePeople: PersonWithId[]
+): (EventPerson & { id: UserIdT })[] {
+  if (!eventId) {
+    return [];
+  }
+  const seen = new Set<string>();
+  const rows: (EventPerson & { id: UserIdT })[] = [];
+
+  for (const ep of eventParticipants) {
+    seen.add(ep.id);
+    rows.push(ep);
+  }
+
+  for (const p of expensePeople) {
+    if (seen.has(p.id)) continue;
+    seen.add(p.id);
+    const pw = p as PersonWithId;
+    rows.push({
+      id: p.id as UserIdT,
+      name: pw.name ?? 'Unknown',
+      color: pw.color ?? '',
+      userRef: (pw.userRef ?? p.id) as string,
+      subtotal: pw.subtotal,
+      paid: pw.paid,
+    });
+  }
+
+  return rows;
+}
 
 // ── Row for a person already in the expense (toggles item assignment) ────────
 function ExpensePersonRow({
@@ -163,6 +196,16 @@ export const AddRemovePerson = ({ itemID, expenseId, eventId }: Props) => {
     avatarColors
   );
 
+  const combinedEventParticipantRows = useMemo(
+    () =>
+      getCombinedEventParticipantRows(
+        eventId,
+        eventParticipants,
+        (tempExpense?.people ?? []) as PersonWithId[]
+      ),
+    [eventId, eventParticipants, tempExpense?.people]
+  );
+
   if (isPending || isAssignedPending) return <ActivityIndicator />;
   if (isError || isAssignedError)
     return <Text>Error loading temp expense</Text>;
@@ -250,13 +293,20 @@ export const AddRemovePerson = ({ itemID, expenseId, eventId }: Props) => {
       assignPersonToItem(itemID, participant.id);
     } else {
       try {
-        await setDoc(
-          doc(db, 'expenses', expenseId, 'people', participant.id),
-          personData
+        const batch = writeBatch(db);
+        const personRef = doc(
+          db,
+          'expenses',
+          expenseId,
+          'people',
+          participant.id
         );
-        await updateDoc(doc(db, 'expenses', expenseId, 'items', itemID), {
+        const itemRef = doc(db, 'expenses', expenseId, 'items', itemID);
+        batch.set(personRef, personData);
+        batch.update(itemRef, {
           assignedPersonIds: arrayUnion(participant.id),
         });
+        await batch.commit();
       } catch (error) {
         console.error('Failed to add participant:', error);
         Alert.alert('Error', 'Failed to add participant. Please try again.');
@@ -295,7 +345,7 @@ export const AddRemovePerson = ({ itemID, expenseId, eventId }: Props) => {
               showsVerticalScrollIndicator
             >
               {eventId
-                ? eventParticipants.map((participant, index) => {
+                ? combinedEventParticipantRows.map((participant, index) => {
                     const isInExpense = addedIds.has(participant.id);
                     const isAssigned =
                       isInExpense &&

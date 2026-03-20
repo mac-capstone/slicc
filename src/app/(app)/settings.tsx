@@ -124,7 +124,7 @@ export default function Settings() {
       });
 
       await queryClient.invalidateQueries({
-        queryKey: ['users', 'userId', userId],
+        queryKey: ['users', 'userId'],
       });
       Alert.alert('Saved', 'Your preferences have been updated.');
     } catch (error) {

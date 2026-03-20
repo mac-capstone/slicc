@@ -158,16 +158,11 @@ export async function updateUserSettingsInFirestore(
 ): Promise<void> {
   const userSettingsRef = doc(db, 'users', userId, 'settings', 'private');
 
-  await setDoc(
-    userSettingsRef,
-    {
-      ...data,
-      dietaryPreferences: data.dietaryPreferences || deleteField(),
-      locationPreference: data.locationPreference?.trim() || deleteField(),
-      eTransferEmail: data.eTransferEmail?.trim() || deleteField(),
-      bankPreference: data.bankPreference,
-      updatedAt: Timestamp.now(),
-    },
-    { merge: true }
-  );
+  await setDoc(userSettingsRef, {
+    dietaryPreferences: data.dietaryPreferences || deleteField(),
+    locationPreference: data.locationPreference?.trim() || deleteField(),
+    eTransferEmail: data.eTransferEmail?.trim() || deleteField(),
+    bankPreference: data.bankPreference,
+    updatedAt: Timestamp.now(),
+  });
 }

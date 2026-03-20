@@ -124,7 +124,6 @@ export default function ProfileCreate() {
         await createUserInFirestore(userId, {
           displayName: data.displayName,
           username: data.username,
-          email: userEmail,
         });
 
         queryClient.setQueryData(['userExists', userId], true);
