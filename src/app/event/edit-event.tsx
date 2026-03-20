@@ -109,10 +109,12 @@ export default function EditEvent() {
     variables: activeGroupId!,
     enabled: !!activeGroupId,
   });
-  const groupMemberIds = useMemo(
-    () => (group?.members ?? []) as UserIdT[],
-    [group]
-  );
+  const groupMemberIds = useMemo(() => {
+    const groupIds = (group?.members ?? []) as UserIdT[];
+    const eventParticipantIds = (event?.participants ?? []) as UserIdT[];
+    const mergedIds = new Set<UserIdT>([...groupIds, ...eventParticipantIds]);
+    return [...mergedIds];
+  }, [group, event]);
 
   // Fetch group member user details for the picker
   const memberQueries = useQueries({

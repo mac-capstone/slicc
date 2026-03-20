@@ -3,6 +3,7 @@ import Octicons from '@expo/vector-icons/Octicons';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -74,10 +75,60 @@ export const AddRemovePerson = ({ itemID, expenseId }: Props) => {
     return <Text>Error loading temp expense</Text>;
   }
 
+<<<<<<< HEAD
   const handleAddPerson = async () => {
     if (maxPeopleReached) return;
     if (!newPersonName.trim()) return;
     const name = newPersonName.trim();
+=======
+  const people = tempExpense?.people ?? [];
+  const maxPeopleReached = people.length >= MAX_PEOPLE;
+  const addedIds = new Set(people.map((p) => p.id));
+
+  // ── Invalidation helpers ──────────────────────────────────────────────────
+  const invalidateExpense = () =>
+    queryClient.invalidateQueries({ queryKey: useExpense.getKey(expenseId) });
+  const invalidateItemPeople = () =>
+    queryClient.invalidateQueries({
+      queryKey: usePeopleIdsForItem.getKey({ expenseId, itemId: itemID }),
+    });
+  const invalidateItem = () =>
+    queryClient.invalidateQueries({
+      queryKey: useItem.getKey({ expenseId, itemId: itemID }),
+    });
+
+  // ── Toggle assignment for a person already in the expense ─────────────────
+  const makeToggleHandler =
+    (personId: string, isAssigned: boolean) => async () => {
+      if (isTempExpense) {
+        if (isAssigned) removePersonFromItem(itemID, personId);
+        else assignPersonToItem(itemID, personId);
+      } else {
+        try {
+          const itemRef = doc(db, 'expenses', expenseId, 'items', itemID);
+          if (isAssigned) {
+            await updateDoc(itemRef, {
+              assignedPersonIds: arrayRemove(personId),
+            });
+          } else {
+            await updateDoc(itemRef, {
+              assignedPersonIds: arrayUnion(personId),
+            });
+          }
+        } catch (error) {
+          console.error('Failed to update assignment:', error);
+          Alert.alert('Error', 'Failed to update. Please try again.');
+          return;
+        }
+      }
+      await invalidateItemPeople();
+      await invalidateItem();
+    };
+
+  // ── Add a manual (pseudo) person — only in non-event mode ─────────────────
+  const handleAddManualPerson = async () => {
+    if (maxPeopleReached || !newPersonName.trim()) return;
+>>>>>>> d440821 (fix: coderabbit changes)
     const newPerson: PersonWithId = {
       id: uuidv4() as PersonIdT,
       name,
@@ -94,8 +145,49 @@ export const AddRemovePerson = ({ itemID, expenseId }: Props) => {
     });
   };
 
+<<<<<<< HEAD
   const people = tempExpense?.people ?? [];
   const maxPeopleReached = people.length >= MAX_PEOPLE;
+=======
+  // ── Add an event participant to the expense ───────────────────────────────
+  const handleAddEventParticipant = async (
+    participant: EventPerson & { id: UserIdT }
+  ) => {
+    if (maxPeopleReached) return;
+
+    const personData: ExpensePerson = { subtotal: 0, paid: 0 };
+
+    if (isTempExpense) {
+      const newPerson: PersonWithId = {
+        id: participant.id,
+        name: participant.name,
+        color: randomColor(),
+        userRef: participant.id,
+        ...personData,
+      };
+      addPerson(newPerson);
+      assignPersonToItem(itemID, participant.id);
+    } else {
+      try {
+        await setDoc(
+          doc(db, 'expenses', expenseId, 'people', participant.id),
+          personData
+        );
+        await updateDoc(doc(db, 'expenses', expenseId, 'items', itemID), {
+          assignedPersonIds: arrayUnion(participant.id),
+        });
+      } catch (error) {
+        console.error('Failed to add participant:', error);
+        Alert.alert('Error', 'Failed to add participant. Please try again.');
+        return;
+      }
+    }
+
+    await invalidateExpense();
+    await invalidateItemPeople();
+    await invalidateItem();
+  };
+>>>>>>> d440821 (fix: coderabbit changes)
 
   return (
     <View className="bg-transparent p-4">

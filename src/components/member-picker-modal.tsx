@@ -26,6 +26,9 @@ function MemberRow({
   return (
     <Pressable
       onPress={onToggle}
+      accessibilityRole="button"
+      accessibilityLabel={user.displayName}
+      accessibilityState={{ selected: isSelected }}
       className="flex-row items-center border-b border-neutral-800 py-3"
     >
       <View className="mr-3 size-9 items-center justify-center rounded-full bg-neutral-700">
@@ -85,7 +88,12 @@ export function MemberPickerModal({
       <View className="flex-1 bg-background-950 p-4 pt-6">
         <View className="mb-4 flex-row items-center justify-between">
           <Text className="text-xl font-bold text-white">{title}</Text>
-          <Pressable onPress={onClose} className="p-1">
+          <Pressable
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Close member picker"
+            className="p-1"
+          >
             <Feather name="x" size={24} color="#fff" />
           </Pressable>
         </View>
@@ -103,6 +111,7 @@ export function MemberPickerModal({
 
         <FlatList
           data={filtered}
+          keyboardShouldPersistTaps="handled"
           keyExtractor={(u) => u.id}
           renderItem={({ item }) => (
             <MemberRow

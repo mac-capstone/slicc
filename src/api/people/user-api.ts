@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -12,7 +13,7 @@ import {
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 
 import { db, storage } from '@/api/common/firebase';
-import type { BankPreference, User } from '@/types';
+import type { BankPreference, UserProfile, UserSettings } from '@/types';
 
 const MIME_TYPE_BY_EXTENSION: Record<string, string> = {
   heic: 'image/heic',
@@ -97,10 +98,10 @@ export type CreateUserData = {
 };
 
 export type UpdateUserSettingsData = {
-  dietaryPreferences: string[];
-  locationPreference: string;
-  eTransferEmail: string;
-  bankPreference: BankPreference;
+  dietaryPreferences?: string[];
+  locationPreference?: string;
+  eTransferEmail?: string;
+  bankPreference?: BankPreference;
 };
 
 export class UserAlreadyExistsError extends Error {
@@ -119,18 +120,25 @@ export async function createUserInFirestore(
     username: data.username.toLowerCase().trim(),
   });
   const now = Timestamp.now();
-  const userDoc: Omit<User, 'createdAt' | 'updatedAt'> & {
+  const userDoc: Omit<UserProfile, 'createdAt' | 'updatedAt'> & {
     createdAt: Timestamp;
     updatedAt: Timestamp;
   } = {
     username: data.username.toLowerCase().trim(),
     displayName: data.displayName.trim(),
-    dietaryPreferences: [],
     createdAt: now,
     updatedAt: now,
   };
 
+  const userSettingsDoc: Omit<UserSettings, 'updatedAt'> & {
+    updatedAt: Timestamp;
+  } = {
+    dietaryPreferences: [],
+    updatedAt: now,
+  };
+
   const userRef = doc(db, 'users', userId);
+  const userSettingsRef = doc(db, 'users', userId, 'settings', 'private');
   await runTransaction(db, async (transaction) => {
     const userSnap = await transaction.get(userRef);
 
@@ -139,6 +147,7 @@ export async function createUserInFirestore(
     }
 
     transaction.set(userRef, userDoc);
+    transaction.set(userSettingsRef, userSettingsDoc);
   });
   console.log('[user-api] firestore user created', { userId });
 }
@@ -147,10 +156,18 @@ export async function updateUserSettingsInFirestore(
   userId: string,
   data: UpdateUserSettingsData
 ): Promise<void> {
-  const userRef = doc(db, 'users', userId);
+  const userSettingsRef = doc(db, 'users', userId, 'settings', 'private');
 
-  await updateDoc(userRef, {
-    ...data,
-    updatedAt: Timestamp.now(),
-  });
+  await updateDoc(
+    userSettingsRef,
+    {
+      ...data,
+      dietaryPreferences: data.dietaryPreferences,
+      locationPreference: data.locationPreference?.trim() || deleteField(),
+      eTransferEmail: data.eTransferEmail?.trim() || deleteField(),
+      bankPreference: data.bankPreference,
+      updatedAt: Timestamp.now(),
+    },
+    { merge: true }
+  );
 }
