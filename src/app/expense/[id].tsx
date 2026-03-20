@@ -8,7 +8,7 @@ import {
   serverTimestamp,
   writeBatch,
 } from 'firebase/firestore';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { queryClient } from '@/api';
@@ -29,6 +29,7 @@ export default function ExpenseView() {
   const router = useRouter();
   const theme = useThemeConfig();
   const [loading, setLoading] = useState(false);
+  const isProcessingRef = useRef(false);
   const { id, viewMode } = useLocalSearchParams<{
     id: ExpenseIdT;
     viewMode: 'view' | 'confirm';
@@ -59,6 +60,8 @@ export default function ExpenseView() {
   });
 
   const handleConfirmExpense = async () => {
+    if (isProcessingRef.current) return;
+    isProcessingRef.current = true;
     setLoading(true);
     try {
       if (id === 'temp-expense') {
@@ -113,6 +116,7 @@ export default function ExpenseView() {
       Alert.alert('Error', 'Failed to save expense. Please try again.');
       console.error('Error saving expense:', error);
     } finally {
+      isProcessingRef.current = false;
       setLoading(false);
     }
   };
