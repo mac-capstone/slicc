@@ -108,6 +108,7 @@ export default function SplitExpense() {
           <AddRemovePerson
             itemID={selectedItemId}
             expenseId={tempExpense.id as ExpenseIdT}
+            eventId={eventId}
           />
           <ExpenseCreationFooter
             totalAmount={tempExpense.totalAmount}

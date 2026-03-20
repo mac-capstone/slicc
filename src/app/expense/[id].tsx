@@ -30,9 +30,10 @@ export default function ExpenseView() {
   const theme = useThemeConfig();
   const [loading, setLoading] = useState(false);
   const isProcessingRef = useRef(false);
-  const { id, viewMode } = useLocalSearchParams<{
+  const { id, viewMode, eventId } = useLocalSearchParams<{
     id: ExpenseIdT;
     viewMode: 'view' | 'confirm';
+    eventId?: string;
   }>();
   const [mode, setMode] = useState<'split' | 'items'>('split');
   const { data, isPending, isError } = useExpense({
@@ -73,6 +74,7 @@ export default function ExpenseView() {
           date: data.date,
           createdBy: data.createdBy,
           payerUserId: data.payerUserId,
+          ...(eventId ? { eventId } : {}),
           totalAmount: data.totalAmount,
           remainingAmount: data.remainingAmount ?? 0,
           participantCount: data.participantCount ?? 0,
@@ -106,10 +108,12 @@ export default function ExpenseView() {
 
         await batch.commit();
         clearTempExpense();
-        await queryClient.invalidateQueries({
-          queryKey: ['expenses'],
-        });
-        router.push('/');
+        await queryClient.invalidateQueries({ queryKey: ['expenses'] });
+        if (eventId) {
+          router.replace(`/event/${eventId}/expenses` as any);
+        } else {
+          router.push('/');
+        }
         return;
       }
       router.push('/');
@@ -197,7 +201,7 @@ export default function ExpenseView() {
         <View className="pt-4">
           {mode === 'split' && (
             <View className="">
-              <ExpenseSplitMode expenseId={id} />
+              <ExpenseSplitMode expenseId={id} payerUserId={data.payerUserId} />
             </View>
           )}
           {mode === 'items' && (
@@ -221,7 +225,13 @@ export default function ExpenseView() {
   );
 }
 
-export const ExpenseSplitMode = ({ expenseId }: { expenseId: ExpenseIdT }) => {
+export const ExpenseSplitMode = ({
+  expenseId,
+  payerUserId,
+}: {
+  expenseId: ExpenseIdT;
+  payerUserId?: string;
+}) => {
   const { data, isPending, isError } = usePeopleIds({
     variables: expenseId,
   });
@@ -236,10 +246,14 @@ export const ExpenseSplitMode = ({ expenseId }: { expenseId: ExpenseIdT }) => {
       <FlashList
         data={data}
         renderItem={({ item }) => (
-          <PersonCard personId={item} expenseId={expenseId} />
+          <PersonCard
+            personId={item}
+            expenseId={expenseId}
+            payerUserId={payerUserId}
+          />
         )}
         keyExtractor={(item) => item}
-        ItemSeparatorComponent={() => <View className="h-3" />} // 12px gap
+        ItemSeparatorComponent={() => <View className="h-3" />}
       />
     </View>
   );

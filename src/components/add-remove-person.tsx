@@ -1,6 +1,13 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Octicons from '@expo/vector-icons/Octicons';
-import React, { useState } from 'react';
+import {
+  arrayRemove,
+  arrayUnion,
+  doc,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
+import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,13 +22,19 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 
 import { queryClient } from '@/api/common/api-provider';
+import { db } from '@/api/common/firebase';
+import { useEvent } from '@/api/events/use-events';
 import { useExpense } from '@/api/expenses/use-expenses';
 import { useItem } from '@/api/items/use-items';
 import { usePeopleIdsForItem } from '@/api/people/use-people';
+import { useUsersAsPeople } from '@/api/people/use-users';
 import { colors } from '@/components/ui';
 import { useExpenseCreation } from '@/lib/store';
 import {
+  type EventIdT,
+  type EventPerson,
   type ExpenseIdT,
+  type ExpensePerson,
   type ItemIdT,
   type PersonIdT,
   type PersonWithId,
@@ -33,26 +46,102 @@ import { PersonAvatar } from './person-avatar';
 type Props = {
   itemID: ItemIdT;
   expenseId: ExpenseIdT;
+  eventId?: EventIdT;
 };
 
 const MAX_PEOPLE = 16;
 
-export const AddRemovePerson = ({ itemID, expenseId }: Props) => {
+// ── Row for a person already in the expense (toggles item assignment) ────────
+function ExpensePersonRow({
+  person,
+  isAssigned,
+  onToggle,
+}: {
+  person: PersonWithId;
+  isAssigned: boolean;
+  onToggle: () => Promise<void>;
+}) {
+  return (
+    <View className="mb-2 flex-row items-center justify-between rounded-lg border border-text-900 p-3">
+      <View className="flex-row items-center">
+        <PersonAvatar
+          size="sm"
+          userId={person.id as UserIdT}
+          inSplitView
+          isSelected={isAssigned}
+        />
+        <Text className="ml-3 text-white">{person.name}</Text>
+      </View>
+      <TouchableOpacity
+        onPress={onToggle}
+        className={`rounded-lg px-4 py-2 ${isAssigned ? 'bg-accent-100' : 'bg-background-700'}`}
+        activeOpacity={0.8}
+      >
+        <View className="flex-row items-center">
+          <Ionicons
+            name={isAssigned ? 'checkmark' : 'add'}
+            size={16}
+            color={isAssigned ? '#000' : '#9ca3af'}
+          />
+          <Text
+            className={`ml-1 font-bold ${isAssigned ? 'text-black' : 'text-gray-400'}`}
+          >
+            {isAssigned ? 'Added' : 'Add'}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// ── Row for an event participant not yet in the expense ──────────────────────
+function EventParticipantRow({
+  participant,
+  onAdd,
+  disabled,
+}: {
+  participant: EventPerson & { id: UserIdT };
+  onAdd: (participant: EventPerson & { id: UserIdT }) => Promise<void>;
+  disabled: boolean;
+}) {
+  return (
+    <View className="mb-2 flex-row items-center justify-between rounded-lg border border-text-900 p-3">
+      <View className="flex-row items-center">
+        <PersonAvatar
+          size="sm"
+          userId={participant.id}
+          inSplitView
+          isSelected={false}
+        />
+        <Text className="ml-3 text-white">{participant.name}</Text>
+      </View>
+      <TouchableOpacity
+        onPress={() => onAdd(participant)}
+        disabled={disabled}
+        className="bg-background-700 rounded-lg px-4 py-2"
+        activeOpacity={0.8}
+      >
+        <View className="flex-row items-center">
+          <Ionicons name="add" size={16} color="#9ca3af" />
+          <Text className="ml-1 font-bold text-gray-400">Add</Text>
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+export const AddRemovePerson = ({ itemID, expenseId, eventId }: Props) => {
   const {
     data: tempExpense,
     isPending,
     isError,
-  } = useExpense({
-    variables: expenseId,
-  });
-
+  } = useExpense({ variables: expenseId });
   const {
     data: assignedPeopleIds,
     isPending: isAssignedPending,
     isError: isAssignedError,
-  } = usePeopleIdsForItem({
-    variables: { expenseId, itemId: itemID },
-  });
+  } = usePeopleIdsForItem({ variables: { expenseId, itemId: itemID } });
 
   const { assignPersonToItem, removePersonFromItem, addPerson } =
     useExpenseCreation();
@@ -60,27 +149,24 @@ export const AddRemovePerson = ({ itemID, expenseId }: Props) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [newPersonName, setNewPersonName] = useState('');
 
-  const getRandomColor = () => {
-    const avatarColors = Object.keys(colors.avatar || {});
-    return avatarColors[Math.floor(Math.random() * avatarColors.length)];
-  };
+  const avatarColors = useMemo(() => Object.keys(colors.avatar ?? {}), []);
+  const randomColor = () =>
+    avatarColors[Math.floor(Math.random() * avatarColors.length)] ?? 'white';
+  const [previewColor, setPreviewColor] = useState(randomColor);
 
-  const [previewColor, setPreviewColor] = useState(getRandomColor);
+  const isTempExpense = expenseId === ('temp-expense' as ExpenseIdT);
 
-  if (isPending || isAssignedPending) {
-    return <ActivityIndicator />;
-  }
+  // Fetch event participants when eventId is present
+  const { data: event } = useEvent({ variables: eventId, enabled: !!eventId });
+  const { people: eventParticipants } = useUsersAsPeople(
+    (event?.participants ?? []) as UserIdT[],
+    avatarColors
+  );
 
-  if (isError || isAssignedError) {
+  if (isPending || isAssignedPending) return <ActivityIndicator />;
+  if (isError || isAssignedError)
     return <Text>Error loading temp expense</Text>;
-  }
 
-<<<<<<< HEAD
-  const handleAddPerson = async () => {
-    if (maxPeopleReached) return;
-    if (!newPersonName.trim()) return;
-    const name = newPersonName.trim();
-=======
   const people = tempExpense?.people ?? [];
   const maxPeopleReached = people.length >= MAX_PEOPLE;
   const addedIds = new Set(people.map((p) => p.id));
@@ -128,10 +214,9 @@ export const AddRemovePerson = ({ itemID, expenseId }: Props) => {
   // ── Add a manual (pseudo) person — only in non-event mode ─────────────────
   const handleAddManualPerson = async () => {
     if (maxPeopleReached || !newPersonName.trim()) return;
->>>>>>> d440821 (fix: coderabbit changes)
     const newPerson: PersonWithId = {
       id: uuidv4() as PersonIdT,
-      name,
+      name: newPersonName.trim(),
       color: previewColor,
       userRef: null,
       subtotal: 0,
@@ -139,16 +224,12 @@ export const AddRemovePerson = ({ itemID, expenseId }: Props) => {
     };
     addPerson(newPerson);
     setNewPersonName('');
-    setPreviewColor(getRandomColor());
+    setPreviewColor(randomColor());
     await queryClient.invalidateQueries({
       queryKey: ['expenses', 'expenseId', expenseId],
     });
   };
 
-<<<<<<< HEAD
-  const people = tempExpense?.people ?? [];
-  const maxPeopleReached = people.length >= MAX_PEOPLE;
-=======
   // ── Add an event participant to the expense ───────────────────────────────
   const handleAddEventParticipant = async (
     participant: EventPerson & { id: UserIdT }
@@ -187,7 +268,6 @@ export const AddRemovePerson = ({ itemID, expenseId }: Props) => {
     await invalidateItemPeople();
     await invalidateItem();
   };
->>>>>>> d440821 (fix: coderabbit changes)
 
   return (
     <View className="bg-transparent p-4">
@@ -209,117 +289,110 @@ export const AddRemovePerson = ({ itemID, expenseId }: Props) => {
               Manage People
             </Text>
 
-            {people.length > 0 && (
-              <ScrollView
-                className="mb-4"
-                style={{ maxHeight: 224 }}
-                showsVerticalScrollIndicator
-              >
-                {people.map((person) => {
-                  const isAssigned =
-                    itemID && assignedPeopleIds.includes(person.id as UserIdT);
-                  return (
-                    <View
-                      key={person.id}
-                      className="mb-2 flex-row items-center justify-between rounded-lg border border-text-900 p-3"
-                    >
-                      <View className="flex-row items-center">
-                        <PersonAvatar
-                          size="sm"
-                          userId={person.id as UserIdT}
-                          // expenseId={expenseId}
-                          inSplitView={true}
-                          isSelected={isAssigned}
-                        />
-                        <Text className="ml-3 text-white">{person.name}</Text>
-                      </View>
-                      <TouchableOpacity
-                        onPress={async () => {
-                          if (!itemID) return;
-                          if (isAssigned) {
-                            removePersonFromItem(itemID, person.id);
-                          } else {
-                            assignPersonToItem(itemID, person.id);
-                          }
-                          await queryClient.invalidateQueries({
-                            queryKey: usePeopleIdsForItem.getKey({
-                              expenseId,
-                              itemId: itemID,
-                            }),
-                          });
-                          await queryClient.invalidateQueries({
-                            queryKey: useItem.getKey({
-                              expenseId,
-                              itemId: itemID,
-                            }),
-                          });
-                        }}
-                        disabled={!itemID}
-                        className={`rounded-lg px-4 py-2 ${
-                          isAssigned ? 'bg-accent-100' : 'bg-background-700'
-                        }`}
-                        activeOpacity={0.8}
-                      >
-                        <View className="flex-row items-center">
-                          <Ionicons
-                            name={isAssigned ? 'checkmark' : 'add'}
-                            size={16}
-                            color={isAssigned ? '#000' : '#9ca3af'}
-                          />
-                          <Text
-                            className={`ml-1 font-bold ${
-                              isAssigned ? 'text-black' : 'text-gray-400'
-                            }`}
-                          >
-                            {isAssigned ? 'Added' : 'Add'}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    </View>
-                  );
-                })}
-              </ScrollView>
-            )}
+            <ScrollView
+              className="mb-4"
+              style={{ maxHeight: 300 }}
+              showsVerticalScrollIndicator
+            >
+              {eventId
+                ? eventParticipants.map((participant, index) => {
+                    const isInExpense = addedIds.has(participant.id);
+                    const isAssigned =
+                      isInExpense &&
+                      assignedPeopleIds.includes(participant.id as UserIdT);
 
-            <View className="flex-row items-center rounded-lg border border-text-900 p-3">
-              <View
-                className="size-8 items-center justify-center rounded-full"
-                style={{
-                  backgroundColor:
-                    (colors.avatar as Record<string, string>)[previewColor] ||
-                    previewColor,
-                }}
-              >
-                <Octicons name="person" size={15} color="#D4D4D4" />
-              </View>
-              <TextInput
-                className="ml-3 flex-1 text-white"
-                placeholder="Enter name here"
-                placeholderTextColor="#6b7280"
-                value={newPersonName}
-                onChangeText={setNewPersonName}
-              />
-              <TouchableOpacity
-                onPress={handleAddPerson}
-                disabled={maxPeopleReached || !newPersonName.trim()}
-                className={`rounded-lg px-4 py-2 ${
-                  maxPeopleReached || !newPersonName.trim()
-                    ? 'bg-background-700'
-                    : 'bg-primary-500'
-                }`}
-                activeOpacity={0.8}
-              >
-                <Text
-                  className={`font-bold ${
-                    maxPeopleReached || !newPersonName.trim()
-                      ? 'text-gray-500'
-                      : 'text-white'
-                  }`}
+                    if (isInExpense) {
+                      // Merge display data from user profile with expense data
+                      const expensePerson = people.find(
+                        (p) => p.id === participant.id
+                      );
+                      const displayPerson: PersonWithId = {
+                        id: participant.id,
+                        name: participant.name,
+                        color: avatarColors[index % avatarColors.length],
+                        userRef: participant.id,
+                        subtotal: expensePerson?.subtotal ?? 0,
+                        paid: expensePerson?.paid ?? 0,
+                      };
+                      return (
+                        <ExpensePersonRow
+                          key={participant.id}
+                          person={displayPerson}
+                          isAssigned={isAssigned}
+                          onToggle={makeToggleHandler(
+                            participant.id,
+                            isAssigned
+                          )}
+                        />
+                      );
+                    }
+
+                    return (
+                      <EventParticipantRow
+                        key={participant.id}
+                        participant={participant}
+                        onAdd={handleAddEventParticipant}
+                        disabled={maxPeopleReached}
+                      />
+                    );
+                  })
+                : people.map((person) => {
+                    const isAssigned =
+                      !!itemID &&
+                      assignedPeopleIds.includes(person.id as UserIdT);
+                    return (
+                      <ExpensePersonRow
+                        key={person.id}
+                        person={person}
+                        isAssigned={isAssigned}
+                        onToggle={makeToggleHandler(person.id, isAssigned)}
+                      />
+                    );
+                  })}
+            </ScrollView>
+
+            {/* Manual add row — only shown when not in event mode */}
+            {!eventId && (
+              <View className="flex-row items-center rounded-lg border border-text-900 p-3">
+                <View
+                  className="size-8 items-center justify-center rounded-full"
+                  style={{
+                    backgroundColor:
+                      (colors.avatar as Record<string, string>)[previewColor] ||
+                      previewColor,
+                  }}
                 >
-                  Add
-                </Text>
-              </TouchableOpacity>
-            </View>
+                  <Octicons name="person" size={15} color="#D4D4D4" />
+                </View>
+                <TextInput
+                  className="ml-3 flex-1 text-white"
+                  placeholder="Enter name here"
+                  placeholderTextColor="#6b7280"
+                  value={newPersonName}
+                  onChangeText={setNewPersonName}
+                />
+                <TouchableOpacity
+                  onPress={handleAddManualPerson}
+                  disabled={maxPeopleReached || !newPersonName.trim()}
+                  className={`rounded-lg px-4 py-2 ${
+                    maxPeopleReached || !newPersonName.trim()
+                      ? 'bg-background-700'
+                      : 'bg-primary-500'
+                  }`}
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    className={`font-bold ${
+                      maxPeopleReached || !newPersonName.trim()
+                        ? 'text-gray-500'
+                        : 'text-white'
+                    }`}
+                  >
+                    Add
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </Pressable>
         </Pressable>
       </Modal>

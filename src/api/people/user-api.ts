@@ -162,7 +162,7 @@ export async function updateUserSettingsInFirestore(
     userSettingsRef,
     {
       ...data,
-      dietaryPreferences: data.dietaryPreferences,
+      dietaryPreferences: data.dietaryPreferences || deleteField(),
       locationPreference: data.locationPreference?.trim() || deleteField(),
       eTransferEmail: data.eTransferEmail?.trim() || deleteField(),
       bankPreference: data.bankPreference,

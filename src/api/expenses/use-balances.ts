@@ -39,18 +39,26 @@ export function useBalances(userId: UserIdT | null) {
         const expense = result.data;
         if (!expense) continue;
 
-        const isCreator = expense.createdBy === userId;
+        // The main payer is whoever fronted the expense (falls back to creator)
+        const payerId = expense.payerUserId ?? expense.createdBy ?? null;
+        const isPayer = payerId === userId;
         const isParticipant = expense.people.some((p) => p.id === userId);
 
-        if (!isParticipant && !isCreator) continue;
+        if (!isParticipant && !isPayer) continue;
 
-        for (const person of expense.people) {
-          const remaining = Math.max(person.subtotal - (person.paid ?? 0), 0);
-
-          if (person.id === userId) {
-            youOweTotal += remaining;
-          } else if (isCreator) {
+        if (isPayer) {
+          // As payer: sum what each non-payer person still owes you
+          for (const person of expense.people) {
+            if (person.id === userId) continue; // own items are already covered
+            const remaining = Math.max(person.subtotal - (person.paid ?? 0), 0);
             owedToYouTotal += remaining;
+          }
+        } else if (isParticipant) {
+          // As a non-payer participant: add your own remaining share to youOwe
+          const self = expense.people.find((p) => p.id === userId);
+          if (self) {
+            const remaining = Math.max(self.subtotal - (self.paid ?? 0), 0);
+            youOweTotal += remaining;
           }
         }
       }
