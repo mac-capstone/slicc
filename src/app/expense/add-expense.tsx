@@ -38,7 +38,12 @@ import { useAuth, useDefaultTaxRate } from '@/lib';
 import { storage } from '@/lib/storage';
 import { clearTempExpense, useExpenseCreation } from '@/lib/store';
 import { useThemeConfig } from '@/lib/use-theme-config';
-import { type EventIdT, type ItemIdT, type ItemWithId } from '@/types';
+import {
+  type EventIdT,
+  type ItemIdT,
+  type ItemWithId,
+  type UserIdT,
+} from '@/types';
 
 const SWIPE_NUDGE_SHOWN_KEY = 'swipe-nudge-shown';
 
@@ -81,7 +86,7 @@ function useMainPayerOptions({
   const participantUserIds = eventQuery.data?.participants ?? [];
   const avatarColors = useMemo(() => Object.keys(colors.avatar ?? {}), []);
   const { people: eventParticipants } = useUsersAsPeople(
-    participantUserIds,
+    participantUserIds as UserIdT[],
     avatarColors
   );
 
@@ -133,7 +138,7 @@ export default function AddExpense() {
   const theme = useThemeConfig();
   const userId = useAuth.use.userId();
   const { data: signedInUser } = useUser({
-    variables: userId,
+    variables: userId as UserIdT,
     enabled: Boolean(userId),
   });
   const { eventId } = useLocalSearchParams<{ eventId?: EventIdT }>();
@@ -650,7 +655,7 @@ function CreateItemCard() {
     addItem({
       id: uuidv4() as ItemIdT,
       name: tempItemName,
-      amount: totalWithTax,
+      amount: baseAmount,
       taxRate: taxRate,
       isTip: false,
       split: {

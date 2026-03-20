@@ -27,9 +27,14 @@ function zodConverter<Out>(
 
 // ── User ───────────────────────────────────────────────────────────────────
 
-export const userSchema = z.object({
+export const userProfileSchema = z.object({
   username: z.string(),
   displayName: z.string(),
+  createdAt: firestoreTimestamp.optional(),
+  updatedAt: firestoreTimestamp.optional(),
+});
+
+export const userSettingsSchema = z.object({
   dietaryPreferences: z.array(z.string()).default([]),
   locationPreference: z.string().optional(),
   eTransferEmail: z.string().email().optional(),
@@ -59,11 +64,14 @@ export const userSchema = z.object({
       'other',
     ])
     .optional(),
-  createdAt: firestoreTimestamp.optional(),
   updatedAt: firestoreTimestamp.optional(),
 });
 
-export const userConverter = zodConverter(userSchema);
+// Backward-compatible alias where user schema means the public profile document.
+export const userSchema = userProfileSchema;
+
+export const userConverter = zodConverter(userProfileSchema);
+export const userSettingsConverter = zodConverter(userSettingsSchema);
 
 // ── Group ──────────────────────────────────────────────────────────────────
 

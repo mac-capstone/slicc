@@ -54,6 +54,8 @@ export default function Settings() {
   const [dietarySelection, setDietarySelection] =
     useState<DietaryOptionValue>('none');
   const [dietaryOtherText, setDietaryOtherText] = useState('');
+  const [remainingDietaryPreferences, setRemainingDietaryPreferences] =
+    useState<string[]>([]);
   const [locationPreference, setLocationPreference] = useState('');
   const [eTransferEmail, setETransferEmail] = useState('');
   const [bankPreference, setBankPreference] = useState<BankPreference>('none');
@@ -61,30 +63,40 @@ export default function Settings() {
 
   useEffect(() => {
     if (!user) return;
-    const firstDietary = user.dietaryPreferences?.[0]?.trim().toLowerCase();
+    const allDietaryPreferences = Array.isArray(user.dietaryPreferences)
+      ? user.dietaryPreferences.filter(
+          (preference): preference is string => typeof preference === 'string'
+        )
+      : [];
+    const [firstDietaryRaw = '', ...restDietary] = allDietaryPreferences;
+    const firstDietary = firstDietaryRaw.trim().toLowerCase();
+
     if (firstDietary && isDietaryOption(firstDietary)) {
       setDietarySelection(firstDietary);
       setDietaryOtherText('');
     } else if (firstDietary) {
       setDietarySelection('other');
-      setDietaryOtherText(user.dietaryPreferences?.[0] ?? '');
+      setDietaryOtherText(firstDietaryRaw);
     } else {
       setDietarySelection('none');
       setDietaryOtherText('');
     }
+    setRemainingDietaryPreferences(restDietary);
     setLocationPreference(user.locationPreference ?? '');
     setETransferEmail(user.eTransferEmail ?? '');
     setBankPreference(user.bankPreference ?? 'none');
   }, [user]);
 
   const parsedDietaryPreferences = useMemo(() => {
-    if (dietarySelection === 'none') return [];
+    if (dietarySelection === 'none') return [...remainingDietaryPreferences];
     if (dietarySelection === 'other') {
       const trimmed = dietaryOtherText.trim();
-      return trimmed.length > 0 ? [trimmed] : [];
+      return trimmed.length > 0
+        ? [trimmed, ...remainingDietaryPreferences]
+        : [...remainingDietaryPreferences];
     }
-    return [dietarySelection];
-  }, [dietaryOtherText, dietarySelection]);
+    return [dietarySelection, ...remainingDietaryPreferences];
+  }, [dietaryOtherText, dietarySelection, remainingDietaryPreferences]);
 
   const handleSavePreferences = async () => {
     if (!userId) {

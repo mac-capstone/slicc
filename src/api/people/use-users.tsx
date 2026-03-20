@@ -1,7 +1,8 @@
-import { useQueries } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import {
   collection,
   doc,
+  documentId,
   getDoc,
   getDocs,
   limit,
@@ -11,6 +12,7 @@ import {
 import { createQuery } from 'react-query-kit';
 
 import { db } from '@/api/common/firebase';
+import { getUserId } from '@/lib';
 import {
   type BankPreference,
   type EventPerson,
@@ -21,16 +23,22 @@ import {
 // Re-export so callers importing from this file still work
 export type { UserWithId };
 
-type UserDoc = {
+type PublicUserDoc = {
   username?: string;
   displayName?: string;
+};
+
+type UserSettingsDoc = {
   dietaryPreferences?: string[];
   locationPreference?: string;
   eTransferEmail?: string;
   bankPreference?: BankPreference;
 };
 
-function mapUserDataToUserWithId(id: string, data: UserDoc): UserWithId {
+function mapPublicUserDataToUserWithId(
+  id: string,
+  data: PublicUserDoc
+): UserWithId {
   const { displayName } = data;
 
   if (typeof displayName !== 'string') {
@@ -41,6 +49,11 @@ function mapUserDataToUserWithId(id: string, data: UserDoc): UserWithId {
     id: id as UserIdT,
     username: typeof data.username === 'string' ? data.username : '',
     displayName,
+  };
+}
+
+function mapSettingsData(data: UserSettingsDoc): Partial<UserWithId> {
+  return {
     dietaryPreferences: Array.isArray(data.dietaryPreferences)
       ? data.dietaryPreferences.filter(
           (p): p is string => typeof p === 'string'
@@ -64,7 +77,22 @@ export async function fetchUser(userId: string): Promise<UserWithId> {
     throw new Error('User not found');
   }
 
-  return mapUserDataToUserWithId(userSnap.id, userSnap.data());
+  const baseUser = mapPublicUserDataToUserWithId(userSnap.id, userSnap.data());
+  const authUserId = getUserId();
+  if (authUserId !== (userId as UserIdT)) {
+    return baseUser;
+  }
+
+  const settingsRef = doc(db, 'users', userId, 'settings', 'private');
+  const settingsSnap = await getDoc(settingsRef);
+  if (!settingsSnap.exists()) {
+    return baseUser;
+  }
+
+  return {
+    ...baseUser,
+    ...mapSettingsData(settingsSnap.data()),
+  };
 }
 
 // Firestore prefix search on username (stored lowercase — reliable & case-safe).
@@ -84,7 +112,9 @@ export async function searchUsersByUsername(
     limit(resultLimit)
   );
   const snapshot = await getDocs(firestoreQuery);
-  return snapshot.docs.map((d) => mapUserDataToUserWithId(d.id, d.data()));
+  return snapshot.docs.map((d) =>
+    mapPublicUserDataToUserWithId(d.id, d.data())
+  );
 }
 
 export const useUserIds = createQuery<UserIdT[], void, Error>({
@@ -106,6 +136,49 @@ export const useSearchUsers = createQuery<UserWithId[], string, Error>({
   fetcher: async (searchQuery) => searchUsersByUsername(searchQuery),
 });
 
+const FIRESTORE_IN_QUERY_LIMIT = 10;
+
+function chunkUserIds(userIds: UserIdT[]): UserIdT[][] {
+  const chunks: UserIdT[][] = [];
+  for (
+    let index = 0;
+    index < userIds.length;
+    index += FIRESTORE_IN_QUERY_LIMIT
+  ) {
+    chunks.push(userIds.slice(index, index + FIRESTORE_IN_QUERY_LIMIT));
+  }
+  return chunks;
+}
+
+async function fetchUsersBatch(userIds: UserIdT[]): Promise<UserWithId[]> {
+  if (userIds.length === 0) return [];
+
+  const usersRef = collection(db, 'users');
+  const chunks = chunkUserIds(userIds);
+  const snapshots = await Promise.all(
+    chunks.map((chunk) =>
+      getDocs(query(usersRef, where(documentId(), 'in', [...chunk])))
+    )
+  );
+
+  const byId = new Map<UserIdT, UserWithId>();
+  for (const snapshot of snapshots) {
+    for (const userDoc of snapshot.docs) {
+      const user = mapPublicUserDataToUserWithId(userDoc.id, userDoc.data());
+      byId.set(user.id, user);
+    }
+  }
+
+  const missingUserId = userIds.find((userId) => !byId.has(userId));
+  if (missingUserId) {
+    throw new Error('User not found');
+  }
+
+  return userIds
+    .map((userId) => byId.get(userId))
+    .filter(Boolean) as UserWithId[];
+}
+
 export function useUsersAsPeople(
   userIds: UserIdT[],
   colorKeys: string[] = []
@@ -114,36 +187,29 @@ export function useUsersAsPeople(
   isLoading: boolean;
   isError: boolean;
 } {
-  const queries = useQueries({
-    queries: userIds.map((userId) => ({
-      queryKey: ['users', 'userId', userId],
-      queryFn: () => fetchUser(userId),
-      staleTime: 5 * 60 * 1000,
-    })),
+  const {
+    data: users = [],
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ['users', 'batch', userIds],
+    queryFn: () => fetchUsersBatch(userIds),
+    staleTime: 5 * 60 * 1000,
+    enabled: userIds.length > 0,
   });
 
-  const isLoading = queries.some((q) => q.isLoading);
-  const isError = queries.some((q) => q.isError);
+  const people = users.map((user, index) => {
+    const person: EventPerson & { id: UserIdT } = {
+      id: user.id,
+      name: user.displayName,
+      color: colorKeys.length > 0 ? colorKeys[index % colorKeys.length] : '',
+      userRef: user.id,
+      subtotal: 0,
+      paid: 0,
+    };
 
-  const people = queries
-    .map((q, index) => {
-      const user = q.data;
-      if (!user) return null;
-
-      const person: EventPerson & { id: UserIdT } = {
-        id: user.id,
-        name: user.displayName,
-        color: colorKeys[index % colorKeys.length] ?? '',
-        userRef: user.id,
-        subtotal: 0,
-        paid: 0,
-      };
-
-      return person;
-    })
-    .filter(
-      (person): person is EventPerson & { id: UserIdT } => person !== null
-    );
+    return person;
+  });
 
   return { people, isLoading, isError };
 }

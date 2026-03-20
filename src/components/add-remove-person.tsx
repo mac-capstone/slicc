@@ -10,6 +10,7 @@ import {
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -189,13 +190,21 @@ export const AddRemovePerson = ({ itemID, expenseId, eventId }: Props) => {
         if (isAssigned) removePersonFromItem(itemID, personId);
         else assignPersonToItem(itemID, personId);
       } else {
-        const itemRef = doc(db, 'expenses', expenseId, 'items', itemID);
-        if (isAssigned) {
-          await updateDoc(itemRef, {
-            assignedPersonIds: arrayRemove(personId),
-          });
-        } else {
-          await updateDoc(itemRef, { assignedPersonIds: arrayUnion(personId) });
+        try {
+          const itemRef = doc(db, 'expenses', expenseId, 'items', itemID);
+          if (isAssigned) {
+            await updateDoc(itemRef, {
+              assignedPersonIds: arrayRemove(personId),
+            });
+          } else {
+            await updateDoc(itemRef, {
+              assignedPersonIds: arrayUnion(personId),
+            });
+          }
+        } catch (error) {
+          console.error('Failed to update assignment:', error);
+          Alert.alert('Error', 'Failed to update. Please try again.');
+          return;
         }
       }
       await invalidateItemPeople();
@@ -238,13 +247,19 @@ export const AddRemovePerson = ({ itemID, expenseId, eventId }: Props) => {
       addPerson(newPerson);
       assignPersonToItem(itemID, participant.id);
     } else {
-      await setDoc(
-        doc(db, 'expenses', expenseId, 'people', participant.id),
-        personData
-      );
-      await updateDoc(doc(db, 'expenses', expenseId, 'items', itemID), {
-        assignedPersonIds: arrayUnion(participant.id),
-      });
+      try {
+        await setDoc(
+          doc(db, 'expenses', expenseId, 'people', participant.id),
+          personData
+        );
+        await updateDoc(doc(db, 'expenses', expenseId, 'items', itemID), {
+          assignedPersonIds: arrayUnion(participant.id),
+        });
+      } catch (error) {
+        console.error('Failed to add participant:', error);
+        Alert.alert('Error', 'Failed to add participant. Please try again.');
+        return;
+      }
     }
 
     await invalidateExpense();

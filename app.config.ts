@@ -41,6 +41,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     googleServicesFile: './GoogleService-Info.plist',
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
+      LSApplicationQueriesSchemes: [
+        'rbcmobile',
+        'tdct',
+        'scotiabank',
+        'cibcmobilebanking',
+        'bmomobile',
+      ],
     },
   },
   experiments: {
