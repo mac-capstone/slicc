@@ -59,6 +59,7 @@ export default function ExpenseView() {
   });
 
   const handleConfirmExpense = async () => {
+    if (loading) return;
     setLoading(true);
     try {
       if (id === 'temp-expense') {
@@ -92,10 +93,10 @@ export default function ExpenseView() {
             batch.set(itemDocRef, {
               name: item.name,
               amount: item.amount,
-              taxRate: item.taxRate,
+              taxRate: item.taxRate ?? 0,
               split: item.split,
               assignedPersonIds: item.assignedPersonIds,
-              isTip: item.isTip,
+              isTip: item.isTip ?? false,
             });
           });
         }
