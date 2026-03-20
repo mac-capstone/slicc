@@ -26,6 +26,8 @@ export type { UserWithId };
 type PublicUserDoc = {
   username?: string;
   displayName?: string;
+  eTransferEmail?: string;
+  bankPreference?: BankPreference;
 };
 
 type UserSettingsDoc = {
@@ -49,6 +51,9 @@ function mapPublicUserDataToUserWithId(
     id: id as UserIdT,
     username: typeof data.username === 'string' ? data.username : '',
     displayName,
+    eTransferEmail:
+      typeof data.eTransferEmail === 'string' ? data.eTransferEmail : undefined,
+    bankPreference: data.bankPreference,
   };
 }
 
@@ -77,12 +82,14 @@ export async function fetchUser(userId: string): Promise<UserWithId> {
     throw new Error('User not found');
   }
 
+  // eTransferEmail and bankPreference are on the public doc — readable by anyone.
   const baseUser = mapPublicUserDataToUserWithId(userSnap.id, userSnap.data());
   const authUserId = getUserId();
   if (authUserId !== (userId as UserIdT)) {
     return baseUser;
   }
 
+  // For the current user, also merge private settings (dietary prefs, location, etc.)
   const settingsRef = doc(db, 'users', userId, 'settings', 'private');
   const settingsSnap = await getDoc(settingsRef);
   if (!settingsSnap.exists()) {

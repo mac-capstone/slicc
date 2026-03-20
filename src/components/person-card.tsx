@@ -75,7 +75,7 @@ export const PersonCard = ({
       <View className="flex w-full flex-col gap-1">
         {isPayer ? (
           <Text className="text-sm dark:text-text-800">
-            Covered — no balance due
+            Covered, no balance due
           </Text>
         ) : (
           <>

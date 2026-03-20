@@ -57,7 +57,7 @@ export default function GroupDetailScreen() {
     );
   }, [allUpcomingEvents, searchQuery]);
 
-  const handleBack = () => router.back();
+  const handleBack = () => router.push('/groups');
   const handleSettings = () =>
     router.push(`/group/${groupId}/members` as const);
   const handleEventPress = (eventId: string) =>

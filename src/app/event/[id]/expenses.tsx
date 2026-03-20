@@ -35,8 +35,9 @@ export default function EventExpenses() {
     enabled: !!eventId,
   });
 
-  const handleClose = () => {
-    router.back();
+  const handleClose = (): void => {
+    if (!eventId) return;
+    router.replace(`/event/${eventId}` as const);
   };
 
   if (!eventId) {

@@ -156,13 +156,28 @@ export async function updateUserSettingsInFirestore(
   userId: string,
   data: UpdateUserSettingsData
 ): Promise<void> {
+  const userRef = doc(db, 'users', userId);
   const userSettingsRef = doc(db, 'users', userId, 'settings', 'private');
+  const now = Timestamp.now();
 
-  await setDoc(userSettingsRef, {
-    dietaryPreferences: data.dietaryPreferences || deleteField(),
-    locationPreference: data.locationPreference?.trim() || deleteField(),
-    eTransferEmail: data.eTransferEmail?.trim() || deleteField(),
-    bankPreference: data.bankPreference,
-    updatedAt: Timestamp.now(),
-  });
+  await Promise.all([
+    // Private settings (dietary, location, etc.)
+    setDoc(userSettingsRef, {
+      dietaryPreferences: data.dietaryPreferences || deleteField(),
+      locationPreference: data.locationPreference?.trim() || deleteField(),
+      eTransferEmail: data.eTransferEmail?.trim() || deleteField(),
+      bankPreference: data.bankPreference,
+      updatedAt: now,
+    }),
+    // Payment info lives on the public doc so group members can read it
+    setDoc(
+      userRef,
+      {
+        eTransferEmail: data.eTransferEmail?.trim() || deleteField(),
+        bankPreference: data.bankPreference ?? deleteField(),
+        updatedAt: now,
+      },
+      { merge: true }
+    ),
+  ]);
 }

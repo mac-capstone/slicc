@@ -181,7 +181,15 @@ export default function EventDetails() {
     router.push(`/event/edit-event?id=${eventId}`);
   };
 
-  const handleClose = () => {
+  const handleClose = (): void => {
+    router.back();
+  };
+
+  const handleHeaderClose = (): void => {
+    if (event?.groupId) {
+      router.replace(`/group/${event.groupId}` as const);
+      return;
+    }
     router.back();
   };
 
@@ -222,7 +230,7 @@ export default function EventDetails() {
           },
           headerTintColor: theme.dark ? '#fff' : '#000',
           headerLeft: () => (
-            <Pressable onPress={handleClose} className="px-2">
+            <Pressable onPress={handleHeaderClose} className="px-2">
               <Ionicons
                 name="close"
                 size={28}
