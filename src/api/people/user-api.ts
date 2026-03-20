@@ -6,8 +6,8 @@ import {
   getDocs,
   query,
   runTransaction,
+  setDoc,
   Timestamp,
-  updateDoc,
   where,
 } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
@@ -158,7 +158,7 @@ export async function updateUserSettingsInFirestore(
 ): Promise<void> {
   const userSettingsRef = doc(db, 'users', userId, 'settings', 'private');
 
-  await updateDoc(
+  await setDoc(
     userSettingsRef,
     {
       ...data,

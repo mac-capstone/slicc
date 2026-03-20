@@ -181,7 +181,7 @@ async function fetchUsersBatch(userIds: UserIdT[]): Promise<UserWithId[]> {
 
 export function useUsersAsPeople(
   userIds: UserIdT[],
-  colors: string[]
+  colors: string[] = []
 ): {
   people: (EventPerson & { id: UserIdT })[];
   isLoading: boolean;
@@ -202,36 +202,14 @@ export function useUsersAsPeople(
     const person: EventPerson & { id: UserIdT } = {
       id: user.id,
       name: user.displayName,
-      color: colorKeys.length > 0 ? colorKeys[index % colorKeys.length] : '',
+      color: colors.length > 0 ? colors[index % colors.length] : '',
       userRef: user.id,
       subtotal: 0,
       paid: 0,
     };
 
-<<<<<<< HEAD
-  const people = queries
-    .map((q, index) => {
-      const user = q.data;
-      if (!user) return null;
-
-      const person: EventPerson & { id: UserIdT } = {
-        id: user.id,
-        name: user.displayName,
-        color: colors[index % colors.length] ?? '',
-        userRef: user.id,
-        subtotal: 0,
-        paid: 0,
-      };
-
-      return person;
-    })
-    .filter(
-      (person): person is EventPerson & { id: UserIdT } => person !== null
-    );
-=======
     return person;
   });
->>>>>>> d440821 (fix: coderabbit changes)
 
   return { people, isLoading, isError };
 }
