@@ -108,7 +108,7 @@ export const useSearchUsers = createQuery<UserWithId[], string, Error>({
 
 export function useUsersAsPeople(
   userIds: UserIdT[],
-  colors: string[]
+  colorKeys: string[] = []
 ): {
   people: (EventPerson & { id: UserIdT })[];
   isLoading: boolean;
@@ -133,7 +133,7 @@ export function useUsersAsPeople(
       const person: EventPerson & { id: UserIdT } = {
         id: user.id,
         name: user.displayName,
-        color: colors[index % colors.length] ?? '',
+        color: colorKeys[index % colorKeys.length] ?? '',
         userRef: user.id,
         subtotal: 0,
         paid: 0,
