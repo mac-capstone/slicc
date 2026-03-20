@@ -535,7 +535,7 @@ function CreateItemCard() {
     addItem({
       id: uuidv4() as ItemIdT,
       name: tempItemName,
-      amount: baseAmount,
+      amount: totalWithTax,
       taxRate: taxRate,
       isTip: false,
       split: {

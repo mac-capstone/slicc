@@ -43,7 +43,6 @@ export const PersonCard = ({
   const paid = data.paid ?? 0;
   const remaining = Math.max(subtotal - paid, 0);
   const progress = subtotal > 0 ? Math.min(paid / subtotal, 1) : 0;
-
   return (
     <View className="flex min-h-20 w-full flex-col gap-2 rounded-xl bg-background-900 p-3">
       <View className="flex w-full flex-row justify-between gap-2">

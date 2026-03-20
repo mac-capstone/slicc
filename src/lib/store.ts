@@ -10,7 +10,7 @@ import {
 } from '@/types';
 
 import { getItem, removeItem, setItem } from './storage';
-import { createSelectors } from './utils';
+import { calculatePersonShare, createSelectors } from './utils';
 
 const TEMP_EXPENSE_KEY = 'temp-expense';
 type TempExpense = ExpenseWithId & {
@@ -38,6 +38,7 @@ interface ExpenseCreationState {
   removePersonFromItem: (itemId: ItemIdT, personId: string) => void;
   addPerson: (person: PersonWithId) => void;
   removePerson: (personId: string) => void;
+  updatePerson: (personId: string, updates: Partial<PersonWithId>) => void;
   clearTempExpense: () => void;
   clearTempExpenseItems: () => void;
   initializeTempExpense: (createdBy: UserIdT) => void;
@@ -155,70 +156,108 @@ const _useExpenseCreation = create<ExpenseCreationState>((set, get) => ({
 
   updateItemShare: (itemId, personId, newShare) => {
     const current = get().tempExpense;
-    if (current) {
-      const updatedItems = current.items.map((item) => {
-        if (item.id === itemId) {
-          const newShares = { ...item.split.shares, [personId]: newShare };
-          const newSplit = { ...item.split, shares: newShares };
-          return { ...item, split: newSplit };
-        }
-        return item;
-      });
-      const updated = {
-        ...current,
-        items: updatedItems,
+    if (!current) return;
+
+    // Update items
+    const oldItem = current.items.find((i) => i.id === itemId);
+    const updatedItems = current.items.map((item) => {
+      if (item.id !== itemId) return item;
+      return {
+        ...item,
+        split: {
+          ...item.split,
+          shares: { ...item.split.shares, [personId]: newShare },
+        },
       };
-      set({ tempExpense: updated });
-      setTempExpense(updated);
-    }
+    });
+
+    // Recalculate people subtotals using updated items
+    const updatedItem = updatedItems.find((i) => i.id === itemId);
+    const updatedPeople = current.people.map((person) => {
+      const oldShare = oldItem ? calculatePersonShare(oldItem, person.id) : 0;
+      const updatedShare = updatedItem
+        ? calculatePersonShare(updatedItem, person.id)
+        : 0;
+      const difference = updatedShare - oldShare;
+      if (!difference) return person;
+      return { ...person, subtotal: person.subtotal + difference };
+    });
+
+    const updated = { ...current, items: updatedItems, people: updatedPeople };
+    set({ tempExpense: updated });
+    setTempExpense(updated);
   },
 
   assignPersonToItem: (itemId, personId) => {
     const current = get().tempExpense;
-    if (current) {
-      const updatedItems = current.items.map((item) => {
-        if (item.id === itemId) {
-          const assignedPersonIds = [
-            ...(item.assignedPersonIds || []),
-            personId,
-          ];
-          const newShares = { ...item.split.shares, [personId]: 0 };
-          return {
-            ...item,
-            assignedPersonIds,
-            split: { ...item.split, shares: newShares },
-          };
-        }
-        return item;
-      });
-      const updated = { ...current, items: updatedItems };
-      set({ tempExpense: updated });
-      setTempExpense(updated);
-    }
+    if (!current) return;
+
+    // Update items
+    const updatedItems = current.items.map((item) => {
+      if (item.id !== itemId) return item;
+      if (item.assignedPersonIds?.includes(personId)) return item;
+      return {
+        ...item,
+        assignedPersonIds: [...(item.assignedPersonIds || []), personId],
+        split: {
+          ...item.split,
+          shares: { ...item.split.shares, [personId]: 1 },
+        },
+      };
+    });
+
+    // Recalculate people subtotals using updated items
+    const oldItem = current.items.find((i) => i.id === itemId);
+    const updatedItem = updatedItems.find((i) => i.id === itemId);
+    const updatedPeople = current.people.map((person) => {
+      const oldShare = oldItem ? calculatePersonShare(oldItem, person.id) : 0;
+      const newShare = updatedItem
+        ? calculatePersonShare(updatedItem, person.id)
+        : 0;
+      const difference = newShare - oldShare;
+      if (!difference) return person;
+      return { ...person, subtotal: person.subtotal + difference };
+    });
+
+    const updated = { ...current, items: updatedItems, people: updatedPeople };
+    set({ tempExpense: updated });
+    setTempExpense(updated);
   },
 
   removePersonFromItem: (itemId, personId) => {
     const current = get().tempExpense;
-    if (current) {
-      const updatedItems = current.items.map((item) => {
-        if (item.id === itemId) {
-          const assignedPersonIds = (item.assignedPersonIds || []).filter(
-            (id) => id !== personId
-          );
-          const newShares = { ...item.split.shares };
-          delete newShares[personId];
-          return {
-            ...item,
-            assignedPersonIds,
-            split: { ...item.split, shares: newShares },
-          };
-        }
-        return item;
-      });
-      const updated = { ...current, items: updatedItems };
-      set({ tempExpense: updated });
-      setTempExpense(updated);
-    }
+    if (!current) return;
+
+    // Update items
+    const oldItem = current.items.find((i) => i.id === itemId);
+    const updatedItems = current.items.map((item) => {
+      if (item.id !== itemId) return item;
+      const newShares = { ...item.split.shares };
+      delete newShares[personId];
+      return {
+        ...item,
+        assignedPersonIds: (item.assignedPersonIds || []).filter(
+          (id) => id !== personId
+        ),
+        split: { ...item.split, shares: newShares },
+      };
+    });
+
+    // Recalculate people subtotals using updated items
+    const updatedItem = updatedItems.find((i) => i.id === itemId);
+    const updatedPeople = current.people.map((person) => {
+      const oldShare = oldItem ? calculatePersonShare(oldItem, person.id) : 0;
+      const newShare = updatedItem
+        ? calculatePersonShare(updatedItem, person.id)
+        : 0;
+      const difference = newShare - oldShare;
+      if (!difference) return person;
+      return { ...person, subtotal: person.subtotal + difference };
+    });
+
+    const updated = { ...current, items: updatedItems, people: updatedPeople };
+    set({ tempExpense: updated });
+    setTempExpense(updated);
   },
 
   addPerson: (person) => {
@@ -245,6 +284,20 @@ const _useExpenseCreation = create<ExpenseCreationState>((set, get) => ({
         ...current,
         people: current.people.filter((p) => p.id !== personId),
         participantCount: current.people.length - 1,
+      };
+      set({ tempExpense: updated });
+      setTempExpense(updated);
+    }
+  },
+
+  updatePerson: (personId, updates) => {
+    const current = get().tempExpense;
+    if (current) {
+      const updated = {
+        ...current,
+        people: current.people.map((person) =>
+          person.id === personId ? { ...person, ...updates } : person
+        ),
       };
       set({ tempExpense: updated });
       setTempExpense(updated);

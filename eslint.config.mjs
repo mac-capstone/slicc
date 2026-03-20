@@ -45,7 +45,7 @@ export default defineConfig([
     },
     rules: {
       'max-params': ['error', 3],
-      'max-lines-per-function': ['error', 250],
+      'max-lines-per-function': ['error', 300],
       'tailwindcss/classnames-order': [
         'warn',
         {

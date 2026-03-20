@@ -1,9 +1,11 @@
 import Octicons from '@expo/vector-icons/Octicons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { doc, writeBatch } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
-import { FlatList } from 'react-native';
+import { Alert, FlatList } from 'react-native';
 
 import { queryClient } from '@/api';
+import { db } from '@/api/common/firebase';
 import { useExpense } from '@/api/expenses/use-expenses';
 import { usePerson } from '@/api/people/use-people';
 import { useUser } from '@/api/people/use-users';
@@ -16,7 +18,6 @@ import {
   Text,
   View,
 } from '@/components/ui';
-import { mockData } from '@/lib/mock-data';
 import { useThemeConfig } from '@/lib/use-theme-config';
 import { type ExpenseIdT, type UserIdT } from '@/types';
 
@@ -45,35 +46,60 @@ export default function SettleScreen() {
     }
   }, [data, initialized]);
 
-  const handleSavePayments = useCallback(() => {
-    // Update paid values in mock data (TODO: replace with firebase write)
-    const mockExpense = mockData.expenses.find((e) => e.id === expenseId);
-    if (mockExpense) {
-      mockExpense.people.forEach((p) => {
-        if (payments[p.id] !== undefined) {
-          p.doc.paid = payments[p.id];
-        }
+  const handleSavePayments = useCallback(async () => {
+    try {
+      const batch = writeBatch(db);
+      const expenseRef = doc(db, 'expenses', expenseId);
+
+      // Update each person's paid amount in the subcollection
+      let totalPaid = 0;
+      for (const [personId, paidAmount] of Object.entries(payments)) {
+        const personRef = doc(expenseRef, 'people', personId);
+        batch.update(personRef, { paid: paidAmount });
+        totalPaid += paidAmount;
+      }
+
+      // Update remainingAmount on the expense document
+      const totalAmount = data?.totalAmount ?? 0;
+      batch.update(expenseRef, {
+        remainingAmount: Math.max(totalAmount - totalPaid, 0),
       });
-      const totalPaid = mockExpense.people.reduce(
-        (sum, p) => sum + p.doc.paid,
-        0
-      );
-      mockExpense.doc.remainingAmount = Math.max(
-        mockExpense.doc.totalAmount - totalPaid,
-        0
-      );
+
+      await batch.commit();
+
+      // Update the cache directly with new data for immediate UI update
+      if (data) {
+        const updatedPeople = data.people.map((person) => ({
+          ...person,
+          paid: payments[person.id] ?? person.paid,
+        }));
+
+        queryClient.setQueryData(['expenses', expenseId], {
+          ...data,
+          people: updatedPeople,
+          remainingAmount: Math.max(totalAmount - totalPaid, 0),
+        });
+
+        // Also update individual person queries so PersonCard updates
+        for (const person of updatedPeople) {
+          queryClient.setQueryData(['people', expenseId, person.id], {
+            id: person.id,
+            subtotal: person.subtotal,
+            paid: person.paid,
+          });
+        }
+
+        // Also invalidate to ensure fresh data on next render
+        queryClient.invalidateQueries({ queryKey: ['expenses'] });
+        queryClient.invalidateQueries({ queryKey: ['people'] });
+      }
+
+      router.back();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save payments. Please try again.');
+      console.error('Error saving payments:', error);
     }
-
-    // Invalidate queries so the UI refreshes
-    queryClient.invalidateQueries({
-      queryKey: ['expenses'],
-    });
-    queryClient.invalidateQueries({
-      queryKey: ['people'],
-    });
-
-    router.back();
-  }, [expenseId, payments, router]);
+  }, [expenseId, payments, data, router]);
 
   if (isPending) {
     return (
@@ -246,11 +272,12 @@ function SettlePersonCard({
       <View className="flex-row items-center justify-between">
         <View className="flex-row items-center gap-3">
           <PersonAvatar size="lg" userId={personId} />
-          <View>
-            <Text className="font-futuraMedium text-lg dark:text-text-50">
-              {user?.displayName ?? 'Unknown'}
-            </Text>
-          </View>
+          <Text
+            numberOfLines={1}
+            className="font-futuraMedium text-lg dark:text-text-50"
+          >
+            {user?.displayName ?? 'Unknown'}
+          </Text>
         </View>
         <Text
           className={`font-futuraDemi text-lg ${currentPaid >= subtotal ? 'text-success-500 dark:text-success-500' : 'text-text-50 dark:text-text-50'}`}
