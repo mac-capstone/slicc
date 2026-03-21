@@ -27,7 +27,6 @@ type PublicUserDoc = {
   username?: string;
   displayName?: string;
   eTransferEmail?: string;
-  bankPreference?: BankPreference;
 };
 
 type UserSettingsDoc = {
@@ -53,7 +52,6 @@ function mapPublicUserDataToUserWithId(
     displayName,
     eTransferEmail:
       typeof data.eTransferEmail === 'string' ? data.eTransferEmail : undefined,
-    bankPreference: data.bankPreference,
   };
 }
 

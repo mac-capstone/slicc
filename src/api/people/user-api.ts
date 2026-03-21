@@ -162,19 +162,22 @@ export async function updateUserSettingsInFirestore(
 
   await Promise.all([
     // Private settings (dietary, location, etc.)
-    setDoc(userSettingsRef, {
-      dietaryPreferences: data.dietaryPreferences || deleteField(),
-      locationPreference: data.locationPreference?.trim() || deleteField(),
-      eTransferEmail: data.eTransferEmail?.trim() || deleteField(),
-      bankPreference: data.bankPreference,
-      updatedAt: now,
-    }),
-    // Payment info lives on the public doc so group members can read it
+    setDoc(
+      userSettingsRef,
+      {
+        dietaryPreferences: data.dietaryPreferences || deleteField(),
+        locationPreference: data.locationPreference?.trim() || deleteField(),
+        eTransferEmail: data.eTransferEmail?.trim() || deleteField(),
+        bankPreference: data.bankPreference,
+        updatedAt: now,
+      },
+      { merge: true }
+    ),
+    // eTransferEmail lives on the public doc so group members can read it for e-Transfer
     setDoc(
       userRef,
       {
         eTransferEmail: data.eTransferEmail?.trim() || deleteField(),
-        bankPreference: data.bankPreference ?? deleteField(),
         updatedAt: now,
       },
       { merge: true }

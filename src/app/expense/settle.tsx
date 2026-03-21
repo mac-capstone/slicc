@@ -22,7 +22,7 @@ import {
 import { useAuth } from '@/lib';
 import { getBankLabel, openBankFlow } from '@/lib/payment-utils';
 import { useThemeConfig } from '@/lib/use-theme-config';
-import { type BankPreference, type ExpenseIdT, type UserIdT } from '@/types';
+import { type ExpenseIdT, type UserIdT } from '@/types';
 
 export default function SettleScreen() {
   const router = useRouter();
@@ -232,7 +232,6 @@ export default function SettleScreen() {
                 payerUserId,
                 displayName: payerUser?.displayName,
                 eTransferEmail: payerUser?.eTransferEmail,
-                bankPreference: payerUser?.bankPreference,
               }}
               onUpdatePaid={(newPaid) =>
                 setPayments((prev) => ({ ...prev, [item.id]: newPaid }))
@@ -395,7 +394,6 @@ function SettlePersonCard({
     payerUserId: string | null;
     displayName?: string;
     eTransferEmail?: string;
-    bankPreference?: BankPreference;
   };
   onUpdatePaid: (newPaid: number) => void;
 }) {
@@ -403,6 +401,11 @@ function SettlePersonCard({
     variables: { expenseId, personId },
   });
   const { data: user } = useUser({ variables: personId });
+  const currentUserId = useAuth.use.userId();
+  const { data: currentUser } = useUser({
+    variables: (currentUserId ?? undefined) as UserIdT | undefined,
+    enabled: Boolean(currentUserId),
+  });
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState('');
 
@@ -466,7 +469,7 @@ function SettlePersonCard({
 
   const handleOpenBank = async () => {
     try {
-      await openBankFlow(payerInfo.bankPreference);
+      await openBankFlow(currentUser?.bankPreference);
     } catch (error) {
       console.error('[settle] failed to open bank flow', error);
       Alert.alert(
@@ -605,7 +608,7 @@ function SettlePersonCard({
             onPress={handleOpenBank}
           >
             <Text className="font-futuraDemi text-sm text-accent-100">
-              Open {getBankLabel(payerInfo.bankPreference)}
+              Open {getBankLabel(currentUser?.bankPreference)}
             </Text>
           </Pressable>
         </View>
