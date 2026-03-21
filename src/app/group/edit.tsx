@@ -119,9 +119,12 @@ function MemberRow({
   return (
     <View className="flex-row items-center border-b border-neutral-800 py-3">
       <UserAvatar userId={user.id} size={36} />
-      <Text className="ml-3 flex-1 text-base text-white">
-        {user.displayName}
-      </Text>
+      <View className="ml-3 flex-1">
+        <Text className="text-base text-white">{user.displayName}</Text>
+        {user.username ? (
+          <Text className="text-xs text-gray-400">@{user.username}</Text>
+        ) : null}
+      </View>
       {isMember ? (
         <Pressable onPress={onToggle}>
           <Text className="text-sm font-semibold text-red-500">Remove</Text>

@@ -113,7 +113,7 @@ export default function ExpenseView() {
         if (eventId) {
           router.replace(`/event/${eventId}/expenses` as any);
         } else {
-          router.push('/');
+          router.replace(`/expense/${expenseDocRef.id}` as any);
         }
         return;
       }
@@ -155,13 +155,21 @@ export default function ExpenseView() {
                           queryClient.invalidateQueries({
                             queryKey: ['expenses', 'expenseId', id],
                           });
-                          router.replace('/');
+                          if (eventId) {
+                            router.replace(`/event/${eventId}/expenses` as any);
+                          } else {
+                            router.replace('/expenses' as any);
+                          }
                         },
                       },
                     ]
                   );
                 } else {
-                  router.back();
+                  if (eventId) {
+                    router.replace(`/event/${eventId}/expenses` as any);
+                  } else {
+                    router.replace('/expenses' as any);
+                  }
                 }
                 return true;
               }}

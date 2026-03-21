@@ -27,7 +27,12 @@ import { useEvent } from '@/api/events/use-events';
 import { useExpense } from '@/api/expenses/use-expenses';
 import { useItem } from '@/api/items/use-items';
 import { usePeopleIdsForItem } from '@/api/people/use-people';
-import { useUsersAsPeople } from '@/api/people/use-users';
+import {
+  useSearchUsers,
+  useUser,
+  useUsersAsPeople,
+} from '@/api/people/use-users';
+import { type UserWithId } from '@/api/people/use-users';
 import { colors } from '@/components/ui';
 import { useExpenseCreation } from '@/lib/store';
 import {
@@ -94,6 +99,12 @@ function ExpensePersonRow({
   isAssigned: boolean;
   onToggle: () => Promise<void>;
 }) {
+  const isRealUser = person.userRef != null;
+  const { data: userData } = useUser({
+    variables: (person.userRef ?? person.id) as UserIdT,
+    enabled: isRealUser,
+  });
+
   return (
     <View className="mb-2 flex-row items-center justify-between rounded-lg border border-text-900 p-3">
       <View className="flex-row items-center">
@@ -103,7 +114,12 @@ function ExpensePersonRow({
           inSplitView
           isSelected={isAssigned}
         />
-        <Text className="ml-3 text-white">{person.name}</Text>
+        <View className="ml-3">
+          <Text className="text-white">{person.name}</Text>
+          {isRealUser && userData?.username ? (
+            <Text className="text-xs text-gray-400">@{userData.username}</Text>
+          ) : null}
+        </View>
       </View>
       <TouchableOpacity
         onPress={onToggle}
@@ -163,6 +179,47 @@ function EventParticipantRow({
   );
 }
 
+// ── Row for a real user found via search ─────────────────────────────────────
+function UserSearchRow({
+  user,
+  onAdd,
+  disabled,
+}: {
+  user: UserWithId;
+  onAdd: (user: UserWithId) => Promise<void>;
+  disabled: boolean;
+}) {
+  return (
+    <View className="mb-2 flex-row items-center justify-between rounded-lg border border-text-900 p-3">
+      <View className="flex-row items-center">
+        <PersonAvatar
+          size="sm"
+          userId={user.id}
+          inSplitView
+          isSelected={false}
+        />
+        <View className="ml-3">
+          <Text className="text-white">{user.displayName}</Text>
+          {user.username ? (
+            <Text className="text-xs text-gray-400">@{user.username}</Text>
+          ) : null}
+        </View>
+      </View>
+      <TouchableOpacity
+        onPress={() => onAdd(user)}
+        disabled={disabled}
+        className="bg-background-700 rounded-lg px-4 py-2"
+        activeOpacity={0.8}
+      >
+        <View className="flex-row items-center">
+          <Ionicons name="add" size={16} color="#9ca3af" />
+          <Text className="ml-1 font-bold text-gray-400">Add</Text>
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 // ── Modal containing the full people management UI ───────────────────────────
 function ManagePeopleModal({
   visible,
@@ -180,6 +237,7 @@ function ManagePeopleModal({
   onPersonNameChange,
   previewColor,
   onAddGuest,
+  onAddRealUser,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -199,7 +257,15 @@ function ManagePeopleModal({
   onPersonNameChange: (name: string) => void;
   previewColor: string;
   onAddGuest: () => Promise<void>;
+  onAddRealUser: (user: UserWithId) => Promise<void>;
 }) {
+  const [userSearch, setUserSearch] = useState('');
+  const { data: searchResults = [] } = useSearchUsers({
+    variables: userSearch,
+    enabled: !eventId && userSearch.trim().length > 1,
+  });
+  const visibleSearchResults = searchResults.filter((u) => !addedIds.has(u.id));
+
   return (
     <Modal
       visible={visible}
@@ -219,11 +285,33 @@ function ManagePeopleModal({
             Manage People
           </Text>
 
+          {/* User search — only in non-event mode */}
+          {!eventId && (
+            <TextInput
+              className="mb-3 rounded-lg border border-text-900 px-3 py-2 text-white"
+              placeholder="Search users to add..."
+              placeholderTextColor="#6b7280"
+              value={userSearch}
+              onChangeText={setUserSearch}
+            />
+          )}
+
           <ScrollView
             className="mb-4"
             style={{ maxHeight: 300 }}
             showsVerticalScrollIndicator
           >
+            {/* Search results (non-event mode) */}
+            {!eventId &&
+              visibleSearchResults.map((user) => (
+                <UserSearchRow
+                  key={user.id}
+                  user={user}
+                  onAdd={onAddRealUser}
+                  disabled={maxPeopleReached}
+                />
+              ))}
+
             {eventId
               ? combinedRows.map((participant, index) => {
                   const isInExpense = addedIds.has(participant.id);
@@ -454,6 +542,34 @@ export const AddRemovePerson = ({ itemID, expenseId, eventId }: Props) => {
     await invalidateItem();
   };
 
+  // ── Add a real app user to the expense (via search) ──────────────────────
+  const handleAddRealUser = async (user: UserWithId) => {
+    if (maxPeopleReached) return;
+    if (isTempExpense) {
+      const newPerson: PersonWithId = {
+        id: user.id,
+        name: user.displayName,
+        color: randomColor(),
+        userRef: user.id,
+        subtotal: 0,
+        paid: 0,
+      };
+      addPerson(newPerson);
+    } else {
+      try {
+        const personRef = doc(db, 'expenses', expenseId, 'people', user.id);
+        await writeBatch(db).set(personRef, { subtotal: 0, paid: 0 }).commit();
+      } catch (error) {
+        console.error('Failed to add user:', error);
+        Alert.alert('Error', 'Failed to add user. Please try again.');
+        return;
+      }
+    }
+    await invalidateExpense();
+    await invalidateItemPeople();
+    await invalidateItem();
+  };
+
   // ── Add an event participant to the expense ───────────────────────────────
   const handleAddEventParticipant = async (
     participant: EventPerson & { id: UserIdT }
@@ -518,6 +634,7 @@ export const AddRemovePerson = ({ itemID, expenseId, eventId }: Props) => {
         onPersonNameChange={setNewPersonName}
         previewColor={previewColor}
         onAddGuest={handleAddManualPerson}
+        onAddRealUser={handleAddRealUser}
       />
 
       <View className="pb-4">

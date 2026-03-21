@@ -42,6 +42,7 @@ import {
   type EventIdT,
   type ItemIdT,
   type ItemWithId,
+  type PersonWithId,
   type UserIdT,
 } from '@/types';
 
@@ -157,6 +158,8 @@ export default function AddExpense() {
     removeItem,
     addItem,
   } = useExpenseCreation();
+  const addPerson = useExpenseCreation.use.addPerson();
+  const avatarColors = useMemo(() => Object.keys(colors.avatar ?? {}), []);
 
   const currentPayerId = tempExpense?.payerUserId;
   const payerOptions = useMainPayerOptions({
@@ -214,6 +217,34 @@ export default function AddExpense() {
       initializeTempExpense(userId);
     }
   }, [userId, tempExpense, initializeTempExpense]);
+
+  // For standalone (non-event) expenses, auto-add the signed-in user as a person
+  // so they appear in the split view as the default payer.
+  useEffect(() => {
+    if (eventId) return;
+    if (!tempExpense || !userId || !signedInUser?.displayName) return;
+    const alreadyAdded = tempExpense.people.some((p) => p.id === userId);
+    if (!alreadyAdded) {
+      const color =
+        avatarColors[Math.floor(Math.random() * avatarColors.length)] ??
+        'white';
+      addPerson({
+        id: userId as UserIdT,
+        name: signedInUser.displayName,
+        color,
+        userRef: userId,
+        subtotal: 0,
+        paid: 0,
+      } as PersonWithId);
+    }
+  }, [
+    eventId,
+    tempExpense,
+    userId,
+    signedInUser?.displayName,
+    addPerson,
+    avatarColors,
+  ]);
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener(
@@ -356,7 +387,11 @@ export default function AddExpense() {
         nextDisabled={getTotalAmount() === 0 || expenseName === ''}
         onNextPress={() => {
           setExpenseNameInStore(expenseName);
-          router.push(`/expense/split-expense?eventId=${eventId}`);
+          router.push(
+            eventId
+              ? `/expense/split-expense?eventId=${eventId}`
+              : '/expense/split-expense'
+          );
         }}
         totalAmount={getTotalAmount()}
         hasPrevious={false}
