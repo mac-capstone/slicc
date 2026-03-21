@@ -336,6 +336,7 @@ export default function AddExpense() {
                   totalAmount={getTotalAmount()}
                   addItem={addItem}
                   removeItem={removeItem}
+                  defaultTipRate={signedInUser?.defaultTipRate}
                 />
               </View>
             }
@@ -596,7 +597,13 @@ function getItemAndAmountFromTaggedWords(taggedWords: any[]): {
 }
 
 function CreateItemCard() {
-  const { defaultTaxRate } = useDefaultTaxRate();
+  const userId = useAuth.use.userId();
+  const { data: signedInUser } = useUser({
+    variables: userId as UserIdT,
+    enabled: Boolean(userId),
+  });
+  const { defaultTaxRate: mmkvDefaultTaxRate } = useDefaultTaxRate();
+  const defaultTaxRate = signedInUser?.defaultTaxRate ?? mmkvDefaultTaxRate;
   const [tempItemName, setTempItemName] = useState<string>('');
   const [tempItemAmount, setTempItemAmount] = useState<string>('');
   const [tempItemTaxStr, setTempItemTaxStr] = useState<string>('');
@@ -759,15 +766,21 @@ function AddTipButton({
   totalAmount,
   addItem,
   removeItem,
+  defaultTipRate,
 }: {
   existingTip: ItemWithId | undefined;
   totalAmount: number;
   addItem: (item: ItemWithId) => void;
   removeItem: (itemId: ItemIdT) => void;
+  defaultTipRate?: number;
 }) {
   const [modalVisible, setModalVisible] = useState(false);
-  const [tipMode, setTipMode] = useState<'flat' | 'percentage'>('flat');
-  const [tipInput, setTipInput] = useState<string>('');
+  const [tipMode, setTipMode] = useState<'flat' | 'percentage'>(
+    defaultTipRate ? 'percentage' : 'flat'
+  );
+  const [tipInput, setTipInput] = useState<string>(
+    defaultTipRate ? defaultTipRate.toString() : ''
+  );
 
   const subtotalWithoutTip = useMemo(() => {
     if (existingTip) {

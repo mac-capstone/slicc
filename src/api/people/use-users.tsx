@@ -34,6 +34,8 @@ type UserSettingsDoc = {
   locationPreference?: string;
   eTransferEmail?: string;
   bankPreference?: BankPreference;
+  defaultTaxRate?: number;
+  defaultTipRate?: number;
 };
 
 function mapPublicUserDataToUserWithId(
@@ -69,6 +71,10 @@ function mapSettingsData(data: UserSettingsDoc): Partial<UserWithId> {
     eTransferEmail:
       typeof data.eTransferEmail === 'string' ? data.eTransferEmail : undefined,
     bankPreference: data.bankPreference,
+    defaultTaxRate:
+      typeof data.defaultTaxRate === 'number' ? data.defaultTaxRate : undefined,
+    defaultTipRate:
+      typeof data.defaultTipRate === 'number' ? data.defaultTipRate : undefined,
   };
 }
 

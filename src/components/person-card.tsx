@@ -58,7 +58,7 @@ export const PersonCard = ({
           <PersonAvatar userId={personId} size="lg" />
           <View className="flex flex-col">
             <Text className="font-futuraMedium text-xl dark:text-text-50">
-              {user?.displayName ?? 'Unknown'}
+              {user?.displayName ?? data.guestName ?? 'Unknown'}
             </Text>
             {isPayer && (
               <Text className="text-xs font-bold text-accent-100">

@@ -64,6 +64,8 @@ export const userSettingsSchema = z.object({
       'other',
     ])
     .optional(),
+  defaultTaxRate: z.number().optional(),
+  defaultTipRate: z.number().optional(),
   updatedAt: firestoreTimestamp.optional(),
 });
 
@@ -133,6 +135,7 @@ export const expenseConverter = zodConverter(expenseSchema);
 export const expensePersonSchema = z.object({
   subtotal: z.number(),
   paid: z.number(),
+  guestName: z.string().optional(),
 });
 
 export const expensePersonConverter = zodConverter(expensePersonSchema);

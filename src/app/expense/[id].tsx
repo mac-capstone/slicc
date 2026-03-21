@@ -84,9 +84,11 @@ export default function ExpenseView() {
         if (data.people) {
           data.people.forEach((person) => {
             const personDocRef = doc(expenseDocRef, 'people', person.id);
+            const isGuest = person.userRef === null;
             batch.set(personDocRef, {
               subtotal: person.subtotal,
               paid: person.paid ?? 0,
+              ...(isGuest && person.name ? { guestName: person.name } : {}),
             });
           });
         }

@@ -73,7 +73,7 @@ function getCombinedEventParticipantRows(
     const pw = p as PersonWithId;
     rows.push({
       id: p.id as UserIdT,
-      name: pw.name ?? 'Unknown',
+      name: pw.name ?? pw.guestName ?? 'Unknown',
       color: pw.color ?? '',
       userRef: (pw.userRef ?? p.id) as string,
       subtotal: pw.subtotal,
@@ -160,6 +160,166 @@ function EventParticipantRow({
         </View>
       </TouchableOpacity>
     </View>
+  );
+}
+
+// ── Modal containing the full people management UI ───────────────────────────
+function ManagePeopleModal({
+  visible,
+  onClose,
+  eventId,
+  people,
+  combinedRows,
+  addedIds,
+  assignedPeopleIds,
+  avatarColors,
+  maxPeopleReached,
+  makeToggleHandler,
+  onAddParticipant,
+  newPersonName,
+  onPersonNameChange,
+  previewColor,
+  onAddGuest,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  eventId?: EventIdT;
+  people: PersonWithId[];
+  combinedRows: (EventPerson & { id: UserIdT })[];
+  addedIds: Set<string>;
+  assignedPeopleIds: UserIdT[];
+  avatarColors: string[];
+  maxPeopleReached: boolean;
+  makeToggleHandler: (
+    personId: string,
+    isAssigned: boolean
+  ) => () => Promise<void>;
+  onAddParticipant: (p: EventPerson & { id: UserIdT }) => Promise<void>;
+  newPersonName: string;
+  onPersonNameChange: (name: string) => void;
+  previewColor: string;
+  onAddGuest: () => Promise<void>;
+}) {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <Pressable
+        className="flex-1 items-center justify-center bg-black/80"
+        onPress={onClose}
+      >
+        <Pressable
+          className="mx-4 w-full rounded-xl border border-text-900 bg-black p-6"
+          onPress={(e) => e.stopPropagation()}
+        >
+          <Text className="mb-4 text-center text-lg font-bold text-white">
+            Manage People
+          </Text>
+
+          <ScrollView
+            className="mb-4"
+            style={{ maxHeight: 300 }}
+            showsVerticalScrollIndicator
+          >
+            {eventId
+              ? combinedRows.map((participant, index) => {
+                  const isInExpense = addedIds.has(participant.id);
+                  const isAssigned =
+                    isInExpense &&
+                    assignedPeopleIds.includes(participant.id as UserIdT);
+
+                  if (isInExpense) {
+                    const expensePerson = people.find(
+                      (p) => p.id === participant.id
+                    );
+                    const displayPerson: PersonWithId = {
+                      id: participant.id,
+                      name: participant.name,
+                      color: avatarColors[index % avatarColors.length],
+                      userRef: participant.id,
+                      subtotal: expensePerson?.subtotal ?? 0,
+                      paid: expensePerson?.paid ?? 0,
+                    };
+                    return (
+                      <ExpensePersonRow
+                        key={participant.id}
+                        person={displayPerson}
+                        isAssigned={isAssigned}
+                        onToggle={makeToggleHandler(participant.id, isAssigned)}
+                      />
+                    );
+                  }
+
+                  return (
+                    <EventParticipantRow
+                      key={participant.id}
+                      participant={participant}
+                      onAdd={onAddParticipant}
+                      disabled={maxPeopleReached}
+                    />
+                  );
+                })
+              : people.map((person) => {
+                  const isAssigned = assignedPeopleIds.includes(
+                    person.id as UserIdT
+                  );
+                  return (
+                    <ExpensePersonRow
+                      key={person.id}
+                      person={person}
+                      isAssigned={isAssigned}
+                      onToggle={makeToggleHandler(person.id, isAssigned)}
+                    />
+                  );
+                })}
+          </ScrollView>
+
+          {/* Manual add row — add a guest who doesn't have the app */}
+          <View className="flex-row items-center rounded-lg border border-text-900 p-3">
+            <View
+              className="size-8 items-center justify-center rounded-full"
+              style={{
+                backgroundColor:
+                  (colors.avatar as Record<string, string>)[previewColor] ||
+                  previewColor,
+              }}
+            >
+              <Octicons name="person" size={15} color="#D4D4D4" />
+            </View>
+            <TextInput
+              className="ml-3 flex-1 text-white"
+              placeholder="Add guest (no app)"
+              placeholderTextColor="#6b7280"
+              value={newPersonName}
+              onChangeText={onPersonNameChange}
+            />
+            <TouchableOpacity
+              onPress={onAddGuest}
+              disabled={maxPeopleReached || !newPersonName.trim()}
+              className={`rounded-lg px-4 py-2 ${
+                maxPeopleReached || !newPersonName.trim()
+                  ? 'bg-background-700'
+                  : 'bg-primary-500'
+              }`}
+              activeOpacity={0.8}
+            >
+              <Text
+                className={`font-bold ${
+                  maxPeopleReached || !newPersonName.trim()
+                    ? 'text-gray-500'
+                    : 'text-white'
+                }`}
+              >
+                Add
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -254,23 +414,44 @@ export const AddRemovePerson = ({ itemID, expenseId, eventId }: Props) => {
       await invalidateItem();
     };
 
-  // ── Add a manual (pseudo) person — only in non-event mode ─────────────────
+  // ── Add a manual (pseudo) person ─────────────────────────────────────────
   const handleAddManualPerson = async () => {
     if (maxPeopleReached || !newPersonName.trim()) return;
-    const newPerson: PersonWithId = {
-      id: uuidv4() as PersonIdT,
-      name: newPersonName.trim(),
-      color: previewColor,
-      userRef: null,
-      subtotal: 0,
-      paid: 0,
-    };
-    addPerson(newPerson);
+    const newPersonId = uuidv4() as PersonIdT;
+    const trimmedName = newPersonName.trim();
+
+    if (isTempExpense) {
+      const newPerson: PersonWithId = {
+        id: newPersonId,
+        name: trimmedName,
+        color: previewColor,
+        userRef: null,
+        subtotal: 0,
+        paid: 0,
+      };
+      addPerson(newPerson);
+    } else {
+      try {
+        const batch = writeBatch(db);
+        const personRef = doc(db, 'expenses', expenseId, 'people', newPersonId);
+        const itemRef = doc(db, 'expenses', expenseId, 'items', itemID);
+        batch.set(personRef, { subtotal: 0, paid: 0, guestName: trimmedName });
+        batch.update(itemRef, {
+          assignedPersonIds: arrayUnion(newPersonId),
+        });
+        await batch.commit();
+      } catch (error) {
+        console.error('Failed to add guest:', error);
+        Alert.alert('Error', 'Failed to add guest. Please try again.');
+        return;
+      }
+    }
+
     setNewPersonName('');
     setPreviewColor(randomColor());
-    await queryClient.invalidateQueries({
-      queryKey: ['expenses', 'expenseId', expenseId],
-    });
+    await invalidateExpense();
+    await invalidateItemPeople();
+    await invalidateItem();
   };
 
   // ── Add an event participant to the expense ───────────────────────────────
@@ -321,131 +502,23 @@ export const AddRemovePerson = ({ itemID, expenseId, eventId }: Props) => {
 
   return (
     <View className="bg-transparent p-4">
-      <Modal
+      <ManagePeopleModal
         visible={modalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <Pressable
-          className="flex-1 items-center justify-center bg-black/80"
-          onPress={() => setModalVisible(false)}
-        >
-          <Pressable
-            className="mx-4 w-full rounded-xl border border-text-900 bg-black p-6"
-            onPress={(e) => e.stopPropagation()}
-          >
-            <Text className="mb-4 text-center text-lg font-bold text-white">
-              Manage People
-            </Text>
-
-            <ScrollView
-              className="mb-4"
-              style={{ maxHeight: 300 }}
-              showsVerticalScrollIndicator
-            >
-              {eventId
-                ? combinedEventParticipantRows.map((participant, index) => {
-                    const isInExpense = addedIds.has(participant.id);
-                    const isAssigned =
-                      isInExpense &&
-                      assignedPeopleIds.includes(participant.id as UserIdT);
-
-                    if (isInExpense) {
-                      // Merge display data from user profile with expense data
-                      const expensePerson = people.find(
-                        (p) => p.id === participant.id
-                      );
-                      const displayPerson: PersonWithId = {
-                        id: participant.id,
-                        name: participant.name,
-                        color: avatarColors[index % avatarColors.length],
-                        userRef: participant.id,
-                        subtotal: expensePerson?.subtotal ?? 0,
-                        paid: expensePerson?.paid ?? 0,
-                      };
-                      return (
-                        <ExpensePersonRow
-                          key={participant.id}
-                          person={displayPerson}
-                          isAssigned={isAssigned}
-                          onToggle={makeToggleHandler(
-                            participant.id,
-                            isAssigned
-                          )}
-                        />
-                      );
-                    }
-
-                    return (
-                      <EventParticipantRow
-                        key={participant.id}
-                        participant={participant}
-                        onAdd={handleAddEventParticipant}
-                        disabled={maxPeopleReached}
-                      />
-                    );
-                  })
-                : people.map((person) => {
-                    const isAssigned =
-                      !!itemID &&
-                      assignedPeopleIds.includes(person.id as UserIdT);
-                    return (
-                      <ExpensePersonRow
-                        key={person.id}
-                        person={person}
-                        isAssigned={isAssigned}
-                        onToggle={makeToggleHandler(person.id, isAssigned)}
-                      />
-                    );
-                  })}
-            </ScrollView>
-
-            {/* Manual add row — only shown when not in event mode */}
-            {!eventId && (
-              <View className="flex-row items-center rounded-lg border border-text-900 p-3">
-                <View
-                  className="size-8 items-center justify-center rounded-full"
-                  style={{
-                    backgroundColor:
-                      (colors.avatar as Record<string, string>)[previewColor] ||
-                      previewColor,
-                  }}
-                >
-                  <Octicons name="person" size={15} color="#D4D4D4" />
-                </View>
-                <TextInput
-                  className="ml-3 flex-1 text-white"
-                  placeholder="Enter name here"
-                  placeholderTextColor="#6b7280"
-                  value={newPersonName}
-                  onChangeText={setNewPersonName}
-                />
-                <TouchableOpacity
-                  onPress={handleAddManualPerson}
-                  disabled={maxPeopleReached || !newPersonName.trim()}
-                  className={`rounded-lg px-4 py-2 ${
-                    maxPeopleReached || !newPersonName.trim()
-                      ? 'bg-background-700'
-                      : 'bg-primary-500'
-                  }`}
-                  activeOpacity={0.8}
-                >
-                  <Text
-                    className={`font-bold ${
-                      maxPeopleReached || !newPersonName.trim()
-                        ? 'text-gray-500'
-                        : 'text-white'
-                    }`}
-                  >
-                    Add
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </Pressable>
-        </Pressable>
-      </Modal>
+        onClose={() => setModalVisible(false)}
+        eventId={eventId}
+        people={people}
+        combinedRows={combinedEventParticipantRows}
+        addedIds={addedIds}
+        assignedPeopleIds={assignedPeopleIds}
+        avatarColors={avatarColors}
+        maxPeopleReached={maxPeopleReached}
+        makeToggleHandler={makeToggleHandler}
+        onAddParticipant={handleAddEventParticipant}
+        newPersonName={newPersonName}
+        onPersonNameChange={setNewPersonName}
+        previewColor={previewColor}
+        onAddGuest={handleAddManualPerson}
+      />
 
       <View className="pb-4">
         <TouchableOpacity

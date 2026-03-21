@@ -489,7 +489,7 @@ function SettlePersonCard({
             numberOfLines={1}
             className="font-futuraMedium text-lg dark:text-text-50"
           >
-            {user?.displayName ?? 'Unknown'}
+            {user?.displayName ?? data.guestName ?? 'Unknown'}
           </Text>
         </View>
         <Text

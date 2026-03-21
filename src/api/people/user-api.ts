@@ -102,6 +102,8 @@ export type UpdateUserSettingsData = {
   locationPreference?: string;
   eTransferEmail?: string;
   bankPreference?: BankPreference;
+  defaultTaxRate?: number;
+  defaultTipRate?: number;
 };
 
 export class UserAlreadyExistsError extends Error {
@@ -169,6 +171,8 @@ export async function updateUserSettingsInFirestore(
         locationPreference: data.locationPreference?.trim() || deleteField(),
         eTransferEmail: data.eTransferEmail?.trim() || deleteField(),
         bankPreference: data.bankPreference,
+        defaultTaxRate: data.defaultTaxRate ?? deleteField(),
+        defaultTipRate: data.defaultTipRate ?? deleteField(),
         updatedAt: now,
       },
       { merge: true }
@@ -183,4 +187,20 @@ export async function updateUserSettingsInFirestore(
       { merge: true }
     ),
   ]);
+}
+
+export async function updateDefaultRatesInFirestore(
+  userId: string,
+  data: { defaultTaxRate?: number; defaultTipRate?: number }
+): Promise<void> {
+  const userSettingsRef = doc(db, 'users', userId, 'settings', 'private');
+  await setDoc(
+    userSettingsRef,
+    {
+      defaultTaxRate: data.defaultTaxRate ?? deleteField(),
+      defaultTipRate: data.defaultTipRate ?? deleteField(),
+      updatedAt: Timestamp.now(),
+    },
+    { merge: true }
+  );
 }
