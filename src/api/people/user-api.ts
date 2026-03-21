@@ -9,6 +9,7 @@ import {
   setDoc,
   Timestamp,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 
@@ -162,31 +163,29 @@ export async function updateUserSettingsInFirestore(
   const userSettingsRef = doc(db, 'users', userId, 'settings', 'private');
   const now = Timestamp.now();
 
-  await Promise.all([
-    // Private settings (dietary, location, etc.)
-    setDoc(
-      userSettingsRef,
-      {
-        dietaryPreferences: data.dietaryPreferences || deleteField(),
-        locationPreference: data.locationPreference?.trim() || deleteField(),
-        eTransferEmail: data.eTransferEmail?.trim() || deleteField(),
-        bankPreference: data.bankPreference,
-        defaultTaxRate: data.defaultTaxRate ?? deleteField(),
-        defaultTipRate: data.defaultTipRate ?? deleteField(),
-        updatedAt: now,
-      },
-      { merge: true }
-    ),
-    // eTransferEmail lives on the public doc so group members can read it for e-Transfer
-    setDoc(
-      userRef,
-      {
-        eTransferEmail: data.eTransferEmail?.trim() || deleteField(),
-        updatedAt: now,
-      },
-      { merge: true }
-    ),
-  ]);
+  const batch = writeBatch(db);
+  batch.set(
+    userSettingsRef,
+    {
+      dietaryPreferences: data.dietaryPreferences || deleteField(),
+      locationPreference: data.locationPreference?.trim() || deleteField(),
+      eTransferEmail: data.eTransferEmail?.trim() || deleteField(),
+      bankPreference: data.bankPreference ?? deleteField(),
+      defaultTaxRate: data.defaultTaxRate ?? deleteField(),
+      defaultTipRate: data.defaultTipRate ?? deleteField(),
+      updatedAt: now,
+    },
+    { merge: true }
+  );
+  batch.set(
+    userRef,
+    {
+      eTransferEmail: data.eTransferEmail?.trim() || deleteField(),
+      updatedAt: now,
+    },
+    { merge: true }
+  );
+  await batch.commit();
 }
 
 export async function updateDefaultRatesInFirestore(
