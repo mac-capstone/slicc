@@ -46,6 +46,17 @@ export async function fetchEvent(eventId: EventIdT): Promise<EventWithId> {
   return { id: eventId, ...eventSnap.data() };
 }
 
+export async function fetchEventsByGroupId(
+  groupId: string
+): Promise<EventWithId[]> {
+  const groupEventsQuery = query(eventsRef, where('groupId', '==', groupId));
+  const snapshot = await getDocs(groupEventsQuery);
+  return snapshot.docs.map((eventDoc) => ({
+    id: eventDoc.id as EventIdT,
+    ...eventDoc.data(),
+  }));
+}
+
 // ── Queries ──────────────────────────────────────────────────────────────────
 
 type UseEventsOptions = {
@@ -80,17 +91,7 @@ export function useEventsByGroupId({
 }: UseEventsByGroupOptions) {
   return useQuery({
     queryKey: [...eventKeys.all, 'groupId', groupId],
-    queryFn: async () => {
-      const groupEventsQuery = query(
-        eventsRef,
-        where('groupId', '==', groupId)
-      );
-      const snapshot = await getDocs(groupEventsQuery);
-      return snapshot.docs.map((eventDoc) => ({
-        id: eventDoc.id as EventIdT,
-        ...eventDoc.data(),
-      }));
-    },
+    queryFn: () => fetchEventsByGroupId(groupId),
     enabled: enabled && Boolean(groupId),
   });
 }
