@@ -53,72 +53,68 @@ const BANK_LAUNCH_CONFIG: Record<BankPreference, BankLaunchConfig> = {
   },
   rbc: {
     appDeepLink: 'rbcmobile://',
-    webUrl:
-      'https://www.rbcroyalbank.com/ways-to-bank/mobile/rbc-mobile-app.html',
+    webUrl: 'https://www.rbcroyalbank.com/',
   },
   td: {
     appDeepLink: 'tdct://',
-    webUrl:
-      'https://www.td.com/ca/en/personal-banking/how-to/ways-to-bank/mobile-app',
+    webUrl: 'https://www.td.com/ca/en/personal-banking',
   },
   scotia: {
     appDeepLink: 'scotiabank://',
-    webUrl:
-      'https://www.scotiabank.com/ca/en/personal/ways-to-bank/mobile.html',
+    webUrl: 'https://www.scotiabank.com/ca/en/personal/bank-accounts.html',
   },
   cibc: {
     appDeepLink: 'cibcmobilebanking://',
-    webUrl: 'https://www.cibc.com/en/mobile-banking.html',
+    webUrl: 'https://www.cibc.com/en/personal-banking.html',
   },
   bmo: {
     appDeepLink: 'bmomobile://',
-    webUrl: 'https://www.bmo.com/main/personal/ways-to-bank/mobile-banking/',
+    webUrl: 'https://www.bmo.com/en-ca/main/personal/',
   },
   'national-bank': {
-    webUrl:
-      'https://www.nbc.ca/personal/help-centre/security/interac-e-transfer.html',
+    appDeepLink: 'nbcmobile://',
+    webUrl: 'https://www.nbc.ca/en/',
   },
   desjardins: {
-    webUrl:
-      'https://www.desjardins.com/ca/personal/accounts-services/interac-e-transfer/index.jsp',
+    appDeepLink: 'desjardins://',
+    webUrl: 'https://www.desjardins.com/ca/personal/index.jsp',
   },
   tangerine: {
-    webUrl: 'https://www.tangerine.ca/en/help-and-support/e-transfers',
+    appDeepLink: 'tangerine://',
+    webUrl: 'https://www.tangerine.ca/',
   },
   simplii: {
-    webUrl:
-      'https://www.simplii.com/en/banking-simplii/interac-e-transfer.html',
+    appDeepLink: 'simplii://',
+    webUrl: 'https://www.simplii.com/en/',
   },
   laurentian: {
-    webUrl:
-      'https://www.banquelaurentienne.ca/en/personal_banking_services/electronic_services/interac_e_transfer.html',
+    webUrl: 'https://www.banquelaurentienne.ca/en/',
   },
   meridian: {
-    webUrl:
-      'https://www.meridiancu.ca/personal/ways-to-bank/interac-e-transfer',
+    webUrl: 'https://www.meridiancu.ca/',
   },
   'coast-capital': {
-    webUrl:
-      'https://www.coastcapitalsavings.com/ways-to-bank/interac-e-transfer',
+    webUrl: 'https://www.coastcapitalsavings.com/',
   },
   vancity: {
-    webUrl: 'https://www.vancity.com/Banking/WaysToBank/InteraceTransfer/',
+    webUrl: 'https://www.vancity.com/',
   },
   atb: {
-    webUrl: 'https://www.atb.com/personal/everyday-banking/interac-e-transfer/',
+    webUrl: 'https://www.atb.com/',
   },
   'eq-bank': {
-    webUrl:
-      'https://www.eqbank.ca/personal-banking/payments/interac-e-transfer',
+    webUrl: 'https://www.eqbank.ca/',
   },
   wealthsimple: {
-    webUrl: 'https://help.wealthsimple.com/hc/en-ca/articles/4402390786203',
+    appDeepLink: 'wealthsimple://',
+    webUrl: 'https://www.wealthsimple.com/en-ca',
   },
   koho: {
-    webUrl: 'https://help.koho.ca/en/articles/1500128-interac-e-transfer',
+    appDeepLink: 'koho://',
+    webUrl: 'https://www.koho.ca/',
   },
   neo: {
-    webUrl: 'https://help.neofinancial.com/hc/en-ca/articles/4410426280973',
+    webUrl: 'https://www.neofinancial.com/',
   },
   other: {
     webUrl: 'https://www.interac.ca/en/consumers/products/interac-e-transfer/',
@@ -132,10 +128,14 @@ export async function openBankFlow(
   const config = BANK_LAUNCH_CONFIG[preference];
 
   if (config.appDeepLink) {
-    const canOpenApp = await Linking.canOpenURL(config.appDeepLink);
-    if (canOpenApp) {
+    try {
+      // Attempt to open the native app directly. On Android this throws if no
+      // app handles the scheme; on iOS it throws if the scheme is not in
+      // LSApplicationQueriesSchemes or the app is not installed.
       await Linking.openURL(config.appDeepLink);
       return;
+    } catch {
+      // App not installed — fall through to web fallback
     }
   }
 

@@ -51,6 +51,12 @@
       <string>scotiabank</string>
       <string>cibcmobilebanking</string>
       <string>bmomobile</string>
+      <string>nbcmobile</string>
+      <string>desjardins</string>
+      <string>tangerine</string>
+      <string>simplii</string>
+      <string>wealthsimple</string>
+      <string>koho</string>
     </array>
     <key>LSRequiresIPhoneOS</key>
     <true/>
