@@ -117,9 +117,14 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
     username: string; // unique
     displayName: string;
     eTransferEmail?: string;
-    locationPreference?: string;
-    bankPreference?: string;
-    dietaryPreferences?: string[];
+    settings: {
+      private: {
+        locationPreference?: string;
+        bankPreference?: string;
+        dietaryPreferences?: string[];
+        eTransferEmail?: string;
+      }
+    }
     createdAt?: Date;
     updatedAt?: Date;
   };
@@ -132,8 +137,8 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
     description?: string;
     owner: UserId;
     admins: UserId[];
-	members: UserId[];
-	events: EventId[];
+   members: UserId[];
+   events: EventId[];
     createdAt?: Date;
     updatedAt?: Date;
   };
