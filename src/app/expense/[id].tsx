@@ -8,7 +8,7 @@ import {
   serverTimestamp,
   writeBatch,
 } from 'firebase/firestore';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { queryClient } from '@/api';
@@ -29,9 +29,11 @@ export default function ExpenseView() {
   const router = useRouter();
   const theme = useThemeConfig();
   const [loading, setLoading] = useState(false);
-  const { id, viewMode } = useLocalSearchParams<{
+  const isProcessingRef = useRef(false);
+  const { id, viewMode, eventId } = useLocalSearchParams<{
     id: ExpenseIdT;
     viewMode: 'view' | 'confirm';
+    eventId?: string;
   }>();
   const [mode, setMode] = useState<'split' | 'items'>('split');
   const { data, isPending, isError } = useExpense({
@@ -59,7 +61,8 @@ export default function ExpenseView() {
   });
 
   const handleConfirmExpense = async () => {
-    if (loading) return;
+    if (loading || isProcessingRef.current) return;
+    isProcessingRef.current = true;
     setLoading(true);
     try {
       if (id === 'temp-expense') {
@@ -70,6 +73,8 @@ export default function ExpenseView() {
           name: data.name,
           date: data.date,
           createdBy: data.createdBy,
+          payerUserId: data.payerUserId,
+          ...(eventId ? { eventId } : {}),
           totalAmount: data.totalAmount,
           remainingAmount: data.remainingAmount ?? 0,
           participantCount: data.participantCount ?? 0,
@@ -80,9 +85,11 @@ export default function ExpenseView() {
         if (data.people) {
           data.people.forEach((person) => {
             const personDocRef = doc(expenseDocRef, 'people', person.id);
+            const isGuest = person.userRef === null;
             batch.set(personDocRef, {
               subtotal: person.subtotal,
               paid: person.paid ?? 0,
+              ...(isGuest && person.name ? { guestName: person.name } : {}),
             });
           });
         }
@@ -103,10 +110,12 @@ export default function ExpenseView() {
 
         await batch.commit();
         clearTempExpense();
-        await queryClient.invalidateQueries({
-          queryKey: ['expenses'],
-        });
-        router.push('/');
+        await queryClient.invalidateQueries({ queryKey: ['expenses'] });
+        if (eventId) {
+          router.replace(`/event/${eventId}/expenses` as any);
+        } else {
+          router.replace(`/expense/${expenseDocRef.id}` as any);
+        }
         return;
       }
       router.push('/');
@@ -114,6 +123,7 @@ export default function ExpenseView() {
       Alert.alert('Error', 'Failed to save expense. Please try again.');
       console.error('Error saving expense:', error);
     } finally {
+      isProcessingRef.current = false;
       setLoading(false);
     }
   };
@@ -146,13 +156,21 @@ export default function ExpenseView() {
                           queryClient.invalidateQueries({
                             queryKey: ['expenses', 'expenseId', id],
                           });
-                          router.replace('/');
+                          if (eventId) {
+                            router.replace(`/event/${eventId}/expenses` as any);
+                          } else {
+                            router.replace('/expenses' as any);
+                          }
                         },
                       },
                     ]
                   );
                 } else {
-                  router.back();
+                  if (eventId) {
+                    router.replace(`/event/${eventId}/expenses` as any);
+                  } else {
+                    router.replace('/expenses' as any);
+                  }
                 }
                 return true;
               }}
@@ -193,7 +211,7 @@ export default function ExpenseView() {
         <View className="pt-4">
           {mode === 'split' && (
             <View className="">
-              <ExpenseSplitMode expenseId={id} />
+              <ExpenseSplitMode expenseId={id} payerUserId={data.payerUserId} />
             </View>
           )}
           {mode === 'items' && (
@@ -217,7 +235,13 @@ export default function ExpenseView() {
   );
 }
 
-export const ExpenseSplitMode = ({ expenseId }: { expenseId: ExpenseIdT }) => {
+export const ExpenseSplitMode = ({
+  expenseId,
+  payerUserId,
+}: {
+  expenseId: ExpenseIdT;
+  payerUserId?: string;
+}) => {
   const { data, isPending, isError } = usePeopleIds({
     variables: expenseId,
   });
@@ -232,10 +256,14 @@ export const ExpenseSplitMode = ({ expenseId }: { expenseId: ExpenseIdT }) => {
       <FlashList
         data={data}
         renderItem={({ item }) => (
-          <PersonCard personId={item} expenseId={expenseId} />
+          <PersonCard
+            personId={item}
+            expenseId={expenseId}
+            payerUserId={payerUserId}
+          />
         )}
         keyExtractor={(item) => item}
-        ItemSeparatorComponent={() => <View className="h-3" />} // 12px gap
+        ItemSeparatorComponent={() => <View className="h-3" />}
       />
     </View>
   );

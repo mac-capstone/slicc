@@ -22,13 +22,29 @@ import Animated, {
 } from 'react-native-reanimated';
 import { v4 as uuidv4 } from 'uuid';
 
+import { useEvent } from '@/api/events/use-events';
+import { useUser, useUsersAsPeople } from '@/api/people/use-users';
 import ExpenseCreationFooter from '@/components/expense-creation-footer';
-import { Button, Input, Pressable, Text, View } from '@/components/ui';
+import {
+  Button,
+  colors,
+  Input,
+  Pressable,
+  Select,
+  Text,
+  View,
+} from '@/components/ui';
 import { useAuth, useDefaultTaxRate } from '@/lib';
 import { storage } from '@/lib/storage';
 import { clearTempExpense, useExpenseCreation } from '@/lib/store';
 import { useThemeConfig } from '@/lib/use-theme-config';
-import { type EventIdT, type ItemIdT, type ItemWithId } from '@/types';
+import {
+  type EventIdT,
+  type ItemIdT,
+  type ItemWithId,
+  type PersonWithId,
+  type UserIdT,
+} from '@/types';
 
 const SWIPE_NUDGE_SHOWN_KEY = 'swipe-nudge-shown';
 
@@ -44,9 +60,88 @@ const sanitizeNumeric = (text: string): string => {
   return cleaned;
 };
 
+type PayerOption = {
+  label: string;
+  value: string;
+};
+
+function useMainPayerOptions({
+  eventId,
+  tempPeople,
+  userId,
+  signedInUserName,
+  currentPayerId,
+  setPayerUserId,
+}: {
+  eventId?: EventIdT;
+  tempPeople: { id: string; name?: string }[];
+  userId: string | null;
+  signedInUserName?: string;
+  currentPayerId?: string;
+  setPayerUserId: (payerUserId: string) => void;
+}) {
+  const eventQuery = useEvent({
+    variables: eventId,
+    enabled: Boolean(eventId),
+  });
+  const participantUserIds = eventQuery.data?.participants ?? [];
+  const avatarColors = useMemo(() => Object.keys(colors.avatar ?? {}), []);
+  const { people: eventParticipants } = useUsersAsPeople(
+    participantUserIds as UserIdT[],
+    avatarColors
+  );
+
+  const payerOptions = useMemo<PayerOption[]>(() => {
+    if (eventId) {
+      return eventParticipants.map((participant) => ({
+        label: participant.name ?? 'Unnamed person',
+        value: participant.id,
+      }));
+    }
+
+    const options = tempPeople.map((person) => ({
+      label: person.name ?? 'Unnamed person',
+      value: person.id,
+    }));
+
+    if (userId && signedInUserName) {
+      const isAlreadyPresent = options.some(
+        (option) => option.value === userId
+      );
+      if (!isAlreadyPresent) {
+        options.unshift({
+          label: signedInUserName,
+          value: userId,
+        });
+      }
+    }
+
+    return options;
+  }, [eventId, eventParticipants, signedInUserName, tempPeople, userId]);
+
+  useEffect(() => {
+    if (!eventId || payerOptions.length === 0) {
+      return;
+    }
+
+    const hasSelectedPayer = payerOptions.some(
+      (option) => option.value === currentPayerId
+    );
+    if (!hasSelectedPayer) {
+      setPayerUserId(payerOptions[0].value);
+    }
+  }, [currentPayerId, eventId, payerOptions, setPayerUserId]);
+
+  return payerOptions;
+}
+
 export default function AddExpense() {
   const theme = useThemeConfig();
   const userId = useAuth.use.userId();
+  const { data: signedInUser } = useUser({
+    variables: userId as UserIdT,
+    enabled: Boolean(userId),
+  });
   const { eventId } = useLocalSearchParams<{ eventId?: EventIdT }>();
   const pathname = usePathname();
   const tempExpense = useExpenseCreation.use.tempExpense();
@@ -56,12 +151,25 @@ export default function AddExpense() {
 
   const {
     setExpenseName: setExpenseNameInStore,
+    setPayerUserId,
     getTotalAmount,
     initializeTempExpense,
     hydrate,
     removeItem,
     addItem,
   } = useExpenseCreation();
+  const addPerson = useExpenseCreation.use.addPerson();
+  const avatarColors = useMemo(() => Object.keys(colors.avatar ?? {}), []);
+
+  const currentPayerId = tempExpense?.payerUserId;
+  const payerOptions = useMainPayerOptions({
+    eventId,
+    tempPeople: tempExpense?.people ?? [],
+    userId,
+    signedInUserName: signedInUser?.displayName,
+    currentPayerId,
+    setPayerUserId,
+  });
 
   // Track items count and trigger nudge when adding first item (list length goes from 0 to 1)
   useEffect(() => {
@@ -109,6 +217,34 @@ export default function AddExpense() {
       initializeTempExpense(userId);
     }
   }, [userId, tempExpense, initializeTempExpense]);
+
+  // For standalone (non-event) expenses, auto-add the signed-in user as a person
+  // so they appear in the split view as the default payer.
+  useEffect(() => {
+    if (eventId) return;
+    if (!tempExpense || !userId || !signedInUser?.displayName) return;
+    const alreadyAdded = tempExpense.people.some((p) => p.id === userId);
+    if (!alreadyAdded) {
+      const color =
+        avatarColors[Math.floor(Math.random() * avatarColors.length)] ??
+        'white';
+      addPerson({
+        id: userId as UserIdT,
+        name: signedInUser.displayName,
+        color,
+        userRef: userId,
+        subtotal: 0,
+        paid: 0,
+      } as PersonWithId);
+    }
+  }, [
+    eventId,
+    tempExpense,
+    userId,
+    signedInUser?.displayName,
+    addPerson,
+    avatarColors,
+  ]);
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener(
@@ -193,6 +329,21 @@ export default function AddExpense() {
             }}
           />
         </View>
+        <View className="pb-2">
+          <Text className="!dark:text-text-200 pb-2 text-base font-semibold">
+            Main payer
+          </Text>
+          <Select
+            value={currentPayerId}
+            placeholder="Select who paid all or most of the expense"
+            options={payerOptions}
+            onSelect={(value) => {
+              if (typeof value === 'string') {
+                setPayerUserId(value);
+              }
+            }}
+          />
+        </View>
         <View className="flex-1 flex-col gap-4">
           <FlashList
             data={tempExpense?.items || []}
@@ -216,6 +367,7 @@ export default function AddExpense() {
                   totalAmount={getTotalAmount()}
                   addItem={addItem}
                   removeItem={removeItem}
+                  defaultTipRate={signedInUser?.defaultTipRate}
                 />
               </View>
             }
@@ -235,7 +387,11 @@ export default function AddExpense() {
         nextDisabled={getTotalAmount() === 0 || expenseName === ''}
         onNextPress={() => {
           setExpenseNameInStore(expenseName);
-          router.push(`/expense/split-expense?eventId=${eventId}`);
+          router.push(
+            eventId
+              ? `/expense/split-expense?eventId=${eventId}`
+              : '/expense/split-expense'
+          );
         }}
         totalAmount={getTotalAmount()}
         hasPrevious={false}
@@ -476,7 +632,13 @@ function getItemAndAmountFromTaggedWords(taggedWords: any[]): {
 }
 
 function CreateItemCard() {
-  const { defaultTaxRate } = useDefaultTaxRate();
+  const userId = useAuth.use.userId();
+  const { data: signedInUser } = useUser({
+    variables: userId as UserIdT,
+    enabled: Boolean(userId),
+  });
+  const { defaultTaxRate: mmkvDefaultTaxRate } = useDefaultTaxRate();
+  const defaultTaxRate = signedInUser?.defaultTaxRate ?? mmkvDefaultTaxRate;
   const [tempItemName, setTempItemName] = useState<string>('');
   const [tempItemAmount, setTempItemAmount] = useState<string>('');
   const [tempItemTaxStr, setTempItemTaxStr] = useState<string>('');
@@ -639,15 +801,21 @@ function AddTipButton({
   totalAmount,
   addItem,
   removeItem,
+  defaultTipRate,
 }: {
   existingTip: ItemWithId | undefined;
   totalAmount: number;
   addItem: (item: ItemWithId) => void;
   removeItem: (itemId: ItemIdT) => void;
+  defaultTipRate?: number;
 }) {
   const [modalVisible, setModalVisible] = useState(false);
-  const [tipMode, setTipMode] = useState<'flat' | 'percentage'>('flat');
-  const [tipInput, setTipInput] = useState<string>('');
+  const [tipMode, setTipMode] = useState<'flat' | 'percentage'>(
+    defaultTipRate ? 'percentage' : 'flat'
+  );
+  const [tipInput, setTipInput] = useState<string>(
+    defaultTipRate ? defaultTipRate.toString() : ''
+  );
 
   const subtotalWithoutTip = useMemo(() => {
     if (existingTip) {

@@ -62,7 +62,13 @@ export const usePerson = createQuery<
       if (!tempExpense) throw new Error('Person not found');
       const person = tempExpense.people.find((p) => p.id === personId);
       if (!person) throw new Error('Person not found');
-      return { ...person, id: personId };
+      const isGuest = person.userRef === null;
+      return {
+        id: personId,
+        subtotal: person.subtotal,
+        paid: person.paid,
+        guestName: isGuest ? (person.name ?? undefined) : undefined,
+      };
     }
 
     const personRef = doc(

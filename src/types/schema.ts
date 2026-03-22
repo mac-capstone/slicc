@@ -27,14 +27,53 @@ function zodConverter<Out>(
 
 // ── User ───────────────────────────────────────────────────────────────────
 
-export const userSchema = z.object({
+export const userProfileSchema = z.object({
   username: z.string(),
-  displayName: z.string().optional(),
+  displayName: z.string(),
   createdAt: firestoreTimestamp.optional(),
   updatedAt: firestoreTimestamp.optional(),
 });
 
-export const userConverter = zodConverter(userSchema);
+export const userSettingsSchema = z.object({
+  dietaryPreferences: z.array(z.string()).default([]),
+  locationPreference: z.string().optional(),
+  eTransferEmail: z.string().email().optional(),
+  bankPreference: z
+    .enum([
+      'none',
+      'all-banks',
+      'interac',
+      'rbc',
+      'td',
+      'scotia',
+      'cibc',
+      'bmo',
+      'national-bank',
+      'desjardins',
+      'tangerine',
+      'simplii',
+      'laurentian',
+      'meridian',
+      'coast-capital',
+      'vancity',
+      'atb',
+      'eq-bank',
+      'wealthsimple',
+      'koho',
+      'neo',
+      'other',
+    ])
+    .optional(),
+  defaultTaxRate: z.number().optional(),
+  defaultTipRate: z.number().optional(),
+  updatedAt: firestoreTimestamp.optional(),
+});
+
+// Backward-compatible alias where user schema means the public profile document.
+export const userSchema = userProfileSchema;
+
+export const userConverter = zodConverter(userProfileSchema);
+export const userSettingsConverter = zodConverter(userSettingsSchema);
 
 // ── Group ──────────────────────────────────────────────────────────────────
 
@@ -80,6 +119,7 @@ export const expenseSchema = z.object({
   name: z.string(),
   date: z.union([firestoreTimestamp, z.string()]),
   createdBy: z.string(),
+  payerUserId: z.string().optional(),
   eventId: z.string().optional(),
   totalAmount: z.number(),
   remainingAmount: z.number().optional(),
@@ -95,6 +135,7 @@ export const expenseConverter = zodConverter(expenseSchema);
 export const expensePersonSchema = z.object({
   subtotal: z.number(),
   paid: z.number(),
+  guestName: z.string().optional(),
 });
 
 export const expensePersonConverter = zodConverter(expensePersonSchema);

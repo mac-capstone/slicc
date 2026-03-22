@@ -40,6 +40,7 @@ export default function GroupMembersScreen() {
       return {
         id: userId,
         name: user?.displayName ?? 'Unknown',
+        username: user?.username ?? '',
         isAdmin,
       };
     });
@@ -99,6 +100,11 @@ export default function GroupMembersScreen() {
 
                   <View className="flex-1">
                     <Text className="text-base text-white">{member.name}</Text>
+                    {member.username ? (
+                      <Text className="text-xs text-gray-400">
+                        @{member.username}
+                      </Text>
+                    ) : null}
                   </View>
 
                   {member.isAdmin ? (

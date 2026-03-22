@@ -1,17 +1,20 @@
 import {
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
   query,
   runTransaction,
+  setDoc,
   Timestamp,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 
 import { db, storage } from '@/api/common/firebase';
-import type { User } from '@/types';
+import type { BankPreference, UserProfile, UserSettings } from '@/types';
 
 const MIME_TYPE_BY_EXTENSION: Record<string, string> = {
   heic: 'image/heic',
@@ -95,6 +98,15 @@ export type CreateUserData = {
   username: string;
 };
 
+export type UpdateUserSettingsData = {
+  dietaryPreferences?: string[];
+  locationPreference?: string;
+  eTransferEmail?: string;
+  bankPreference?: BankPreference;
+  defaultTaxRate?: number;
+  defaultTipRate?: number;
+};
+
 export class UserAlreadyExistsError extends Error {
   constructor(userId: string) {
     super(`User profile already exists for ${userId}`);
@@ -111,7 +123,7 @@ export async function createUserInFirestore(
     username: data.username.toLowerCase().trim(),
   });
   const now = Timestamp.now();
-  const userDoc: Omit<User, 'createdAt' | 'updatedAt'> & {
+  const userDoc: Omit<UserProfile, 'createdAt' | 'updatedAt'> & {
     createdAt: Timestamp;
     updatedAt: Timestamp;
   } = {
@@ -121,7 +133,15 @@ export async function createUserInFirestore(
     updatedAt: now,
   };
 
+  const userSettingsDoc: Omit<UserSettings, 'updatedAt'> & {
+    updatedAt: Timestamp;
+  } = {
+    dietaryPreferences: [],
+    updatedAt: now,
+  };
+
   const userRef = doc(db, 'users', userId);
+  const userSettingsRef = doc(db, 'users', userId, 'settings', 'private');
   await runTransaction(db, async (transaction) => {
     const userSnap = await transaction.get(userRef);
 
@@ -130,6 +150,56 @@ export async function createUserInFirestore(
     }
 
     transaction.set(userRef, userDoc);
+    transaction.set(userSettingsRef, userSettingsDoc);
   });
   console.log('[user-api] firestore user created', { userId });
+}
+
+export async function updateUserSettingsInFirestore(
+  userId: string,
+  data: UpdateUserSettingsData
+): Promise<void> {
+  const userRef = doc(db, 'users', userId);
+  const userSettingsRef = doc(db, 'users', userId, 'settings', 'private');
+  const now = Timestamp.now();
+
+  const batch = writeBatch(db);
+  batch.set(
+    userSettingsRef,
+    {
+      dietaryPreferences: data.dietaryPreferences || deleteField(),
+      locationPreference: data.locationPreference?.trim() || deleteField(),
+      eTransferEmail: data.eTransferEmail?.trim() || deleteField(),
+      bankPreference: data.bankPreference ?? deleteField(),
+      defaultTaxRate: data.defaultTaxRate ?? deleteField(),
+      defaultTipRate: data.defaultTipRate ?? deleteField(),
+      updatedAt: now,
+    },
+    { merge: true }
+  );
+  batch.set(
+    userRef,
+    {
+      eTransferEmail: data.eTransferEmail?.trim() || deleteField(),
+      updatedAt: now,
+    },
+    { merge: true }
+  );
+  await batch.commit();
+}
+
+export async function updateDefaultRatesInFirestore(
+  userId: string,
+  data: { defaultTaxRate?: number; defaultTipRate?: number }
+): Promise<void> {
+  const userSettingsRef = doc(db, 'users', userId, 'settings', 'private');
+  await setDoc(
+    userSettingsRef,
+    {
+      defaultTaxRate: data.defaultTaxRate ?? deleteField(),
+      defaultTipRate: data.defaultTipRate ?? deleteField(),
+      updatedAt: Timestamp.now(),
+    },
+    { merge: true }
+  );
 }
