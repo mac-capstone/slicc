@@ -36,7 +36,7 @@ export default function EventExpenses() {
   });
 
   const handleClose = (): void => {
-    if (!eventId) return;
+    if (!eventId) router.back();
     router.replace(`/event/${eventId}` as const);
   };
 

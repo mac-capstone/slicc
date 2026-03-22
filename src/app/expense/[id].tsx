@@ -61,7 +61,8 @@ export default function ExpenseView() {
   });
 
   const handleConfirmExpense = async () => {
-    if (loading) return;
+    if (loading || isProcessingRef.current) return;
+    isProcessingRef.current = true;
     setLoading(true);
     try {
       if (id === 'temp-expense') {
