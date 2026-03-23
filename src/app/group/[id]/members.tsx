@@ -55,7 +55,7 @@ export default function GroupMembersScreen() {
 
     try {
       await leaveGroup.mutateAsync({ groupId, userId: currentUserId });
-      router.replace('/groups');
+      router.replace('/social');
     } catch (error) {
       console.error('Failed to leave group:', error);
       Alert.alert('Error', 'Failed to leave group, please try again.');

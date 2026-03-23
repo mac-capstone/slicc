@@ -116,6 +116,7 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
   [userId: UserId]: {
     username: string; // unique
     displayName: string;
+  	friends: UserId[];
     settings: { // sub col
       private: {
         locationPreference?: string;
@@ -136,8 +137,8 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
     description?: string;
     owner: UserId;
     admins: UserId[];
-   members: UserId[];
-   events: EventId[];
+  	members: UserId[];
+	  events: EventId[];
     createdAt?: Date;
     updatedAt?: Date;
   };
@@ -196,6 +197,26 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
   };
 }
 
+// friendRequests collection — dedicated request documents (workflow state)
+{
+  [requestId: string]: {
+    fromUserId: UserId;
+    toUserId: UserId;
+    status: "pending" | "accepted" | "declined" | "cancelled";
+    createdAt: Date;
+    updatedAt?: Date;
+  };
+}
+
+// friendships collection — separate representation of confirmed friendships (one doc per pair)
+{
+  [friendshipId: string]: {
+    userIds: [UserId, UserId];
+    createdAt: Date;
+    acceptedFromRequestId?: string;
+  };
+}
+
 // notifications collection
 {
   [notificationId: NotificationId]: {
@@ -214,6 +235,11 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
   };
 }
 ```
+
+## Friend requests (Firebase)
+
+- Deploy composite indexes from the repo root: `firebase deploy --only firestore:indexes` (see `firestore.indexes.json`). The app queries `friendRequests` with `toUserId` + `status`.
+- Configure **security rules** for `friendRequests` and `friendships` so users can only create/read/update documents that involve their own `uid` (create outgoing requests, read/update incoming pending requests, create friendships on accept). Without rules, client writes will fail in production.
 
 ## 📄 License
 

@@ -92,8 +92,8 @@ export function PinnedGroupsSection() {
         <View className="flex-row items-center justify-between">
           <Text className="font-futuraDemi text-lg">Pinned Groups</Text>
           <Pressable
-            onPress={() => router.push('/groups')}
-            accessibilityLabel="See all groups"
+            onPress={() => router.push('/social')}
+            accessibilityLabel="Open Social"
             accessibilityRole="button"
           >
             <Text className="text-sm" style={{ color: colors.accent[100] }}>
@@ -114,8 +114,8 @@ export function PinnedGroupsSection() {
         <View className="flex-row items-center justify-between">
           <Text className="font-futuraDemi text-lg">Pinned Groups</Text>
           <Pressable
-            onPress={() => router.push('/groups')}
-            accessibilityLabel="See all groups"
+            onPress={() => router.push('/social')}
+            accessibilityLabel="Open Social"
             accessibilityRole="button"
           >
             <Text className="text-sm" style={{ color: colors.accent[100] }}>
@@ -144,8 +144,8 @@ export function PinnedGroupsSection() {
         <View className="flex-row items-center justify-between">
           <Text className="font-futuraDemi text-lg">Pinned Groups</Text>
           <Pressable
-            onPress={() => router.push('/groups')}
-            accessibilityLabel="See all groups"
+            onPress={() => router.push('/social')}
+            accessibilityLabel="Open Social"
             accessibilityRole="button"
           >
             <Text className="text-sm" style={{ color: colors.accent[100] }}>
@@ -165,8 +165,8 @@ export function PinnedGroupsSection() {
       <View className="flex-row items-center justify-between">
         <Text className="font-futuraDemi text-lg">Pinned Groups</Text>
         <Pressable
-          onPress={() => router.push('/groups')}
-          accessibilityLabel="See all groups"
+          onPress={() => router.push('/social')}
+          accessibilityLabel="Open Social"
           accessibilityRole="button"
         >
           <Text className="text-sm" style={{ color: colors.accent[100] }}>
