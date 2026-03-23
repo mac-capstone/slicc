@@ -100,7 +100,7 @@ export default function Social() {
         currentUserId: userId as UserIdT,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['friendRequests'] });
+      invalidateFriendCaches();
     },
     onError: (e: Error) => {
       Alert.alert('Could not decline', e.message);
@@ -190,7 +190,7 @@ export default function Social() {
         return {
           id: u.id,
           displayName: u.displayName || 'Unknown',
-          handle: `@${username}`,
+          handle: `@${username}` || 'handle not found',
         };
       });
   }, [friendUserQueries]);
@@ -293,7 +293,9 @@ export default function Social() {
                     }
                     router.push('/group/edit');
                   }}
-                  accessibilityLabel="Create group"
+                  accessibilityLabel={
+                    activeSegment === 'friends' ? 'Add friend' : 'Create group'
+                  }
                   accessibilityRole="button"
                 >
                   <Octicons name="plus" size={24} color={colors.text[800]} />
