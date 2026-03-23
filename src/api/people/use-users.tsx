@@ -91,6 +91,8 @@ export async function fetchUser(
   return toUserWithId(userSnap.id, profile, settings);
 }
 
+
+
 // Firestore prefix search on username (stored lowercase — reliable & case-safe).
 // For display-name search use client-side filtering via fetchAllUsers.
 export async function searchUsersByUsername(
