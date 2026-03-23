@@ -2,8 +2,8 @@ import Octicons from '@expo/vector-icons/Octicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { FlashList } from '@shopify/flash-list';
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { router, Stack } from 'expo-router';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, View } from 'react-native';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 
@@ -39,7 +39,6 @@ const PIN_LAYOUT_TRANSITION = LinearTransition.springify()
 type SocialSegment = 'groupList' | 'friends';
 
 export default function Social() {
-  const params = useLocalSearchParams<{ segment?: string }>();
   const queryClient = useQueryClient();
   const userId = useAuth.use.userId();
   const pinnedGroupIds = useGroupPreferences.use.pinnedGroupIds();
@@ -53,16 +52,6 @@ export default function Social() {
     id: UserIdT;
     displayName: string;
   } | null>(null);
-
-  useEffect(() => {
-    if (params.segment === 'groups') {
-      setActiveSegment('groupList');
-      return;
-    }
-    if (params.segment === 'friends') {
-      setActiveSegment('friends');
-    }
-  }, [params.segment]);
 
   const { data: groupIds = [] } = useGroupIds({
     variables: userId,
@@ -111,7 +100,7 @@ export default function Social() {
         currentUserId: userId as UserIdT,
       }),
     onSuccess: () => {
-      invalidateFriendCaches();
+      queryClient.invalidateQueries({ queryKey: ['friendRequests'] });
     },
     onError: (e: Error) => {
       Alert.alert('Could not decline', e.message);
@@ -196,12 +185,13 @@ export default function Social() {
     return friendUserQueries
       .map((q) => q.data)
       .filter((u): u is NonNullable<typeof u> => u != null)
-      .map((u) => {
+      .map((u, index) => {
         const username = u.username?.trim();
         return {
           id: u.id,
           displayName: u.displayName || 'Unknown',
-          handle: `@${username}` || 'handle not found',
+          handle: `@${username || u.id}`,
+          isOnline: index % 2 === 0,
         };
       });
   }, [friendUserQueries]);
@@ -304,9 +294,7 @@ export default function Social() {
                     }
                     router.push('/group/edit');
                   }}
-                  accessibilityLabel={
-                    activeSegment === 'friends' ? 'Add friend' : 'Create group'
-                  }
+                  accessibilityLabel="Create group"
                   accessibilityRole="button"
                 >
                   <Octicons name="plus" size={24} color={colors.text[800]} />

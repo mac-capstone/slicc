@@ -27,8 +27,7 @@ export default function TabLayout() {
     hasError: hasUserCheckError,
   } = useUserExistsInFirestore(userId);
 
-  const liveSyncUserId = status === 'signIn' ? userId : null;
-  useIncomingFriendRequestsLiveSync(liveSyncUserId);
+  useIncomingFriendRequestsLiveSync(userId);
 
   const hideSplash = useCallback(async () => {
     await SplashScreen.hideAsync();
