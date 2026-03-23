@@ -4,7 +4,12 @@ import React, { useCallback, useEffect } from 'react';
 import { Text, TouchableOpacity } from 'react-native';
 
 import { colors } from '@/components/ui';
-import { useAuth, useIsFirstTime, useUserExistsInFirestore } from '@/lib';
+import {
+  useAuth,
+  useIncomingFriendRequestsLiveSync,
+  useIsFirstTime,
+  useUserExistsInFirestore,
+} from '@/lib';
 
 export default function TabLayout() {
   const status = useAuth.use.status();
@@ -15,6 +20,9 @@ export default function TabLayout() {
     isChecking: isUserCheckRunning,
     hasError: hasUserCheckError,
   } = useUserExistsInFirestore(userId);
+
+  useIncomingFriendRequestsLiveSync(userId);
+
   const hideSplash = useCallback(async () => {
     await SplashScreen.hideAsync();
   }, []);
@@ -100,23 +108,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="groups"
+        name="social"
         options={{
-          title: 'Groups',
+          title: 'Social',
           tabBarIcon: ({ color }) => (
             <Octicons name="people" size={24} color={color} />
           ),
-          tabBarButtonTestID: 'groups-tab',
-          headerRight: () => (
-            <TouchableOpacity
-              onPress={() => router.push('/group/edit')}
-              style={{ marginRight: 16 }}
-              accessibilityLabel="Add group"
-              accessibilityRole="button"
-            >
-              <Octicons name="plus" size={24} color={colors.text[800]} />
-            </TouchableOpacity>
-          ),
+          tabBarButtonTestID: 'social-tab',
         }}
       />
       <Tabs.Screen
