@@ -30,7 +30,7 @@ function zodConverter<Out>(
 export const userProfileSchema = z.object({
   username: z.string(),
   displayName: z.string(),
-  friends: z.array(z.string()),
+  friends: z.array(z.string()).default([]),
   createdAt: firestoreTimestamp.optional(),
   updatedAt: firestoreTimestamp.optional(),
 });
