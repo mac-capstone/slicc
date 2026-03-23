@@ -97,6 +97,9 @@ importers:
       expo-localization:
         specifier: ~17.0.8
         version: 17.0.8(expo@54.0.33)(react@19.1.0)
+      expo-location:
+        specifier: ~18.0.4
+        version: 18.0.10(expo@54.0.33)
       expo-router:
         specifier: ~6.0.23
         version: 6.0.23(682f7da1562f6c275d2af6a300df0099)
@@ -4584,6 +4587,11 @@ packages:
     peerDependencies:
       expo: '*'
       react: '*'
+
+  expo-location@18.0.10:
+    resolution: {integrity: sha512-R0Iioz0UZ9Ts8TACPngh8uDFbajJhVa5/igLqWB8Pq/gp8UHuwj7PC8XbZV7avsFoShYjaxrOhf4U7IONeKLgg==}
+    peerDependencies:
+      expo: '*'
 
   expo-manifests@1.0.10:
     resolution: {integrity: sha512-oxDUnURPcL4ZsOBY6X1DGWGuoZgVAFzp6PISWV7lPP2J0r8u1/ucuChBgpK7u1eLGFp6sDIPwXyEUCkI386XSQ==}
@@ -13877,6 +13885,10 @@ snapshots:
       expo: 54.0.33(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@20.1.2(typescript@5.9.3))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       react: 19.1.0
       rtl-detect: 1.1.2
+
+  expo-location@18.0.10(expo@54.0.33):
+    dependencies:
+      expo: 54.0.33(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@20.1.2(typescript@5.9.3))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
 
   expo-manifests@1.0.10(expo@54.0.33):
     dependencies:
