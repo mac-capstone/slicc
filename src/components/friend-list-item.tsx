@@ -15,7 +15,6 @@ export type FriendListItemData = {
   id: UserIdT;
   displayName: string;
   handle: string;
-  isOnline: boolean;
 };
 
 const SWIPE_THRESHOLD = 60;
@@ -52,9 +51,6 @@ export function FriendListItem({ friend, onSwipeRemoveRequest }: Props) {
       <View className="flex-row items-center gap-3">
         <View className="relative">
           <PersonAvatar userId={friend.id} size="lg" />
-          {friend.isOnline && (
-            <View className="absolute bottom-0 left-0 size-3 rounded-full border border-background-950 bg-emerald-500" />
-          )}
         </View>
         <View>
           <Text className="text-lg font-semibold text-text-50">
