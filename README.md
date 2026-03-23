@@ -116,12 +116,8 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
   [userId: UserId]: {
     username: string; // unique
     displayName: string;
-    friends: UserId[];
-    createdAt?: Date;
-    updatedAt?: Date;
-
-    // subcollection: users/{userId}/settings/private
-    settings: {
+  	friends: UserId[];
+    settings: { // sub col
       private: {
         locationPreference?: string;
         bankPreference?: string;
@@ -148,8 +144,8 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
     description?: string;
     owner: UserId;
     admins: UserId[];
-    members: UserId[];
-    events: EventId[];
+  	members: UserId[];
+	  events: EventId[];
     createdAt?: Date;
     updatedAt?: Date;
 
@@ -266,7 +262,7 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
   };
 }
 
-// friendRequests collection -- dedicated request documents (workflow state)
+// friendRequests collection — dedicated request documents (workflow state)
 {
   [requestId: string]: {
     fromUserId: UserId;
@@ -277,7 +273,7 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
   };
 }
 
-// friendships collection -- separate representation of confirmed friendships (one doc per pair)
+// friendships collection — separate representation of confirmed friendships (one doc per pair)
 {
   [friendshipId: string]: {
     userIds: [UserId, UserId];
