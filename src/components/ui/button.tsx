@@ -1,6 +1,12 @@
 import React from 'react';
 import type { PressableProps } from 'react-native';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  Text,
+  View,
+} from 'react-native';
 import type { VariantProps } from 'tailwind-variants';
 import { tv } from 'tailwind-variants';
 
@@ -141,6 +147,9 @@ export const Button = React.forwardRef<View, Props>(
                 <Text
                   testID={testID ? `${testID}-label` : undefined}
                   className={styles.label({ className: textClassName })}
+                  {...(Platform.OS === 'android'
+                    ? { includeFontPadding: false }
+                    : {})}
                 >
                   {text}
                 </Text>

@@ -34,7 +34,7 @@ import {
   Text,
   View,
 } from '@/components/ui';
-import { useAuth, useDefaultTaxRate } from '@/lib';
+import { useAuth, useDefaultTaxRate, useUserSettings } from '@/lib';
 import { storage } from '@/lib/storage';
 import { clearTempExpense, useExpenseCreation } from '@/lib/store';
 import { useThemeConfig } from '@/lib/use-theme-config';
@@ -809,6 +809,7 @@ function AddTipButton({
   removeItem: (itemId: ItemIdT) => void;
   defaultTipRate?: number;
 }) {
+  const { defaultTipPercent } = useUserSettings();
   const [modalVisible, setModalVisible] = useState(false);
   const [tipMode, setTipMode] = useState<'flat' | 'percentage'>(
     defaultTipRate ? 'percentage' : 'flat'
@@ -872,7 +873,15 @@ function AddTipButton({
         variant="outline"
         icon={<Ionicons name="cash-outline" size={18} color="#A4A4A4" />}
         onPress={() => {
-          setTipInput('');
+          if (existingTip) {
+            setTipMode('flat');
+            setTipInput(existingTip.amount.toFixed(2));
+          } else {
+            setTipMode('percentage');
+            setTipInput(
+              defaultTipPercent > 0 ? defaultTipPercent.toString() : ''
+            );
+          }
           setModalVisible(true);
         }}
       />
