@@ -185,13 +185,12 @@ export default function Social() {
     return friendUserQueries
       .map((q) => q.data)
       .filter((u): u is NonNullable<typeof u> => u != null)
-      .map((u, index) => {
+      .map((u) => {
         const username = u.username?.trim();
         return {
           id: u.id,
           displayName: u.displayName || 'Unknown',
-          handle: `@${username || u.id}`,
-          isOnline: index % 2 === 0,
+          handle: `@${username}`,
         };
       });
   }, [friendUserQueries]);
