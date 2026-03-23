@@ -14,6 +14,7 @@ import { createQuery } from 'react-query-kit';
 
 import { db } from '@/api/common/firebase';
 import { getUserIdByUsername } from '@/api/people/user-api';
+import { encodeIdBase64Url } from '@/lib/utils';
 import type { UserIdT } from '@/types';
 
 type FirestoreTransaction = Parameters<Parameters<typeof runTransaction>[1]>[0];
@@ -22,14 +23,14 @@ const COLLECTION = 'friendRequests';
 const FRIENDSHIPS = 'friendships';
 
 export function friendshipDocId(a: string, b: string): string {
-  return [a, b].sort().join('_');
+  return [encodeIdBase64Url(a), encodeIdBase64Url(b)].sort().join('.');
 }
 
 export function friendRequestDocId(
   fromUserId: string,
   toUserId: string
 ): string {
-  return `${fromUserId}_${toUserId}`;
+  return `${encodeIdBase64Url(fromUserId)}.${encodeIdBase64Url(toUserId)}`;
 }
 
 export type FriendRequestFirestore = {
@@ -242,7 +243,7 @@ export async function sendFriendRequest(params: {
   });
 }
 
-/** Recipient accepts an incoming pending request (doc id is `from_to`). */
+/** Recipient accepts an incoming pending request. */
 export async function acceptFriendRequest(params: {
   requestId: string;
   currentUserId: UserIdT;
