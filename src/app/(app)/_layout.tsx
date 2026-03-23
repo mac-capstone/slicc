@@ -10,6 +10,12 @@ import {
   useIsFirstTime,
   useUserExistsInFirestore,
 } from '@/lib';
+import {
+  useAuth,
+  useIncomingFriendRequestsLiveSync,
+  useIsFirstTime,
+  useUserExistsInFirestore,
+} from '@/lib';
 
 export default function TabLayout() {
   const status = useAuth.use.status();
@@ -21,8 +27,7 @@ export default function TabLayout() {
     hasError: hasUserCheckError,
   } = useUserExistsInFirestore(userId);
 
-  const liveSyncUserId = status === 'signIn' ? userId : null;
-  useIncomingFriendRequestsLiveSync(liveSyncUserId);
+  useIncomingFriendRequestsLiveSync(userId);
 
   const hideSplash = useCallback(async () => {
     await SplashScreen.hideAsync();
@@ -110,11 +115,14 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="social"
+        name="social"
         options={{
+          title: 'Social',
           title: 'Social',
           tabBarIcon: ({ color }) => (
             <Octicons name="people" size={24} color={color} />
           ),
+          tabBarButtonTestID: 'social-tab',
           tabBarButtonTestID: 'social-tab',
         }}
       />
