@@ -64,7 +64,8 @@ export default function GroupDetailScreen() {
     };
   }, [categorized, searchQuery]);
 
-  const handleBack = () => router.push('/groups');
+  const handleBack = () =>
+    router.push({ pathname: '/social', params: { segment: 'groups' } });
   const handleSettings = () =>
     router.push(`/group/${groupId}/members` as const);
   const handleNewEvent = () =>
@@ -96,7 +97,13 @@ export default function GroupDetailScreen() {
           headerTintColor: theme.dark ? '#fff' : '#000',
           headerShadowVisible: false,
           headerLeft: () => (
-            <Pressable onPress={handleBack} className="px-2">
+            <Pressable
+              onPress={() => {
+                console.log('backing from group details');
+                handleBack();
+              }}
+              className="px-2"
+            >
               <Feather
                 name="arrow-left"
                 size={24}
