@@ -202,7 +202,7 @@ export default function Social() {
         return {
           id: u.id,
           displayName: u.displayName || 'Unknown',
-          handle: `@${username}`,
+          handle: `@${username}` || 'handle not found',
         };
       });
   }, [friendUserQueries]);
