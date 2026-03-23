@@ -136,3 +136,34 @@ export const parseReceiptInfo = (
     .safeParse(parsedJson);
   return parsedResult;
 };
+
+export const encodeIdBase64Url = (value: string): string => {
+  const bytes = new TextEncoder().encode(value);
+  const alphabet =
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  let output = '';
+  let i = 0;
+
+  while (i + 2 < bytes.length) {
+    const n = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
+    output += alphabet[(n >> 18) & 63];
+    output += alphabet[(n >> 12) & 63];
+    output += alphabet[(n >> 6) & 63];
+    output += alphabet[n & 63];
+    i += 3;
+  }
+
+  const remaining = bytes.length - i;
+  if (remaining === 1) {
+    const n = bytes[i] << 16;
+    output += alphabet[(n >> 18) & 63];
+    output += alphabet[(n >> 12) & 63];
+  } else if (remaining === 2) {
+    const n = (bytes[i] << 16) | (bytes[i + 1] << 8);
+    output += alphabet[(n >> 18) & 63];
+    output += alphabet[(n >> 12) & 63];
+    output += alphabet[(n >> 6) & 63];
+  }
+
+  return output;
+};
