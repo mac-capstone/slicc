@@ -1,6 +1,7 @@
 import { Env } from '@env';
 
 import { DietaryPreferencesMultiSelect } from '@/components/settings/dietary-preferences-multi-select';
+import { InlineSelectRow } from '@/components/settings/inline-select-row';
 import { LanguageItem } from '@/components/settings/language-item';
 import {
   InlinePercentRow,
@@ -12,6 +13,7 @@ import { Button, Input, Select, Text, View } from '@/components/ui';
 import { translate } from '@/lib';
 import { BANK_OPTIONS } from '@/lib/payment-utils';
 import { formatAppName } from '@/lib/settings-screen-helpers';
+import { TIP_PERCENT_SELECT_OPTIONS } from '@/lib/tip-percent-options';
 import { type BankPreference } from '@/types';
 
 export type SettingsScreenContentProps = {
@@ -20,6 +22,7 @@ export type SettingsScreenContentProps = {
   dietaryPreferenceIds: readonly string[];
   handleBankPreferenceChange: (value: string) => void;
   handleDietaryChange: (ids: string[]) => void;
+  handleTipPercentChange: (value: string | number) => void | Promise<void>;
   locationPreference: string;
   payoutEmailError: string | null;
   payoutEmailInput: string;
@@ -27,20 +30,16 @@ export type SettingsScreenContentProps = {
   saveLocationPreference: () => void | Promise<void>;
   savePayoutEmail: () => void | Promise<void>;
   saveTaxRate: () => void | Promise<void>;
-  saveTipPercent: () => void | Promise<void>;
   setBankInstructionsInput: (value: string) => void;
   setLocationPreference: (value: string) => void;
   setPayoutEmailError: (value: string | null) => void;
   setPayoutEmailInput: (value: string) => void;
   setTaxRateInput: (value: string) => void;
   setTaxRateError: (value: string | null) => void;
-  setTipError: (value: string | null) => void;
-  setTipInput: (value: string) => void;
   signOut: () => void;
   taxRateError: string | null;
   taxRateInput: string;
-  tipError: string | null;
-  tipInput: string;
+  tipSelectPercent: number;
 };
 
 export function SettingsScreenContent({
@@ -49,6 +48,7 @@ export function SettingsScreenContent({
   dietaryPreferenceIds,
   handleBankPreferenceChange,
   handleDietaryChange,
+  handleTipPercentChange,
   locationPreference,
   payoutEmailError,
   payoutEmailInput,
@@ -56,20 +56,16 @@ export function SettingsScreenContent({
   saveLocationPreference,
   savePayoutEmail,
   saveTaxRate,
-  saveTipPercent,
   setBankInstructionsInput,
   setLocationPreference,
   setPayoutEmailError,
   setPayoutEmailInput,
   setTaxRateInput,
   setTaxRateError,
-  setTipError,
-  setTipInput,
   signOut,
   taxRateError,
   taxRateInput,
-  tipError,
-  tipInput,
+  tipSelectPercent,
 }: SettingsScreenContentProps) {
   return (
     <View className="px-6 pb-8 pt-2">
@@ -105,18 +101,14 @@ export function SettingsScreenContent({
             error={taxRateError}
             testID="settings-tax-rate-input"
           />
-          <InlinePercentRow
+          <InlineSelectRow
             labelTx="settings.tip"
-            value={tipInput}
-            onChangeText={(text) => {
-              setTipInput(text);
-              setTipError(null);
+            value={String(tipSelectPercent)}
+            options={[...TIP_PERCENT_SELECT_OPTIONS]}
+            onSelect={(value) => {
+              void handleTipPercentChange(value);
             }}
-            onSubmit={() => {
-              void saveTipPercent();
-            }}
-            error={tipError}
-            testID="settings-tip-input"
+            testID="settings-tip-select"
           />
         </View>
       </View>

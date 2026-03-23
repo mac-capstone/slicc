@@ -15,6 +15,10 @@ import {
   validateEmail,
   validatePercent,
 } from '@/lib/settings-screen-helpers';
+import {
+  isTipPercentOption,
+  normalizeStoredTipPercent,
+} from '@/lib/tip-percent-options';
 import { type BankPreference } from '@/types';
 
 export function useSettingsScreen() {
@@ -42,7 +46,6 @@ export function useSettingsScreen() {
   const [taxRateInput, setTaxRateInput] = useState(
     formatPercent(defaultTaxRate)
   );
-  const [tipInput, setTipInput] = useState(formatPercent(defaultTipPercent));
   const [payoutEmailInput, setPayoutEmailInput] = useState(payoutEmail);
   const [bankInstructionsInput, setBankInstructionsInput] = useState(
     bankPayoutInstructions
@@ -50,16 +53,19 @@ export function useSettingsScreen() {
   const [locationPreference, setLocationPreference] = useState('');
   const [bankPreference, setBankPreference] = useState<BankPreference>('none');
   const [taxRateError, setTaxRateError] = useState<string | null>(null);
-  const [tipError, setTipError] = useState<string | null>(null);
   const [payoutEmailError, setPayoutEmailError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
     if (user.defaultTaxRate !== undefined) {
       setDefaultTaxRate(user.defaultTaxRate);
+    } else {
+      setDefaultTaxRate(0);
     }
     if (user.defaultTipRate !== undefined) {
-      setDefaultTipPercent(user.defaultTipRate);
+      setDefaultTipPercent(normalizeStoredTipPercent(user.defaultTipRate));
+    } else {
+      setDefaultTipPercent(0);
     }
     setDietaryPreferenceIds(
       mapFirestoreDietaryToIds(user.dietaryPreferences ?? [])
@@ -78,10 +84,6 @@ export function useSettingsScreen() {
   useEffect(() => {
     setTaxRateInput(formatPercent(defaultTaxRate));
   }, [defaultTaxRate]);
-
-  useEffect(() => {
-    setTipInput(formatPercent(defaultTipPercent));
-  }, [defaultTipPercent]);
 
   useEffect(() => {
     setPayoutEmailInput(payoutEmail);
@@ -124,28 +126,24 @@ export function useSettingsScreen() {
     }
   }, [persistToFirestore, setDefaultTaxRate, taxRateInput]);
 
-  const saveTipPercent = useCallback(async () => {
-    const error = validatePercent(tipInput);
-    if (error) {
-      setTipError(error);
-      return;
-    }
+  const handleTipPercentChange = useCallback(
+    async (raw: string | number) => {
+      const parsed = Number.parseInt(String(raw), 10);
+      if (!isTipPercentOption(parsed)) return;
 
-    const parsed = tipInput.trim() === '' ? 0 : Number.parseFloat(tipInput);
-    setDefaultTipPercent(parsed);
-    setTipInput(formatPercent(parsed));
-    setTipError(null);
-
-    try {
-      await persistToFirestore({ defaultTipRate: parsed });
-    } catch (e) {
-      console.error('[settings] failed to save tip percent', e);
-      Alert.alert(
-        'Save failed',
-        'Unable to save your default tip. Please try again.'
-      );
-    }
-  }, [persistToFirestore, setDefaultTipPercent, tipInput]);
+      setDefaultTipPercent(parsed);
+      try {
+        await persistToFirestore({ defaultTipRate: parsed });
+      } catch (e) {
+        console.error('[settings] failed to save tip percent', e);
+        Alert.alert(
+          'Save failed',
+          'Unable to save your default tip. Please try again.'
+        );
+      }
+    },
+    [persistToFirestore, setDefaultTipPercent]
+  );
 
   const savePayoutEmail = useCallback(async () => {
     const normalizedValue = normalizeTextValue(payoutEmailInput);
@@ -226,12 +224,15 @@ export function useSettingsScreen() {
     [persistToFirestore]
   );
 
+  const tipSelectPercent = normalizeStoredTipPercent(defaultTipPercent);
+
   return {
     bankInstructionsInput,
     bankPreference,
     dietaryPreferenceIds,
     handleBankPreferenceChange,
     handleDietaryChange,
+    handleTipPercentChange,
     locationPreference,
     payoutEmailError,
     payoutEmailInput,
@@ -239,18 +240,14 @@ export function useSettingsScreen() {
     saveLocationPreference,
     savePayoutEmail,
     saveTaxRate,
-    saveTipPercent,
     setBankInstructionsInput,
     setLocationPreference,
     setPayoutEmailError,
     setPayoutEmailInput,
     setTaxRateInput,
     setTaxRateError,
-    setTipError,
-    setTipInput,
     taxRateError,
     taxRateInput,
-    tipError,
-    tipInput,
+    tipSelectPercent,
   } as const;
 }

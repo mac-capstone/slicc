@@ -10,6 +10,8 @@ type Props = {
   selected: boolean;
   onToggle: () => void;
   testID?: string;
+  /** Omit bottom border (e.g. when parent uses divide-y). */
+  hideBottomBorder?: boolean;
 };
 
 export function DietaryPreferenceOptionRow({
@@ -17,13 +19,18 @@ export function DietaryPreferenceOptionRow({
   selected,
   onToggle,
   testID,
+  hideBottomBorder = false,
 }: Props): ReactElement {
   return (
     <Pressable
       accessibilityRole="checkbox"
       accessibilityState={{ checked: selected }}
       onPress={onToggle}
-      className="flex-row items-center border-b border-neutral-300 px-4 py-3.5 dark:border-charcoal-700"
+      className={`flex-row items-center px-4 py-3.5 ${
+        hideBottomBorder
+          ? ''
+          : 'border-b border-neutral-300 dark:border-charcoal-700'
+      }`}
       testID={testID}
     >
       <Text className="flex-1 text-base text-text-50">{label}</Text>

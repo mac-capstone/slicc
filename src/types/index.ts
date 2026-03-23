@@ -11,6 +11,8 @@ import {
   type userSettingsSchema,
 } from './schema';
 
+export { userConverter, userSettingsConverter } from './schema';
+
 // ── Branded ID types ───────────────────────────────────────────────────────
 
 export type UserIdT = string & { readonly __brand: unique symbol };
@@ -49,6 +51,9 @@ export type BankPreference =
 
 export type UserProfile = z.infer<typeof userProfileSchema>;
 export type UserSettings = z.infer<typeof userSettingsSchema>;
+
+/** Payload for merging into `users/{id}/settings/private` (no server timestamps). */
+export type UpdateUserSettingsData = Partial<Omit<UserSettings, 'updatedAt'>>;
 export type User = z.infer<typeof userSchema>;
 export type Group = z.infer<typeof groupSchema>;
 export type Event = z.infer<typeof eventSchema>;

@@ -1,14 +1,16 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
-import { FlashList } from '@shopify/flash-list';
-import { useColorScheme } from 'nativewind';
 import type { ReactElement } from 'react';
 import * as React from 'react';
-import { Platform, Pressable } from 'react-native';
+import { Pressable, ScrollView, useWindowDimensions } from 'react-native';
 
-import { DietaryPreferenceOptionRow } from '@/components/settings/dietary-preference-option-row';
 import colors from '@/components/ui/colors';
-import { Modal, useModal } from '@/components/ui/modal';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItemIndicator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Text } from '@/components/ui/text';
 import { DIETARY_LABEL_KEYS } from '@/lib/dietary-preference-label-keys';
 import {
@@ -16,8 +18,7 @@ import {
   type DietaryPreferenceId,
 } from '@/lib/dietary-preference-options';
 import { translate } from '@/lib/i18n';
-
-const List = Platform.OS === 'web' ? FlashList : BottomSheetFlatList;
+import { cn } from '@/lib/utils';
 
 type Props = {
   value: readonly string[];
@@ -30,9 +31,9 @@ export function DietaryPreferencesMultiSelect({
   onChange,
   testID = 'settings-dietary',
 }: Props): ReactElement {
-  const modal = useModal();
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { width: windowWidth } = useWindowDimensions();
+  /** Match settings horizontal padding (`px-6` × 2). */
+  const menuWidth = Math.min(windowWidth - 48, windowWidth * 0.92);
 
   const summary = React.useMemo(() => {
     if (value.length === 0) {
@@ -53,51 +54,65 @@ export function DietaryPreferencesMultiSelect({
     [value, onChange]
   );
 
-  const renderItem = React.useCallback(
-    ({ item }: { item: DietaryPreferenceId }) => (
-      <DietaryPreferenceOptionRow
-        label={translate(DIETARY_LABEL_KEYS[item])}
-        selected={value.includes(item)}
-        onToggle={() => toggle(item)}
-        testID={testID ? `${testID}-option-${item}` : undefined}
-      />
-    ),
-    [toggle, value, testID]
-  );
-
   return (
-    <>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityHint={translate('settings.dietary_select_a11y_hint')}
-        onPress={modal.present}
-        className="mt-5 min-h-[52px] flex-row items-center rounded-xl bg-charcoal-900 px-4 py-3"
-        testID={`${testID}-trigger`}
-      >
-        <Text
-          className="flex-1 pr-2 text-base leading-6 text-text-50"
-          numberOfLines={3}
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityHint={translate('settings.dietary_select_a11y_hint')}
+          className="mt-5 min-h-[52px] w-full flex-row items-center rounded-xl border border-charcoal-600 bg-charcoal-900 px-4 py-3"
+          testID={`${testID}-trigger`}
         >
-          {summary}
-        </Text>
-        <Ionicons name="chevron-down" size={22} color={colors.charcoal[400]} />
-      </Pressable>
-
-      <Modal
-        ref={modal.ref}
-        snapPoints={['70%']}
-        title={translate('settings.dietary_preferences')}
-        backgroundStyle={{
-          backgroundColor: isDark ? colors.charcoal[900] : colors.white,
-        }}
+          <Text
+            className="flex-1 pr-2 text-base leading-6 text-text-50"
+            numberOfLines={3}
+          >
+            {summary}
+          </Text>
+          <Ionicons
+            name="chevron-down"
+            size={22}
+            color={colors.charcoal[400]}
+          />
+        </Pressable>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        side="bottom"
+        style={{ width: menuWidth }}
+        className="max-h-80 p-0"
       >
-        <List
-          data={[...DIETARY_PREFERENCE_IDS]}
-          keyExtractor={(item: DietaryPreferenceId) => item}
-          renderItem={renderItem}
-          estimatedItemSize={56}
-        />
-      </Modal>
-    </>
+        <ScrollView
+          className="max-h-80 w-full"
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
+        >
+          {DIETARY_PREFERENCE_IDS.map((item) => (
+            <DropdownMenuCheckboxItem
+              key={item}
+              checked={value.includes(item)}
+              closeOnPress={false}
+              onCheckedChange={() => toggle(item)}
+              textValue={translate(DIETARY_LABEL_KEYS[item])}
+              className={cn(
+                'flex-row items-center px-4 py-3.5 active:bg-charcoal-800'
+              )}
+              testID={testID ? `${testID}-option-${item}` : undefined}
+            >
+              <Text className="flex-1 text-base text-text-50">
+                {translate(DIETARY_LABEL_KEYS[item])}
+              </Text>
+              <DropdownMenuItemIndicator>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={22}
+                  color={colors.accent[100]}
+                />
+              </DropdownMenuItemIndicator>
+            </DropdownMenuCheckboxItem>
+          ))}
+        </ScrollView>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

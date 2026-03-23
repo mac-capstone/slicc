@@ -35,8 +35,18 @@ import {
   View,
 } from '@/components/ui';
 import { useAuth, useDefaultTaxRate, useUserSettings } from '@/lib';
+import {
+  resolveDefaultTaxRate,
+  resolveDefaultTipRate,
+} from '@/lib/resolve-user-default-rates';
 import { storage } from '@/lib/storage';
 import { clearTempExpense, useExpenseCreation } from '@/lib/store';
+import {
+  normalizeStoredTipPercent,
+  TIP_PERCENT_OPTIONS,
+  TIP_PERCENT_SELECT_OPTIONS,
+  type TipPercentOption,
+} from '@/lib/tip-percent-options';
 import { useThemeConfig } from '@/lib/use-theme-config';
 import {
   type EventIdT,
@@ -142,6 +152,7 @@ export default function AddExpense() {
     variables: userId as UserIdT,
     enabled: Boolean(userId),
   });
+  const { defaultTipPercent } = useUserSettings();
   const { eventId } = useLocalSearchParams<{ eventId?: EventIdT }>();
   const pathname = usePathname();
   const tempExpense = useExpenseCreation.use.tempExpense();
@@ -162,6 +173,11 @@ export default function AddExpense() {
   const avatarColors = useMemo(() => Object.keys(colors.avatar ?? {}), []);
 
   const currentPayerId = tempExpense?.payerUserId;
+  const resolvedDefaultTipRate = resolveDefaultTipRate(
+    signedInUser,
+    defaultTipPercent
+  );
+
   const payerOptions = useMainPayerOptions({
     eventId,
     tempPeople: tempExpense?.people ?? [],
@@ -367,7 +383,7 @@ export default function AddExpense() {
                   totalAmount={getTotalAmount()}
                   addItem={addItem}
                   removeItem={removeItem}
-                  defaultTipRate={signedInUser?.defaultTipRate}
+                  defaultTipRate={resolvedDefaultTipRate}
                 />
               </View>
             }
@@ -638,7 +654,10 @@ function CreateItemCard() {
     enabled: Boolean(userId),
   });
   const { defaultTaxRate: mmkvDefaultTaxRate } = useDefaultTaxRate();
-  const defaultTaxRate = signedInUser?.defaultTaxRate ?? mmkvDefaultTaxRate;
+  const defaultTaxRate = resolveDefaultTaxRate(
+    signedInUser,
+    mmkvDefaultTaxRate
+  );
   const [tempItemName, setTempItemName] = useState<string>('');
   const [tempItemAmount, setTempItemAmount] = useState<string>('');
   const [tempItemTaxStr, setTempItemTaxStr] = useState<string>('');
@@ -811,12 +830,9 @@ function AddTipButton({
 }) {
   const { defaultTipPercent } = useUserSettings();
   const [modalVisible, setModalVisible] = useState(false);
-  const [tipMode, setTipMode] = useState<'flat' | 'percentage'>(
-    defaultTipRate ? 'percentage' : 'flat'
-  );
-  const [tipInput, setTipInput] = useState<string>(
-    defaultTipRate ? defaultTipRate.toString() : ''
-  );
+  const [tipMode, setTipMode] = useState<'flat' | 'percentage'>('percentage');
+  const [flatInput, setFlatInput] = useState('');
+  const [percentValue, setPercentValue] = useState<TipPercentOption>(0);
 
   const subtotalWithoutTip = useMemo(() => {
     if (existingTip) {
@@ -826,12 +842,12 @@ function AddTipButton({
   }, [totalAmount, existingTip]);
 
   const calculatedTipAmount = useMemo(() => {
-    const val = parseFloat(tipInput) || 0;
     if (tipMode === 'percentage') {
-      return Math.round(subtotalWithoutTip * (val / 100) * 100) / 100;
+      return Math.round(subtotalWithoutTip * (percentValue / 100) * 100) / 100;
     }
+    const val = parseFloat(flatInput) || 0;
     return Math.round(val * 100) / 100;
-  }, [tipInput, tipMode, subtotalWithoutTip]);
+  }, [tipMode, subtotalWithoutTip, percentValue, flatInput]);
 
   const handleAddTip = () => {
     if (calculatedTipAmount <= 0) return;
@@ -854,7 +870,8 @@ function AddTipButton({
     });
 
     setModalVisible(false);
-    setTipInput('');
+    setFlatInput('');
+    setPercentValue(0);
   };
 
   const handleRemoveTip = () => {
@@ -875,11 +892,14 @@ function AddTipButton({
         onPress={() => {
           if (existingTip) {
             setTipMode('flat');
-            setTipInput(existingTip.amount.toFixed(2));
+            setFlatInput(existingTip.amount.toFixed(2));
           } else {
             setTipMode('percentage');
-            setTipInput(
-              defaultTipPercent > 0 ? defaultTipPercent.toString() : ''
+            setFlatInput('');
+            setPercentValue(
+              normalizeStoredTipPercent(
+                defaultTipRate ?? defaultTipPercent ?? undefined
+              )
             );
           }
           setModalVisible(true);
@@ -908,7 +928,10 @@ function AddTipButton({
             <View className="mb-4 flex-row overflow-hidden rounded-lg bg-neutral-200 dark:bg-neutral-700">
               <Pressable
                 className={`flex-1 py-2 ${tipMode === 'flat' ? 'bg-black dark:bg-accent-100' : ''}`}
-                onPress={() => setTipMode('flat')}
+                onPress={() => {
+                  setTipMode('flat');
+                  setFlatInput('');
+                }}
               >
                 <Text
                   className={`text-center font-bold ${
@@ -922,7 +945,12 @@ function AddTipButton({
               </Pressable>
               <Pressable
                 className={`flex-1 py-2 ${tipMode === 'percentage' ? 'bg-black dark:bg-accent-100' : ''}`}
-                onPress={() => setTipMode('percentage')}
+                onPress={() => {
+                  setTipMode('percentage');
+                  setPercentValue(
+                    normalizeStoredTipPercent(defaultTipPercent ?? undefined)
+                  );
+                }}
               >
                 <Text
                   className={`text-center font-bold ${
@@ -938,20 +966,20 @@ function AddTipButton({
 
             {/* Quick percentage buttons */}
             {tipMode === 'percentage' && (
-              <View className="mb-3 flex-row justify-between gap-2">
-                {[10, 15, 18, 20, 25].map((pct) => (
+              <View className="mb-3 flex-row flex-wrap justify-between gap-2">
+                {TIP_PERCENT_OPTIONS.map((pct) => (
                   <Pressable
                     key={pct}
-                    className={`flex-1 rounded-lg py-2 ${
-                      tipInput === pct.toString()
+                    className={`min-w-12 flex-1 rounded-lg py-2 ${
+                      percentValue === pct
                         ? 'bg-black dark:bg-accent-100'
                         : 'bg-neutral-200 dark:bg-neutral-700'
                     }`}
-                    onPress={() => setTipInput(pct.toString())}
+                    onPress={() => setPercentValue(pct)}
                   >
                     <Text
                       className={`text-center text-sm font-bold ${
-                        tipInput === pct.toString()
+                        percentValue === pct
                           ? 'text-white dark:text-black'
                           : 'dark:text-text-50'
                       }`}
@@ -963,14 +991,26 @@ function AddTipButton({
               </View>
             )}
 
-            <Input
-              placeholder={
-                tipMode === 'flat' ? 'Enter tip amount' : 'Enter tip %'
-              }
-              keyboardType="numeric"
-              value={tipInput}
-              onChangeText={(text) => setTipInput(sanitizeNumeric(text))}
-            />
+            {tipMode === 'flat' ? (
+              <Input
+                placeholder="Enter tip amount"
+                keyboardType="numeric"
+                value={flatInput}
+                onChangeText={(text) => setFlatInput(sanitizeNumeric(text))}
+              />
+            ) : (
+              <View className="mb-3">
+                <Select
+                  value={String(percentValue)}
+                  options={[...TIP_PERCENT_SELECT_OPTIONS]}
+                  onSelect={(v) =>
+                    setPercentValue(
+                      normalizeStoredTipPercent(Number.parseInt(String(v), 10))
+                    )
+                  }
+                />
+              </View>
+            )}
 
             {/* Preview */}
             {calculatedTipAmount > 0 && (

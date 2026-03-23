@@ -3,14 +3,16 @@ import '../../global.css';
 
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { ThemeProvider } from '@react-navigation/native';
+import { PortalHost } from '@rn-primitives/portal';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useEffect } from 'react';
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 import FlashMessage from 'react-native-flash-message';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
+import { FullWindowOverlay } from 'react-native-screens';
 
 import { APIProvider } from '@/api';
 import { hydrateAuth, hydrateGroupPreferences, loadSelectedTheme } from '@/lib';
@@ -77,6 +79,13 @@ function Providers({ children }: { children: React.ReactNode }) {
           <APIProvider>
             <BottomSheetModalProvider>
               {children}
+              {Platform.OS === 'ios' ? (
+                <FullWindowOverlay>
+                  <PortalHost />
+                </FullWindowOverlay>
+              ) : (
+                <PortalHost />
+              )}
               <FlashMessage position="top" />
             </BottomSheetModalProvider>
           </APIProvider>
