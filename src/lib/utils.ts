@@ -138,6 +138,7 @@ export const parseReceiptInfo = (
 };
 
 export const encodeIdBase64Url = (value: string): string => {
+<<<<<<< HEAD
   const utf8FallbackEncode = (input: string): Uint8Array => {
     const bytes: number[] = [];
 
@@ -172,6 +173,9 @@ export const encodeIdBase64Url = (value: string): string => {
     typeof globalThis.TextEncoder === 'function'
       ? new globalThis.TextEncoder().encode(value)
       : utf8FallbackEncode(value);
+=======
+  const bytes = new TextEncoder().encode(value);
+>>>>>>> b58f0e4 (fix: docID collision + backwards friend compatability)
   const alphabet =
     'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
   let output = '';
