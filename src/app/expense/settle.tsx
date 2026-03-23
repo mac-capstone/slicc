@@ -16,6 +16,7 @@ import {
   Button,
   Input,
   Pressable,
+  showSuccessMessage,
   Text,
   View,
 } from '@/components/ui';
@@ -464,7 +465,7 @@ function SettlePersonCard({
   const copyValue = async (value: string, label: string) => {
     if (!value.trim()) return;
     await Clipboard.setStringAsync(value);
-    Alert.alert('Copied', `${label} copied to clipboard.`);
+    showSuccessMessage('Copied', `${label} copied to clipboard.`);
   };
 
   const handleOpenBank = async () => {

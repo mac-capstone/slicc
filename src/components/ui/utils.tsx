@@ -30,6 +30,19 @@ export const showErrorMessage = (message: string = 'Something went wrong ') => {
   });
 };
 
+export function showSuccessMessage(
+  message: string,
+  description?: string
+): void {
+  showMessage({
+    message,
+    description,
+    type: 'success',
+    duration: 2200,
+    icon: 'success',
+  });
+}
+
 export const extractError = (data: unknown): string => {
   if (typeof data === 'string') {
     return data;
