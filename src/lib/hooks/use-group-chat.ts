@@ -39,6 +39,7 @@ export function useGroupChat(
   } = useMessages(groupId);
   const [groupKey, setGroupKey] = useState<string | null>(null);
   const [encryptionReady, setEncryptionReady] = useState(false);
+  const [_encryptionError, setEncryptionError] = useState<Error | null>(null);
   const [messages, setMessages] = useState<ChatMessageWithId[]>([]);
   const [isSending, setIsSending] = useState(false);
 
@@ -46,6 +47,7 @@ export function useGroupChat(
   useEffect(() => {
     if (!userId || !groupId) return;
     let cancelled = false;
+    setEncryptionError(null);
 
     async function init() {
       await ensureIdentityKeyPair(userId!);
@@ -62,10 +64,10 @@ export function useGroupChat(
       }
     }
 
-    init().catch(console.error);
-    return () => {
-      cancelled = true;
-    };
+    init().catch((err) => {
+      console.error('Encryption init failed:', err);
+      if (!cancelled) setEncryptionError(err);
+    });
   }, [groupId, userId, memberIds.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Decrypt messages whenever raw messages or group key changes (synchronous)

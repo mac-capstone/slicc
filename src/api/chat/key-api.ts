@@ -80,6 +80,7 @@ export async function initGroupKey(
     throw new Error('Identity key not initialized');
 
   const version = Date.now();
+  const skippedMembers: string[] = [];
 
   await Promise.all(
     memberIds.map(async (memberId) => {
@@ -87,7 +88,11 @@ export async function initGroupKey(
         memberId === initiatorUserId
           ? senderPub
           : await fetchUserPublicKey(memberId);
-      if (!recipPub) return;
+      if (!recipPub) {
+        console.warn(`Skipping member ${memberId}: no public key registered`);
+        skippedMembers.push(memberId);
+        return;
+      }
 
       const { ciphertext, nonce } = wrapGroupKey(
         groupKey,
@@ -103,6 +108,12 @@ export async function initGroupKey(
       });
     })
   );
+
+  if (skippedMembers.length > 0) {
+    console.warn(
+      `initGroupKey: ${skippedMembers.length} members skipped (no public key)`
+    );
+  }
 
   storeGroupKey(groupId, version, groupKey);
   return groupKey;

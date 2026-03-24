@@ -30,7 +30,7 @@ export function getIdentityPublicKey(): string | undefined {
 }
 
 export function hasIdentityKeyPair(): boolean {
-  return store.contains(K.identityPriv);
+  return store.contains(K.identityPriv) && store.contains(K.identityPub);
 }
 
 export function storeGroupKey(

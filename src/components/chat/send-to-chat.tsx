@@ -47,10 +47,15 @@ export function SendToChat({ location, onDismiss }: Props) {
   const handleSend = async (groupId: GroupIdT) => {
     if (sending) return;
     setSending(groupId);
-    await sendLocationMessage(groupId, userId, location);
-    setSent(groupId);
-    setSending(null);
-    setTimeout(onDismiss, 900);
+    try {
+      await sendLocationMessage(groupId, userId, location);
+      setSent(groupId);
+      setTimeout(onDismiss, 900);
+    } catch {
+      // Reset state so user can retry
+    } finally {
+      setSending(null);
+    }
   };
 
   return (
