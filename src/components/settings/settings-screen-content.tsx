@@ -183,7 +183,7 @@ export function SettingsScreenContent({
           variant="outline"
           size="lg"
           onPress={signOut}
-          className="rounded-full border border-charcoal-500 bg-background-950 dark:border-charcoal-500"
+          className="rounded-full border border-danger-500 bg-background-950 dark:border-danger-500"
           textClassName="font-futuraDemi text-base text-text-50"
         />
       </View>
