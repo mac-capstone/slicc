@@ -9,7 +9,6 @@ import { MessageBubble } from './message-bubble';
 type Props = {
   messages: ChatMessageWithId[];
   currentUserId: UserIdT | null;
-  groupId: string;
   senderNames: Record<string, string>;
   isLoading: boolean;
   isLoadingMore: boolean;
@@ -38,7 +37,6 @@ function LoadingMoreSpinner() {
 export function MessageList({
   messages,
   currentUserId,
-  groupId,
   senderNames,
   isLoading,
   isLoadingMore,
@@ -57,33 +55,13 @@ export function MessageList({
     <FlatList
       data={messages}
       keyExtractor={(item) => item.id}
-      renderItem={({ item }) => {
-        const isMine = item.senderId === currentUserId;
-        return (
-          // Row container: forces the bubble to collapse to content height.
-          // justifyContent positions it left/right; the bubble never stretches
-          // vertically because the main axis (horizontal) constrains width only.
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent:
-                item.type === 'system'
-                  ? 'center'
-                  : isMine
-                    ? 'flex-end'
-                    : 'flex-start',
-            }}
-          >
-            <MessageBubble
-              message={item}
-              isMine={isMine}
-              senderName={senderNames[item.senderId] ?? 'Member'}
-              currentUserId={currentUserId ?? ''}
-              groupId={groupId}
-            />
-          </View>
-        );
-      }}
+      renderItem={({ item }) => (
+        <MessageBubble
+          message={item}
+          isMine={item.senderId === currentUserId}
+          senderName={senderNames[item.senderId] ?? 'Member'}
+        />
+      )}
       // Inverted renders data[0] (newest) at the visual bottom.
       // The user always opens the chat at the latest message with zero scroll logic.
       // Scrolling UP toward older messages naturally triggers onEndReached.
