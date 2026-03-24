@@ -66,7 +66,7 @@ export const PersonCard = ({
             </Text>
             {isPayer && (
               <Text className="text-xs font-bold text-accent-100">
-                Main Payer
+                Expense Owner
               </Text>
             )}
           </View>

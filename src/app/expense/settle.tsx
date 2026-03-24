@@ -133,7 +133,7 @@ export default function SettleScreen() {
     );
   }
 
-  // People who owe the payer (everyone except the main payer)
+  // People who owe the expense owner (everyone except the expense owner)
   const otherPeople = data.people.filter((p) => p.id !== payerUserId);
   const totalOwed = otherPeople.reduce((sum, p) => sum + p.subtotal, 0);
   const totalCollected = Object.values(payments).reduce(
@@ -165,14 +165,14 @@ export default function SettleScreen() {
           Settle Up
         </Text>
 
-        {/* Main payer — tappable to change */}
+        {/* Expense owner — tappable to change */}
         <Pressable
           className="mt-4 rounded-xl border border-accent-100 bg-background-900 px-4 py-3"
           onPress={() => setShowPayerPicker(true)}
         >
           <View className="flex-row items-center justify-between">
             <Text className="!dark:text-text-200 text-base uppercase tracking-wide">
-              Main payer
+              Expense Owner
             </Text>
             <View className="flex-row items-center gap-1">
               <Text className="text-xs dark:text-text-800">Change</Text>
@@ -245,7 +245,7 @@ export default function SettleScreen() {
         />
       </View>
 
-      {/* Save Payments footer — only shown to the main payer */}
+      {/* Save Payments footer — only shown to the expense owner */}
       {isCurrentUserPayer && (
         <View className="px-4 pb-8 pt-2">
           <Button
@@ -301,7 +301,7 @@ function PayerPickerModal({
       });
       onPayerChanged();
     } catch (error) {
-      Alert.alert('Error', 'Failed to update main payer. Please try again.');
+      Alert.alert('Error', 'Failed to update expense owner. Please try again.');
       console.error('[settle] failed to change payer', error);
     }
   };
@@ -322,11 +322,11 @@ function PayerPickerModal({
           onPress={(e) => e.stopPropagation()}
         >
           <Text className="mb-4 text-center text-lg font-bold dark:text-text-50">
-            Select Main Payer
+            Select Expense Owner
           </Text>
           <Text className="mb-3 text-center text-sm dark:text-text-800">
-            The main payer fronted the expense. Others will pay them back via
-            e-Transfer.
+            The expense owner paid for the expense. Others will pay them back
+            via e-Transfer.
           </Text>
           {people.map((person) => (
             <PayerOption
@@ -512,7 +512,7 @@ function SettlePersonCard({
         </Text>
       </View>
 
-      {/* Action buttons — only the main payer can record payments */}
+      {/* Action buttons — only the expense owner can record payments */}
       {isCurrentUserPayer && (
         <View className="mt-3 flex-row gap-2">
           {isEditing ? (
@@ -585,7 +585,7 @@ function SettlePersonCard({
 
           <View className="mt-2 flex-row items-center justify-between">
             <Text className="font-futuraMedium dark:text-text-50">
-              {payerInfo.displayName ?? 'Main payer'}
+              {payerInfo.displayName ?? 'Expense owner'}
             </Text>
             <Pressable
               className="rounded-md border border-charcoal-600 px-2 py-1"
