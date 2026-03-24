@@ -2,6 +2,12 @@
   "onboarding": {
     "message": "مرحبا بكم في موقع تطبيق obytes"
   },
+  "profile": {
+    "dietary_preferences": "التفضيلات الغذائية",
+    "e_transfer": "التحويل الإلكتروني",
+    "none_set": "لا توجد إعدادات",
+    "not_set": "غير محدد"
+  },
   "settings": {
     "about": "حول التطبيق ",
     "app_name": "اسم التطبيق",
