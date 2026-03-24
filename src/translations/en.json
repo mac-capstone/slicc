@@ -2,6 +2,12 @@
   "onboarding": {
     "message": "Welcome to obytes app site"
   },
+  "profile": {
+    "dietary_preferences": "Dietary Preferences",
+    "e_transfer": "E-Transfer",
+    "none_set": "None set",
+    "not_set": "Not set"
+  },
   "settings": {
     "about": "About",
     "app_name": "App Name",

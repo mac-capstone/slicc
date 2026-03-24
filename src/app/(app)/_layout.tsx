@@ -139,10 +139,21 @@ export default function TabLayout() {
         name="settings"
         options={{
           title: 'Settings',
+          href: null,
           tabBarIcon: ({ color }) => (
             <Octicons name="gear" size={24} color={color} />
           ),
           tabBarButtonTestID: 'settings-tab',
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color }) => (
+            <Octicons name="person" size={24} color={color} />
+          ),
+          tabBarButtonTestID: 'profile-tab',
         }}
       />
     </Tabs>
