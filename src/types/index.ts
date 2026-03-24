@@ -1,11 +1,13 @@
 import { type z } from 'zod';
 
 import {
+  type chatMessageSchema,
   type eventSchema,
   type expenseItemSchema,
   type expensePersonSchema,
   type expenseSchema,
   type groupSchema,
+  type locationPayloadSchema,
   type userProfileSchema,
   type userSchema,
   type userSettingsSchema,
@@ -92,3 +94,13 @@ export type ExpensePersonWithId = ExpensePerson & { id: UserIdT };
 export type ExpenseItemWithId = ExpenseItem & { id: ItemIdT };
 export type PersonWithId = Person & { id: string };
 export type ItemWithId = Item & { id: ItemIdT };
+
+// ── Chat types ──────────────────────────────────────────────────────────────
+
+export type ChatMessageIdT = string & { readonly __brand: unique symbol };
+export type LocationShare = z.infer<typeof locationPayloadSchema>;
+export type ChatMessage = z.infer<typeof chatMessageSchema>;
+export type ChatMessageWithId = ChatMessage & {
+  id: ChatMessageIdT;
+  decryptedContent?: string | null;
+};
