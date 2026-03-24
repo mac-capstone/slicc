@@ -39,7 +39,10 @@ export default function SettleScreen() {
   const payerUserId = data?.payerUserId ?? data?.createdBy ?? null;
   const isCurrentUserPayer = !!currentUserId && currentUserId === payerUserId;
   const { data: payerUser } = useUser({
-    variables: (payerUserId ?? undefined) as UserIdT | undefined,
+    variables: {
+      userId: payerUserId as UserIdT,
+      viewerUserId: currentUserId ?? null,
+    },
     enabled: Boolean(payerUserId),
   });
 
@@ -348,7 +351,10 @@ function PayerOption({
   isSelected: boolean;
   onSelect: (personId: string) => Promise<void>;
 }) {
-  const { data: user } = useUser({ variables: personId });
+  const viewerUserId = useAuth.use.userId() ?? null;
+  const { data: user } = useUser({
+    variables: { userId: personId, viewerUserId },
+  });
 
   return (
     <Pressable
@@ -401,10 +407,16 @@ function SettlePersonCard({
   const { data, isPending, isError } = usePerson({
     variables: { expenseId, personId },
   });
-  const { data: user } = useUser({ variables: personId });
   const currentUserId = useAuth.use.userId();
+  const viewerUserId = currentUserId ?? null;
+  const { data: user } = useUser({
+    variables: { userId: personId, viewerUserId },
+  });
   const { data: currentUser } = useUser({
-    variables: (currentUserId ?? undefined) as UserIdT | undefined,
+    variables: {
+      userId: currentUserId as UserIdT,
+      viewerUserId,
+    },
     enabled: Boolean(currentUserId),
   });
   const [isEditing, setIsEditing] = useState(false);

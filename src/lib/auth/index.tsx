@@ -83,6 +83,9 @@ const _useAuth = create<AuthState>((set, get) => ({
 export const useAuth = createSelectors(_useAuth);
 
 export const getUserId = (): UserIdT => _useAuth.getState().userId as UserIdT;
+
+/** Signed-in user id for use outside React (e.g. Firestore fetchers). */
+export const getAuthUserId = (): UserIdT | null => _useAuth.getState().userId;
 export const signOut = (): void => _useAuth.getState().signOut();
 export const signIn = (data: SignInData): void =>
   _useAuth.getState().signIn(data);

@@ -6,8 +6,7 @@
     "about": "حول التطبيق ",
     "app_name": "اسم التطبيق",
     "arabic": "عربي",
-    "bank_instructions": "تعليمات البنك",
-    "bank_instructions_placeholder": "تعليمات البنك (مثال: Interac e-Transfer بدون سؤال أمان)",
+    "bank_select_a11y_hint": "يفتح قائمة البنوك لاختيار البنك المفضل للتحويل.",
     "dietary_option_dairy_free": "خالٍ من الألبان",
     "dietary_option_gluten_free": "خالٍ من الغلوتين",
     "dietary_option_halal": "حلال",
@@ -48,7 +47,7 @@
       "system": "System",
       "title": "سمة"
     },
-    "tip": "البقشيش",
+    "tip": "البقشيش (%)",
     "title": "إعدادات",
     "version": "إصدار",
     "website": "موقع الكتروني"

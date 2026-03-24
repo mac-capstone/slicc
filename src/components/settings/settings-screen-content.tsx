@@ -1,5 +1,6 @@
 import { Env } from '@env';
 
+import { BankPreferenceSelect } from '@/components/settings/bank-preference-select';
 import { DietaryPreferencesMultiSelect } from '@/components/settings/dietary-preferences-multi-select';
 import { InlineSelectRow } from '@/components/settings/inline-select-row';
 import { LanguageItem } from '@/components/settings/language-item';
@@ -9,15 +10,13 @@ import {
   SectionTitle,
 } from '@/components/settings/settings-screen-shared';
 import { ThemeItem } from '@/components/settings/theme-item';
-import { Button, Input, Select, Text, View } from '@/components/ui';
+import { Button, Input, Text, View } from '@/components/ui';
 import { translate } from '@/lib';
-import { BANK_OPTIONS } from '@/lib/payment-utils';
 import { formatAppName } from '@/lib/settings-screen-helpers';
 import { TIP_PERCENT_SELECT_OPTIONS } from '@/lib/tip-percent-options';
 import { type BankPreference } from '@/types';
 
 export type SettingsScreenContentProps = {
-  bankInstructionsInput: string;
   bankPreference: BankPreference;
   dietaryPreferenceIds: readonly string[];
   handleBankPreferenceChange: (value: string) => void;
@@ -26,11 +25,9 @@ export type SettingsScreenContentProps = {
   locationPreference: string;
   payoutEmailError: string | null;
   payoutEmailInput: string;
-  saveBankInstructions: () => void;
   saveLocationPreference: () => void | Promise<void>;
   savePayoutEmail: () => void | Promise<void>;
   saveTaxRate: () => void | Promise<void>;
-  setBankInstructionsInput: (value: string) => void;
   setLocationPreference: (value: string) => void;
   setPayoutEmailError: (value: string | null) => void;
   setPayoutEmailInput: (value: string) => void;
@@ -43,7 +40,6 @@ export type SettingsScreenContentProps = {
 };
 
 export function SettingsScreenContent({
-  bankInstructionsInput,
   bankPreference,
   dietaryPreferenceIds,
   handleBankPreferenceChange,
@@ -52,11 +48,9 @@ export function SettingsScreenContent({
   locationPreference,
   payoutEmailError,
   payoutEmailInput,
-  saveBankInstructions,
   saveLocationPreference,
   savePayoutEmail,
   saveTaxRate,
-  setBankInstructionsInput,
   setLocationPreference,
   setPayoutEmailError,
   setPayoutEmailInput,
@@ -165,31 +159,12 @@ export function SettingsScreenContent({
           containerClassName="mb-0 mt-5"
           inputClassName="rounded-xl border-0 bg-charcoal-900 px-4 py-4 text-base text-text-50"
         />
-        <View className="mt-4 rounded-xl bg-charcoal-900 px-4 py-3">
-          <Select
-            label={translate('settings.preferred_bank')}
-            placeholder={translate('settings.preferred_bank_placeholder')}
-            value={bankPreference}
-            options={[...BANK_OPTIONS]}
-            onSelect={(value) => {
-              void handleBankPreferenceChange(
-                typeof value === 'string' ? value : ''
-              );
-            }}
-          />
-        </View>
-        <Input
-          testID="settings-bank-instructions-input"
-          multiline
-          maxLength={240}
-          textAlignVertical="top"
-          placeholder={translate('settings.bank_instructions_placeholder')}
-          value={bankInstructionsInput}
-          onChangeText={setBankInstructionsInput}
-          onBlur={saveBankInstructions}
-          containerClassName="mb-0 mt-4"
-          inputClassName="min-h-32 rounded-xl border-0 bg-charcoal-900 px-4 py-4 text-base leading-6 text-text-50"
-          style={{ textAlignVertical: 'top' }}
+        <BankPreferenceSelect
+          value={bankPreference}
+          onSelect={(v) => {
+            void handleBankPreferenceChange(v);
+          }}
+          testID="settings-bank"
         />
       </View>
 

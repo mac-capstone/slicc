@@ -3,36 +3,68 @@ import { Text } from 'react-native';
 import { useMMKVString } from 'react-native-mmkv';
 
 import { render, screen } from '@/lib/test-utils';
+import { type UserIdT } from '@/types';
 
 import { storage } from '../storage';
 import {
   getDefaultTaxRate,
   getDefaultTipPercent,
+  USER_SETTINGS_DEFAULT_TAX_RATE_KEY,
+  USER_SETTINGS_DEFAULT_TIP_PERCENT_KEY,
+  USER_SETTINGS_DIETARY_IDS_KEY,
+  USER_SETTINGS_PAYOUT_EMAIL_KEY,
+  userSettingsStorageKey,
   useUserSettings,
 } from './use-user-settings';
+
+const testUserId = 'user_test_1' as UserIdT;
 
 jest.mock('../storage', () => ({
   storage: {
     getString: jest.fn(),
+    set: jest.fn(),
+    remove: jest.fn(),
   },
 }));
 
 jest.mock('react-native-mmkv');
 
+jest.mock('@/lib/auth', () => ({
+  useAuth: {
+    use: {
+      userId: jest.fn(() => testUserId),
+    },
+  },
+}));
+
+const { useAuth } = jest.requireMock('@/lib/auth') as {
+  useAuth: { use: { userId: jest.Mock } };
+};
+
 describe('useUserSettings', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    useAuth.use.userId.mockReturnValue(testUserId);
   });
 
-  it('reads legacy default tax from storage synchronously', () => {
+  it('reads scoped default tax from storage synchronously', () => {
+    const scopedTax = userSettingsStorageKey(
+      testUserId,
+      USER_SETTINGS_DEFAULT_TAX_RATE_KEY
+    );
+    const scopedTip = userSettingsStorageKey(
+      testUserId,
+      USER_SETTINGS_DEFAULT_TIP_PERCENT_KEY
+    );
+
     (storage.getString as jest.Mock).mockImplementation((key: string) => {
-      if (key === 'DEFAULT_TAX_RATE') return '13';
-      if (key === 'DEFAULT_TIP_PERCENT') return '18';
+      if (key === scopedTax) return '13';
+      if (key === scopedTip) return '18';
       return undefined;
     });
 
-    expect(getDefaultTaxRate()).toBe(13);
-    expect(getDefaultTipPercent()).toBe(18);
+    expect(getDefaultTaxRate(testUserId)).toBe(13);
+    expect(getDefaultTipPercent(testUserId)).toBe(18);
   });
 
   it('exposes all local settings through one hook contract', () => {
@@ -40,16 +72,20 @@ describe('useUserSettings', () => {
 
     (useMMKVString as jest.Mock).mockImplementation((key: string) => {
       switch (key) {
-        case 'DEFAULT_TAX_RATE':
+        case userSettingsStorageKey(
+          testUserId,
+          USER_SETTINGS_DEFAULT_TAX_RATE_KEY
+        ):
           return ['8.5', setValue];
-        case 'DEFAULT_TIP_PERCENT':
+        case userSettingsStorageKey(
+          testUserId,
+          USER_SETTINGS_DEFAULT_TIP_PERCENT_KEY
+        ):
           return ['15', setValue];
-        case 'DIETARY_PREFERENCE_IDS':
+        case userSettingsStorageKey(testUserId, USER_SETTINGS_DIETARY_IDS_KEY):
           return ['["vegetarian","nut_free"]', setValue];
-        case 'PAYOUT_EMAIL':
+        case userSettingsStorageKey(testUserId, USER_SETTINGS_PAYOUT_EMAIL_KEY):
           return ['test@example.com', setValue];
-        case 'BANK_PAYOUT_INSTRUCTIONS':
-          return ['Interac e-Transfer', setValue];
         default:
           return [undefined, setValue];
       }
@@ -60,7 +96,7 @@ describe('useUserSettings', () => {
 
       return (
         <Text>
-          {`${settings.defaultTaxRate}|${settings.defaultTipPercent}|${settings.dietaryPreferenceIds.join(',')}|${settings.payoutEmail}|${settings.bankPayoutInstructions}`}
+          {`${settings.defaultTaxRate}|${settings.defaultTipPercent}|${settings.dietaryPreferenceIds.join(',')}|${settings.payoutEmail}`}
         </Text>
       );
     };
@@ -68,9 +104,7 @@ describe('useUserSettings', () => {
     render(<Probe />);
 
     expect(
-      screen.getByText(
-        '8.5|15|vegetarian,nut_free|test@example.com|Interac e-Transfer'
-      )
+      screen.getByText('8.5|15|vegetarian,nut_free|test@example.com')
     ).toBeOnTheScreen();
   });
 });

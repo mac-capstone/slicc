@@ -1,14 +1,58 @@
-import React from 'react';
+import React, { useMemo, useRef } from 'react';
 import { useMMKVString } from 'react-native-mmkv';
+
+import { useAuth } from '@/lib/auth';
+import { type UserIdT } from '@/types';
 
 import { normalizeDietaryPreferenceIds } from '../dietary-preference-options';
 import { storage } from '../storage';
 
-const DEFAULT_TAX_RATE_KEY = 'DEFAULT_TAX_RATE';
-const DEFAULT_TIP_PERCENT_KEY = 'DEFAULT_TIP_PERCENT';
-const DIETARY_PREFERENCE_IDS_KEY = 'DIETARY_PREFERENCE_IDS';
-const PAYOUT_EMAIL_KEY = 'PAYOUT_EMAIL';
-const BANK_PAYOUT_INSTRUCTIONS_KEY = 'BANK_PAYOUT_INSTRUCTIONS';
+/** Base key names; persisted keys are `${userId}:${base}` (or `__signed_out__:${base}`). */
+export const USER_SETTINGS_DEFAULT_TAX_RATE_KEY = 'DEFAULT_TAX_RATE';
+export const USER_SETTINGS_DEFAULT_TIP_PERCENT_KEY = 'DEFAULT_TIP_PERCENT';
+export const USER_SETTINGS_DIETARY_IDS_KEY = 'DIETARY_PREFERENCE_IDS';
+export const USER_SETTINGS_PAYOUT_EMAIL_KEY = 'PAYOUT_EMAIL';
+
+const USER_SETTINGS_BASE_KEYS = [
+  USER_SETTINGS_DEFAULT_TAX_RATE_KEY,
+  USER_SETTINGS_DEFAULT_TIP_PERCENT_KEY,
+  USER_SETTINGS_DIETARY_IDS_KEY,
+  USER_SETTINGS_PAYOUT_EMAIL_KEY,
+] as const;
+
+const SIGNED_OUT_SCOPE = '__signed_out__';
+
+export function userSettingsStorageKey(
+  userId: UserIdT | null | undefined,
+  baseKey: string
+): string {
+  const scope =
+    userId !== null && userId !== undefined && userId !== ''
+      ? userId
+      : SIGNED_OUT_SCOPE;
+  return `${scope}:${baseKey}`;
+}
+
+/**
+ * One-time move from pre-multi-account global keys to the signed-in user's
+ * scoped keys, then delete globals so another account cannot read them.
+ */
+function migrateLegacyGlobalUserSettings(userId: UserIdT): void {
+  const hasLegacy = USER_SETTINGS_BASE_KEYS.some(
+    (base) => storage.getString(base) !== undefined
+  );
+  if (!hasLegacy) return;
+
+  for (const base of USER_SETTINGS_BASE_KEYS) {
+    const scopedKey = userSettingsStorageKey(userId, base);
+    if (storage.getString(scopedKey) !== undefined) continue;
+    const legacy = storage.getString(base);
+    if (legacy !== undefined) storage.set(scopedKey, legacy);
+  }
+  for (const base of USER_SETTINGS_BASE_KEYS) {
+    storage.remove(base);
+  }
+}
 
 const parseStoredNumber = (value?: string): number => {
   if (!value) return 0;
@@ -29,34 +73,73 @@ function parseDietaryIds(raw?: string): string[] {
   }
 }
 
-export const getDefaultTaxRate = (): number =>
-  parseStoredNumber(storage.getString(DEFAULT_TAX_RATE_KEY));
+export function getDefaultTaxRate(userId: UserIdT | null): number {
+  return parseStoredNumber(
+    storage.getString(
+      userSettingsStorageKey(userId, USER_SETTINGS_DEFAULT_TAX_RATE_KEY)
+    )
+  );
+}
 
-export const getDefaultTipPercent = (): number =>
-  parseStoredNumber(storage.getString(DEFAULT_TIP_PERCENT_KEY));
+export function getDefaultTipPercent(userId: UserIdT | null): number {
+  return parseStoredNumber(
+    storage.getString(
+      userSettingsStorageKey(userId, USER_SETTINGS_DEFAULT_TIP_PERCENT_KEY)
+    )
+  );
+}
 
-export const getDietaryPreferenceIds = (): string[] =>
-  parseDietaryIds(storage.getString(DIETARY_PREFERENCE_IDS_KEY));
+export function getDietaryPreferenceIds(userId: UserIdT | null): string[] {
+  return parseDietaryIds(
+    storage.getString(
+      userSettingsStorageKey(userId, USER_SETTINGS_DIETARY_IDS_KEY)
+    )
+  );
+}
 
 export const useUserSettings = () => {
-  const [taxRateStr, setTaxRateStr] = useMMKVString(
-    DEFAULT_TAX_RATE_KEY,
-    storage
+  const userId = useAuth.use.userId();
+
+  const lastMigratedUserIdRef = useRef<UserIdT | null | undefined>(undefined);
+  if (userId) {
+    if (lastMigratedUserIdRef.current !== userId) {
+      lastMigratedUserIdRef.current = userId;
+      migrateLegacyGlobalUserSettings(userId);
+    }
+  } else {
+    lastMigratedUserIdRef.current = null;
+  }
+
+  const keys = useMemo(
+    () => ({
+      taxRate: userSettingsStorageKey(
+        userId,
+        USER_SETTINGS_DEFAULT_TAX_RATE_KEY
+      ),
+      tipPercent: userSettingsStorageKey(
+        userId,
+        USER_SETTINGS_DEFAULT_TIP_PERCENT_KEY
+      ),
+      dietaryIds: userSettingsStorageKey(userId, USER_SETTINGS_DIETARY_IDS_KEY),
+      payoutEmail: userSettingsStorageKey(
+        userId,
+        USER_SETTINGS_PAYOUT_EMAIL_KEY
+      ),
+    }),
+    [userId]
   );
+
+  const [taxRateStr, setTaxRateStr] = useMMKVString(keys.taxRate, storage);
   const [tipPercentStr, setTipPercentStr] = useMMKVString(
-    DEFAULT_TIP_PERCENT_KEY,
+    keys.tipPercent,
     storage
   );
   const [dietaryIdsJson, setDietaryIdsJson] = useMMKVString(
-    DIETARY_PREFERENCE_IDS_KEY,
+    keys.dietaryIds,
     storage
   );
   const [payoutEmail, setPayoutEmailStr] = useMMKVString(
-    PAYOUT_EMAIL_KEY,
-    storage
-  );
-  const [bankPayoutInstructions, setBankPayoutInstructionsStr] = useMMKVString(
-    BANK_PAYOUT_INSTRUCTIONS_KEY,
+    keys.payoutEmail,
     storage
   );
 
@@ -93,13 +176,6 @@ export const useUserSettings = () => {
     [setPayoutEmailStr]
   );
 
-  const setBankPayoutInstructions = React.useCallback(
-    (value: string) => {
-      setBankPayoutInstructionsStr(value);
-    },
-    [setBankPayoutInstructionsStr]
-  );
-
   return {
     defaultTaxRate,
     setDefaultTaxRate,
@@ -109,7 +185,5 @@ export const useUserSettings = () => {
     setDietaryPreferenceIds,
     payoutEmail: payoutEmail ?? '',
     setPayoutEmail,
-    bankPayoutInstructions: bankPayoutInstructions ?? '',
-    setBankPayoutInstructions,
   } as const;
 };

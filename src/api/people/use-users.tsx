@@ -15,6 +15,7 @@ import {
 import { createQuery } from 'react-query-kit';
 
 import { db } from '@/api/common/firebase';
+import { getAuthUserId, useAuth } from '@/lib/auth';
 import {
   type EventPerson,
   userConverter,
@@ -28,11 +29,17 @@ import {
 // Re-export so callers importing from this file still work
 export type { UserWithId };
 
+/** Variables for {@link useUser}; include viewer so the query refetches when auth hydrates. */
+export type UseUserVariables = {
+  userId: UserIdT;
+  viewerUserId: string | null;
+};
+
 function userDocRef(userId: string) {
   return doc(db, 'users', userId).withConverter(userConverter);
 }
 
-function userSettingsDocRef(userId: string) {
+function privateSettingsDocRef(userId: string) {
   return doc(db, 'users', userId, 'settings', 'private').withConverter(
     userSettingsConverter
   );
@@ -54,19 +61,25 @@ function toUserWithId(
   };
 }
 
-async function loadUserSettingsPartial(
-  userId: string
+/**
+ * Loads `users/{userId}/settings/private` only when `viewerUserId === userId`.
+ * Callers must not use this for arbitrary users (social/search/batch for others).
+ */
+async function loadPrivateSettingsWhenSelf(
+  userId: string,
+  viewerUserId: string | null
 ): Promise<Partial<UserSettings>> {
-  try {
-    const snap = await getDoc(userSettingsDocRef(userId));
-    if (!snap.exists()) return {};
-    return snap.data();
-  } catch {
-    return {};
-  }
+  if (viewerUserId == null || viewerUserId !== userId) return {};
+
+  const snap = await getDoc(privateSettingsDocRef(userId));
+  if (!snap.exists()) return {};
+  return snap.data();
 }
 
-export async function fetchUser(userId: string): Promise<UserWithId> {
+export async function fetchUser(
+  userId: string,
+  viewerUserId: string | null = getAuthUserId()
+): Promise<UserWithId> {
   const userSnap = await getDoc(userDocRef(userId));
 
   if (!userSnap.exists()) {
@@ -74,7 +87,7 @@ export async function fetchUser(userId: string): Promise<UserWithId> {
   }
 
   const profile = userSnap.data();
-  const settings = await loadUserSettingsPartial(userId);
+  const settings = await loadPrivateSettingsWhenSelf(userId, viewerUserId);
   return toUserWithId(userSnap.id, profile, settings);
 }
 
@@ -97,13 +110,10 @@ export async function searchUsersByUsername(
     limit(resultLimit)
   );
   const snapshot = await getDocs(firestoreQuery);
-  return Promise.all(
-    snapshot.docs.map(async (d) => {
-      const profile = d.data();
-      const settings = await loadUserSettingsPartial(d.id);
-      return toUserWithId(d.id, profile, settings);
-    })
-  );
+  return snapshot.docs.map((d) => {
+    const profile = d.data();
+    return toUserWithId(d.id, profile, {});
+  });
 }
 
 export const useUserIds = createQuery<UserIdT[], void, Error>({
@@ -115,9 +125,9 @@ export const useUserIds = createQuery<UserIdT[], void, Error>({
   },
 });
 
-export const useUser = createQuery<UserWithId, UserIdT, Error>({
+export const useUser = createQuery<UserWithId, UseUserVariables, Error>({
   queryKey: ['users', 'userId'],
-  fetcher: async (userId) => fetchUser(userId),
+  fetcher: async ({ userId, viewerUserId }) => fetchUser(userId, viewerUserId),
 });
 
 export const useSearchUsers = createQuery<UserWithId[], string, Error>({
@@ -139,7 +149,10 @@ function chunkUserIds(userIds: UserIdT[]): UserIdT[][] {
   return chunks;
 }
 
-async function fetchUsersBatch(userIds: UserIdT[]): Promise<UserWithId[]> {
+export async function fetchUsersBatch(
+  userIds: UserIdT[],
+  viewerUserId: string | null
+): Promise<UserWithId[]> {
   if (userIds.length === 0) return [];
 
   const usersRef = usersCollectionRef();
@@ -167,16 +180,18 @@ async function fetchUsersBatch(userIds: UserIdT[]): Promise<UserWithId[]> {
     throw new Error('User not found');
   }
 
-  const settingsPartials = await Promise.all(
-    userIds.map((id) => loadUserSettingsPartial(id))
-  );
+  let selfPrivate: Partial<UserSettings> = {};
+  if (viewerUserId != null && userIds.some((id) => id === viewerUserId)) {
+    selfPrivate = await loadPrivateSettingsWhenSelf(viewerUserId, viewerUserId);
+  }
 
-  return userIds.map((userId, index) => {
+  return userIds.map((userId) => {
     const profile = profileById.get(userId);
     if (!profile) {
       throw new Error('User not found');
     }
-    return toUserWithId(userId, profile, settingsPartials[index] ?? {});
+    const settings = viewerUserId === userId ? selfPrivate : {};
+    return toUserWithId(userId, profile, settings);
   });
 }
 
@@ -188,13 +203,15 @@ export function useUsersAsPeople(
   isLoading: boolean;
   isError: boolean;
 } {
+  const viewerUserId = useAuth.use.userId() ?? null;
+
   const {
     data: users = [],
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ['users', 'batch', userIds],
-    queryFn: () => fetchUsersBatch(userIds),
+    queryKey: ['users', 'batch', userIds, viewerUserId],
+    queryFn: () => fetchUsersBatch(userIds, viewerUserId),
     staleTime: 5 * 60 * 1000,
     enabled: userIds.length > 0,
   });
