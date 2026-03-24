@@ -61,6 +61,21 @@ export async function checkUsernameExists(
   return snapshot.docs.some((d) => d.id !== excludeUserId);
 }
 
+/** Returns another user's id for a normalized username, or null if none. */
+export async function getUserIdByUsername(
+  username: string,
+  excludeUserId?: string
+): Promise<string | null> {
+  const normalized = username.toLowerCase().trim();
+  if (!normalized) return null;
+
+  const usersRef = collection(db, 'users');
+  const q = query(usersRef, where('username', '==', normalized));
+  const snapshot = await getDocs(q);
+  const match = snapshot.docs.find((d) => d.id !== excludeUserId);
+  return match?.id ?? null;
+}
+
 export async function uploadProfilePicture(
   userId: string,
   imageUri: string
@@ -126,6 +141,7 @@ export async function createUserInFirestore(
   } = {
     username: data.username.toLowerCase().trim(),
     displayName: data.displayName.trim(),
+    friends: [],
     createdAt: now,
     updatedAt: now,
   };

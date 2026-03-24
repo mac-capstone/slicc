@@ -14,6 +14,8 @@ const TOP_LEVEL_COLLECTIONS = [
   'events',
   'notifications',
   'expenses',
+  'friendRequests',
+  'friendships',
 ];
 
 const EXPENSE_SUBCOLLECTIONS = ['people', 'items'];
