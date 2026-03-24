@@ -28,7 +28,10 @@ import { useAuth } from '@/lib/auth';
 import type { GroupIdT, UserIdT, UserWithId } from '@/types';
 
 function UserAvatar({ userId, size = 36 }: { userId: UserIdT; size?: number }) {
-  const { data: user } = useUser({ variables: userId });
+  const viewerUserId = useAuth.use.userId() ?? null;
+  const { data: user } = useUser({
+    variables: { userId, viewerUserId },
+  });
   const colorKey = (user as { color?: string } | undefined)?.color ?? 'white';
   const bgColor =
     colors.avatar[colorKey as keyof typeof colors.avatar] ??

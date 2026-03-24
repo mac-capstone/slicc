@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { useUser } from '@/api/people/use-users';
@@ -19,14 +19,15 @@ import {
   isTipPercentOption,
   normalizeStoredTipPercent,
 } from '@/lib/tip-percent-options';
-import { type BankPreference } from '@/types';
+import { type BankPreference, type UserIdT } from '@/types';
 
 export function useSettingsScreen() {
   const userId = useAuth.use.userId();
+  const viewerUserId = userId ?? null;
   const queryClient = useQueryClient();
 
   const { data: user } = useUser({
-    variables: userId ?? undefined,
+    variables: { userId: userId as UserIdT, viewerUserId },
     enabled: Boolean(userId),
   });
 
@@ -39,24 +40,35 @@ export function useSettingsScreen() {
     setDietaryPreferenceIds,
     payoutEmail,
     setPayoutEmail,
-    bankPayoutInstructions,
-    setBankPayoutInstructions,
   } = useUserSettings();
 
   const [taxRateInput, setTaxRateInput] = useState(
     formatPercent(defaultTaxRate)
   );
   const [payoutEmailInput, setPayoutEmailInput] = useState(payoutEmail);
-  const [bankInstructionsInput, setBankInstructionsInput] = useState(
-    bankPayoutInstructions
-  );
   const [locationPreference, setLocationPreference] = useState('');
   const [bankPreference, setBankPreference] = useState<BankPreference>('none');
   const [taxRateError, setTaxRateError] = useState<string | null>(null);
   const [payoutEmailError, setPayoutEmailError] = useState<string | null>(null);
 
+  /** Firestore refetches replace `user` by reference; seed local state only once per account. */
+  const hydratedUserIdRef = useRef<string | undefined>(undefined);
+  const taxDirtyRef = useRef(false);
+  const payoutEmailDirtyRef = useRef(false);
+  const locationDirtyRef = useRef(false);
+
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      hydratedUserIdRef.current = undefined;
+      return;
+    }
+    if (hydratedUserIdRef.current === user.id) return;
+
+    hydratedUserIdRef.current = user.id;
+    taxDirtyRef.current = false;
+    payoutEmailDirtyRef.current = false;
+    locationDirtyRef.current = false;
+
     if (user.defaultTaxRate !== undefined) {
       setDefaultTaxRate(user.defaultTaxRate);
     } else {
@@ -82,16 +94,29 @@ export function useSettingsScreen() {
   ]);
 
   useEffect(() => {
+    if (taxDirtyRef.current) return;
     setTaxRateInput(formatPercent(defaultTaxRate));
   }, [defaultTaxRate]);
 
   useEffect(() => {
+    if (payoutEmailDirtyRef.current) return;
     setPayoutEmailInput(payoutEmail);
   }, [payoutEmail]);
 
-  useEffect(() => {
-    setBankInstructionsInput(bankPayoutInstructions);
-  }, [bankPayoutInstructions]);
+  const setTaxRateInputTracked = useCallback((text: string) => {
+    taxDirtyRef.current = true;
+    setTaxRateInput(text);
+  }, []);
+
+  const setPayoutEmailInputTracked = useCallback((text: string) => {
+    payoutEmailDirtyRef.current = true;
+    setPayoutEmailInput(text);
+  }, []);
+
+  const setLocationPreferenceTracked = useCallback((text: string) => {
+    locationDirtyRef.current = true;
+    setLocationPreference(text);
+  }, []);
 
   const persistToFirestore = useCallback(
     async (data: Parameters<typeof updateUserSettingsInFirestore>[1]) => {
@@ -117,6 +142,7 @@ export function useSettingsScreen() {
 
     try {
       await persistToFirestore({ defaultTaxRate: parsed });
+      taxDirtyRef.current = false;
     } catch (e) {
       console.error('[settings] failed to save tax rate', e);
       Alert.alert(
@@ -160,6 +186,7 @@ export function useSettingsScreen() {
 
     try {
       await persistToFirestore({ eTransferEmail: normalizedValue });
+      payoutEmailDirtyRef.current = false;
     } catch (e) {
       console.error('[settings] failed to save payout email', e);
       Alert.alert(
@@ -169,16 +196,11 @@ export function useSettingsScreen() {
     }
   }, [payoutEmailInput, persistToFirestore, setPayoutEmail]);
 
-  const saveBankInstructions = useCallback(() => {
-    const normalizedValue = normalizeTextValue(bankInstructionsInput);
-    setBankPayoutInstructions(normalizedValue);
-    setBankInstructionsInput(normalizedValue);
-  }, [bankInstructionsInput, setBankPayoutInstructions]);
-
   const saveLocationPreference = useCallback(async () => {
     const trimmed = locationPreference.trim();
     try {
       await persistToFirestore({ locationPreference: trimmed });
+      locationDirtyRef.current = false;
     } catch (e) {
       console.error('[settings] failed to save location', e);
       Alert.alert(
@@ -227,7 +249,6 @@ export function useSettingsScreen() {
   const tipSelectPercent = normalizeStoredTipPercent(defaultTipPercent);
 
   return {
-    bankInstructionsInput,
     bankPreference,
     dietaryPreferenceIds,
     handleBankPreferenceChange,
@@ -236,15 +257,13 @@ export function useSettingsScreen() {
     locationPreference,
     payoutEmailError,
     payoutEmailInput,
-    saveBankInstructions,
     saveLocationPreference,
     savePayoutEmail,
     saveTaxRate,
-    setBankInstructionsInput,
-    setLocationPreference,
+    setLocationPreference: setLocationPreferenceTracked,
     setPayoutEmailError,
-    setPayoutEmailInput,
-    setTaxRateInput,
+    setPayoutEmailInput: setPayoutEmailInputTracked,
+    setTaxRateInput: setTaxRateInputTracked,
     setTaxRateError,
     taxRateError,
     taxRateInput,

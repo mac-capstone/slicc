@@ -88,8 +88,9 @@ function RateRow({
 
 export const TaxItem = () => {
   const userId = useAuth.use.userId();
+  const viewerUserId = userId ?? null;
   const { data: user } = useUser({
-    variables: userId as UserIdT,
+    variables: { userId: userId as UserIdT, viewerUserId },
     enabled: Boolean(userId),
   });
   const { defaultTaxRate: mmkvTaxRate, setDefaultTaxRate: setMmkvTaxRate } =

@@ -8,7 +8,13 @@ import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
 } from 'expo-speech-recognition';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { ActivityIndicator, Alert, BackHandler, Modal } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useMMKVBoolean } from 'react-native-mmkv';
@@ -148,8 +154,9 @@ function useMainPayerOptions({
 export default function AddExpense() {
   const theme = useThemeConfig();
   const userId = useAuth.use.userId();
+  const viewerUserId = userId ?? null;
   const { data: signedInUser } = useUser({
-    variables: userId as UserIdT,
+    variables: { userId: userId as UserIdT, viewerUserId },
     enabled: Boolean(userId),
   });
   const { defaultTipPercent } = useUserSettings();
@@ -649,8 +656,9 @@ function getItemAndAmountFromTaggedWords(taggedWords: any[]): {
 
 function CreateItemCard() {
   const userId = useAuth.use.userId();
+  const viewerUserId = userId ?? null;
   const { data: signedInUser } = useUser({
-    variables: userId as UserIdT,
+    variables: { userId: userId as UserIdT, viewerUserId },
     enabled: Boolean(userId),
   });
   const { defaultTaxRate: mmkvDefaultTaxRate } = useDefaultTaxRate();
@@ -662,11 +670,14 @@ function CreateItemCard() {
   const [tempItemAmount, setTempItemAmount] = useState<string>('');
   const [tempItemTaxStr, setTempItemTaxStr] = useState<string>('');
   const [recognizing, setRecognizing] = useState(false);
+  const [hasUserEditedTax, setHasUserEditedTax] = useState(false);
 
-  // Sync the tax input with default whenever default changes and user hasn't typed anything
+  // Mirror default into the field only until the user edits; late signedInUser resolution
+  // must not overwrite in-progress input.
   useEffect(() => {
+    if (hasUserEditedTax) return;
     setTempItemTaxStr(defaultTaxRate > 0 ? defaultTaxRate.toString() : '');
-  }, [defaultTaxRate]);
+  }, [defaultTaxRate, hasUserEditedTax]);
 
   const addItem = useExpenseCreation.use.addItem();
 
@@ -725,6 +736,7 @@ function CreateItemCard() {
       },
       assignedPersonIds: [],
     });
+    setHasUserEditedTax(false);
     setTempItemName('');
     setTempItemAmount('');
     setTempItemTaxStr(defaultTaxRate > 0 ? defaultTaxRate.toString() : '');
@@ -773,7 +785,10 @@ function CreateItemCard() {
           containerClassName="mb-0 w-16"
           inputClassName="text-center"
           value={tempItemTaxStr}
-          onChangeText={(text) => setTempItemTaxStr(sanitizeNumeric(text))}
+          onChangeText={(text) => {
+            setHasUserEditedTax(true);
+            setTempItemTaxStr(sanitizeNumeric(text));
+          }}
         />
         <Text className="pb-2 text-base font-bold text-neutral-400">% Tax</Text>
       </View>
@@ -829,10 +844,13 @@ function AddTipButton({
   defaultTipRate?: number;
 }) {
   const { defaultTipPercent } = useUserSettings();
+  const resolvedDefaultTipPercent = defaultTipRate ?? defaultTipPercent;
   const [modalVisible, setModalVisible] = useState(false);
   const [tipMode, setTipMode] = useState<'flat' | 'percentage'>('percentage');
   const [flatInput, setFlatInput] = useState('');
   const [percentValue, setPercentValue] = useState<TipPercentOption>(0);
+  /** After user has a % choice this open (default seed or explicit pick), keep it when toggling modes. */
+  const percentChoiceEstablishedRef = useRef(false);
 
   const subtotalWithoutTip = useMemo(() => {
     if (existingTip) {
@@ -872,6 +890,7 @@ function AddTipButton({
     setModalVisible(false);
     setFlatInput('');
     setPercentValue(0);
+    percentChoiceEstablishedRef.current = false;
   };
 
   const handleRemoveTip = () => {
@@ -893,14 +912,14 @@ function AddTipButton({
           if (existingTip) {
             setTipMode('flat');
             setFlatInput(existingTip.amount.toFixed(2));
+            percentChoiceEstablishedRef.current = false;
           } else {
             setTipMode('percentage');
             setFlatInput('');
             setPercentValue(
-              normalizeStoredTipPercent(
-                defaultTipRate ?? defaultTipPercent ?? undefined
-              )
+              normalizeStoredTipPercent(resolvedDefaultTipPercent)
             );
+            percentChoiceEstablishedRef.current = true;
           }
           setModalVisible(true);
         }}
@@ -947,9 +966,12 @@ function AddTipButton({
                 className={`flex-1 py-2 ${tipMode === 'percentage' ? 'bg-black dark:bg-accent-100' : ''}`}
                 onPress={() => {
                   setTipMode('percentage');
-                  setPercentValue(
-                    normalizeStoredTipPercent(defaultTipPercent ?? undefined)
-                  );
+                  if (!percentChoiceEstablishedRef.current) {
+                    setPercentValue(
+                      normalizeStoredTipPercent(resolvedDefaultTipPercent)
+                    );
+                    percentChoiceEstablishedRef.current = true;
+                  }
                 }}
               >
                 <Text
@@ -975,7 +997,10 @@ function AddTipButton({
                         ? 'bg-black dark:bg-accent-100'
                         : 'bg-neutral-200 dark:bg-neutral-700'
                     }`}
-                    onPress={() => setPercentValue(pct)}
+                    onPress={() => {
+                      percentChoiceEstablishedRef.current = true;
+                      setPercentValue(pct);
+                    }}
                   >
                     <Text
                       className={`text-center text-sm font-bold ${
@@ -1003,11 +1028,12 @@ function AddTipButton({
                 <Select
                   value={String(percentValue)}
                   options={[...TIP_PERCENT_SELECT_OPTIONS]}
-                  onSelect={(v) =>
+                  onSelect={(v) => {
+                    percentChoiceEstablishedRef.current = true;
                     setPercentValue(
                       normalizeStoredTipPercent(Number.parseInt(String(v), 10))
-                    )
-                  }
+                    );
+                  }}
                 />
               </View>
             )}

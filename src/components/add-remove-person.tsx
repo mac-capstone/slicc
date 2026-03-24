@@ -34,6 +34,7 @@ import {
 } from '@/api/people/use-users';
 import { type UserWithId } from '@/api/people/use-users';
 import { colors } from '@/components/ui';
+import { useAuth } from '@/lib/auth';
 import { useExpenseCreation } from '@/lib/store';
 import {
   type EventIdT,
@@ -100,8 +101,12 @@ function ExpensePersonRow({
   onToggle: () => Promise<void>;
 }) {
   const isRealUser = person.userRef != null;
+  const viewerUserId = useAuth.use.userId() ?? null;
   const { data: userData } = useUser({
-    variables: (person.userRef ?? person.id) as UserIdT,
+    variables: {
+      userId: (person.userRef ?? person.id) as UserIdT,
+      viewerUserId,
+    },
     enabled: isRealUser,
   });
 
