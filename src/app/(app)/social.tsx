@@ -18,6 +18,7 @@ import {
 } from '@/api/social/friend-requests';
 import { unfriendUser, useFriendUserIds } from '@/api/social/friendships';
 import { AddFriendModal } from '@/components/add-friend-modal';
+import { ChatFab } from '@/components/chat/chat-fab';
 import { FriendListItem } from '@/components/friend-list-item';
 import { FriendRequestsModal } from '@/components/friend-requests-modal';
 import { GroupItem, type GroupItemData } from '@/components/group-item';
@@ -255,7 +256,7 @@ export default function Social() {
   );
 
   return (
-    <View className="flex-1 px-4">
+    <View className="flex-1 px-4" style={{ position: 'relative' }}>
       <Stack.Screen
         options={{
           title: 'Social',
@@ -428,6 +429,8 @@ export default function Social() {
           />
         </>
       )}
+      <ChatFab />
+
       {(isFriendRequestsOpen ||
         isAddFriendOpen ||
         removeFriendTarget != null) && (
