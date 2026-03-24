@@ -17,9 +17,10 @@ type Props = {
   loadMore: () => Promise<void>;
 };
 
+/** Rendered outside inverted FlatList so the copy is never flipped by `inverted`. */
 function EmptyChat() {
   return (
-    <View className="flex-1 items-center justify-center pb-16">
+    <View className="flex-1 items-center justify-center px-4 pb-16">
       <Text className="text-center text-sm text-text-800">
         No messages yet. Say hello!
       </Text>
@@ -29,7 +30,7 @@ function EmptyChat() {
 
 function LoadingMoreSpinner() {
   return (
-    <View className="items-center py-3">
+    <View className="items-center py-3" style={{ transform: [{ scaleY: -1 }] }}>
       <ActivityIndicator size="small" color={colors.primary[500]} />
     </View>
   );
@@ -51,6 +52,10 @@ export function MessageList({
         <ActivityIndicator color={colors.primary[500]} />
       </View>
     );
+  }
+
+  if (messages.length === 0) {
+    return <EmptyChat />;
   }
 
   return (
@@ -93,7 +98,6 @@ export function MessageList({
       onEndReachedThreshold={0.3}
       // Spinner shown at the visual top while older messages are being fetched
       ListFooterComponent={isLoadingMore ? <LoadingMoreSpinner /> : null}
-      ListEmptyComponent={<EmptyChat />}
       contentContainerStyle={{
         paddingHorizontal: 12,
         paddingTop: 8,
