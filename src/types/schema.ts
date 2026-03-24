@@ -226,6 +226,9 @@ export const chatMessageSchema = z.object({
     .custom<Timestamp | null>((val) => val instanceof Timestamp || val === null)
     .transform((val) => (val instanceof Timestamp ? val.toDate() : new Date())),
   readBy: z.array(z.string()).default([]),
+  // emoji → array of userIds who reacted with that emoji.
+  // Use arrayUnion / arrayRemove on reactions.<emoji> to toggle.
+  reactions: z.record(z.string(), z.array(z.string())).default({}),
 });
 
 export const chatMessageConverter = zodConverter(chatMessageSchema);
