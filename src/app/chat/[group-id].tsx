@@ -83,6 +83,7 @@ export default function GroupChatScreen() {
       <MessageList
         messages={messages}
         currentUserId={userId}
+        groupId={groupId as GroupIdT}
         senderNames={senderNames}
         isLoading={isLoading}
         isLoadingMore={isLoadingMore}
@@ -98,7 +99,7 @@ export default function GroupChatScreen() {
 
       {schedulerOpen && group && (
         <SchedulerModal
-          groupId={groupId}
+          groupId={groupId as GroupIdT}
           memberIds={memberIds}
           memberNames={senderNames}
           currentUserId={userId}
