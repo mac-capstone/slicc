@@ -1,9 +1,6 @@
 import {
   addDoc,
-  arrayRemove,
-  arrayUnion,
   collection,
-  doc,
   getDocs,
   limit,
   onSnapshot,
@@ -12,7 +9,6 @@ import {
   type QueryDocumentSnapshot,
   serverTimestamp,
   startAfter,
-  updateDoc,
 } from 'firebase/firestore';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -200,33 +196,6 @@ export async function sendLocationMessage(
     keyVersion: 0,
     sentAt: serverTimestamp(),
     readBy: [],
-  });
-}
-
-/**
- * Toggle an emoji reaction on a message.
- * Adds the emoji if the user hasn't reacted yet; removes it if they have.
- * Uses arrayUnion / arrayRemove so each field is a per-emoji user list.
- */
-export async function toggleReaction({
-  groupId,
-  messageId,
-  emoji,
-  userId,
-  currentReactions,
-}: {
-  groupId: string;
-  messageId: string;
-  emoji: string;
-  userId: string;
-  currentReactions: Record<string, string[]>;
-}): Promise<void> {
-  const hasReacted = (currentReactions[emoji] ?? []).includes(userId);
-  const msgRef = doc(db, 'groups', groupId, 'messages', messageId);
-  await updateDoc(msgRef, {
-    [`reactions.${emoji}`]: hasReacted
-      ? arrayRemove(userId)
-      : arrayUnion(userId),
   });
 }
 
