@@ -72,8 +72,18 @@ export const userSettingsSchema = z.object({
 // Backward-compatible alias where user schema means the public profile document.
 export const userSchema = userProfileSchema;
 
-export const userConverter = zodConverter(userProfileSchema);
-export const userSettingsConverter = zodConverter(userSettingsSchema);
+export type UserProfileFirestore = z.infer<typeof userProfileSchema>;
+export type UserSettingsFirestore = z.infer<typeof userSettingsSchema>;
+
+export const userConverter: FirestoreDataConverter<
+  UserProfileFirestore,
+  DocumentData
+> = zodConverter(userProfileSchema);
+
+export const userSettingsConverter: FirestoreDataConverter<
+  UserSettingsFirestore,
+  DocumentData
+> = zodConverter(userSettingsSchema);
 
 // ── Group ──────────────────────────────────────────────────────────────────
 

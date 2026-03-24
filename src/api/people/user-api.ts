@@ -2,6 +2,7 @@ import {
   collection,
   deleteField,
   doc,
+  type DocumentData,
   getDoc,
   getDocs,
   query,
@@ -9,12 +10,15 @@ import {
   setDoc,
   Timestamp,
   where,
-  writeBatch,
 } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 
 import { db, storage } from '@/api/common/firebase';
-import type { BankPreference, UserProfile, UserSettings } from '@/types';
+import type {
+  UpdateUserSettingsData,
+  UserProfile,
+  UserSettings,
+} from '@/types';
 
 const MIME_TYPE_BY_EXTENSION: Record<string, string> = {
   heic: 'image/heic',
@@ -98,14 +102,7 @@ export type CreateUserData = {
   username: string;
 };
 
-export type UpdateUserSettingsData = {
-  dietaryPreferences?: string[];
-  locationPreference?: string;
-  eTransferEmail?: string;
-  bankPreference?: BankPreference;
-  defaultTaxRate?: number;
-  defaultTipRate?: number;
-};
+export type { UpdateUserSettingsData };
 
 export class UserAlreadyExistsError extends Error {
   constructor(userId: string) {
@@ -137,6 +134,8 @@ export async function createUserInFirestore(
     updatedAt: Timestamp;
   } = {
     dietaryPreferences: [],
+    defaultTaxRate: 0,
+    defaultTipRate: 0,
     updatedAt: now,
   };
 
@@ -155,37 +154,55 @@ export async function createUserInFirestore(
   console.log('[user-api] firestore user created', { userId });
 }
 
+function buildUserSettingsPatch(
+  data: UpdateUserSettingsData,
+  updatedAt: Timestamp
+): DocumentData {
+  const payload: DocumentData = { updatedAt };
+  const record = data as Record<string, unknown>;
+
+  if (Object.hasOwn(record, 'dietaryPreferences')) {
+    const v = data.dietaryPreferences;
+    payload.dietaryPreferences = v === undefined ? deleteField() : v;
+  }
+
+  if (Object.hasOwn(record, 'locationPreference')) {
+    const trimmed = data.locationPreference?.trim();
+    payload.locationPreference = trimmed ? trimmed : deleteField();
+  }
+
+  if (Object.hasOwn(record, 'eTransferEmail')) {
+    const trimmed = data.eTransferEmail?.trim();
+    payload.eTransferEmail = trimmed ? trimmed : deleteField();
+  }
+
+  if (Object.hasOwn(record, 'bankPreference')) {
+    payload.bankPreference = data.bankPreference ?? deleteField();
+  }
+
+  if (Object.hasOwn(record, 'defaultTaxRate')) {
+    payload.defaultTaxRate =
+      data.defaultTaxRate === undefined ? deleteField() : data.defaultTaxRate;
+  }
+
+  if (Object.hasOwn(record, 'defaultTipRate')) {
+    payload.defaultTipRate =
+      data.defaultTipRate === undefined ? deleteField() : data.defaultTipRate;
+  }
+
+  return payload;
+}
+
 export async function updateUserSettingsInFirestore(
   userId: string,
   data: UpdateUserSettingsData
 ): Promise<void> {
-  const userRef = doc(db, 'users', userId);
   const userSettingsRef = doc(db, 'users', userId, 'settings', 'private');
   const now = Timestamp.now();
 
-  const batch = writeBatch(db);
-  batch.set(
-    userSettingsRef,
-    {
-      dietaryPreferences: data.dietaryPreferences || deleteField(),
-      locationPreference: data.locationPreference?.trim() || deleteField(),
-      eTransferEmail: data.eTransferEmail?.trim() || deleteField(),
-      bankPreference: data.bankPreference ?? deleteField(),
-      defaultTaxRate: data.defaultTaxRate ?? deleteField(),
-      defaultTipRate: data.defaultTipRate ?? deleteField(),
-      updatedAt: now,
-    },
-    { merge: true }
-  );
-  batch.set(
-    userRef,
-    {
-      eTransferEmail: data.eTransferEmail?.trim() || deleteField(),
-      updatedAt: now,
-    },
-    { merge: true }
-  );
-  await batch.commit();
+  await setDoc(userSettingsRef, buildUserSettingsPatch(data, now), {
+    merge: true,
+  });
 }
 
 export async function updateDefaultRatesInFirestore(
@@ -193,13 +210,19 @@ export async function updateDefaultRatesInFirestore(
   data: { defaultTaxRate?: number; defaultTipRate?: number }
 ): Promise<void> {
   const userSettingsRef = doc(db, 'users', userId, 'settings', 'private');
-  await setDoc(
-    userSettingsRef,
-    {
-      defaultTaxRate: data.defaultTaxRate ?? deleteField(),
-      defaultTipRate: data.defaultTipRate ?? deleteField(),
-      updatedAt: Timestamp.now(),
-    },
-    { merge: true }
-  );
+  const now = Timestamp.now();
+  const payload: DocumentData = { updatedAt: now };
+  const record = data as Record<string, unknown>;
+
+  if (Object.hasOwn(record, 'defaultTaxRate')) {
+    payload.defaultTaxRate =
+      data.defaultTaxRate === undefined ? deleteField() : data.defaultTaxRate;
+  }
+
+  if (Object.hasOwn(record, 'defaultTipRate')) {
+    payload.defaultTipRate =
+      data.defaultTipRate === undefined ? deleteField() : data.defaultTipRate;
+  }
+
+  await setDoc(userSettingsRef, payload, { merge: true });
 }

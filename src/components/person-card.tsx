@@ -5,6 +5,7 @@ import { usePersonItems } from '@/api/items/use-person-items';
 import { usePerson } from '@/api/people/use-people';
 import { useUser } from '@/api/people/use-users';
 import { ActivityIndicator, Text, View } from '@/components/ui';
+import { useAuth } from '@/lib/auth';
 import { calculatePersonShare } from '@/lib/utils';
 import { type ExpenseIdT, type UserIdT } from '@/types';
 
@@ -33,7 +34,10 @@ export const PersonCard = ({
   } = usePersonItems({
     variables: { expenseId, personId },
   });
-  const { data: user } = useUser({ variables: personId });
+  const viewerUserId = useAuth.use.userId() ?? null;
+  const { data: user } = useUser({
+    variables: { userId: personId, viewerUserId },
+  });
 
   if (isPersonPending || isItemsPending) {
     return <ActivityIndicator />;

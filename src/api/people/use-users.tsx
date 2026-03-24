@@ -1,109 +1,94 @@
 import { useQuery } from '@tanstack/react-query';
 import {
   collection,
+  type CollectionReference,
   doc,
+  type DocumentData,
   documentId,
   getDoc,
   getDocs,
   limit,
+  type Query,
   query,
   where,
 } from 'firebase/firestore';
 import { createQuery } from 'react-query-kit';
 
 import { db } from '@/api/common/firebase';
-import { getUserId } from '@/lib';
+import { getAuthUserId, useAuth } from '@/lib/auth';
 import {
-  type BankPreference,
   type EventPerson,
+  userConverter,
   type UserIdT,
+  type UserProfile,
+  type UserSettings,
+  userSettingsConverter,
   type UserWithId,
 } from '@/types';
 
 // Re-export so callers importing from this file still work
 export type { UserWithId };
 
-type PublicUserDoc = {
-  username?: string;
-  displayName?: string;
-  eTransferEmail?: string;
+/** Variables for {@link useUser}; include viewer so the query refetches when auth hydrates. */
+export type UseUserVariables = {
+  userId: UserIdT;
+  viewerUserId: string | null;
 };
 
-type UserSettingsDoc = {
-  dietaryPreferences?: string[];
-  locationPreference?: string;
-  eTransferEmail?: string;
-  bankPreference?: BankPreference;
-  defaultTaxRate?: number;
-  defaultTipRate?: number;
-};
+function userDocRef(userId: string) {
+  return doc(db, 'users', userId).withConverter(userConverter);
+}
 
-function mapPublicUserDataToUserWithId(
+function privateSettingsDocRef(userId: string) {
+  return doc(db, 'users', userId, 'settings', 'private').withConverter(
+    userSettingsConverter
+  );
+}
+
+function usersCollectionRef(): CollectionReference<UserProfile, DocumentData> {
+  return collection(db, 'users').withConverter(userConverter);
+}
+
+function toUserWithId(
   id: string,
-  data: PublicUserDoc
+  profile: UserProfile,
+  settings: Partial<UserSettings>
 ): UserWithId {
-  const { displayName } = data;
-
-  if (typeof displayName !== 'string') {
-    throw new Error('User profile is missing display name');
-  }
-
   return {
     id: id as UserIdT,
-    username: typeof data.username === 'string' ? data.username : '',
-    displayName,
-    eTransferEmail:
-      typeof data.eTransferEmail === 'string' ? data.eTransferEmail : undefined,
+    ...profile,
+    ...settings,
   };
 }
 
-function mapSettingsData(data: UserSettingsDoc): Partial<UserWithId> {
-  return {
-    dietaryPreferences: Array.isArray(data.dietaryPreferences)
-      ? data.dietaryPreferences.filter(
-          (p): p is string => typeof p === 'string'
-        )
-      : [],
-    locationPreference:
-      typeof data.locationPreference === 'string'
-        ? data.locationPreference
-        : undefined,
-    eTransferEmail:
-      typeof data.eTransferEmail === 'string' ? data.eTransferEmail : undefined,
-    bankPreference: data.bankPreference,
-    defaultTaxRate:
-      typeof data.defaultTaxRate === 'number' ? data.defaultTaxRate : undefined,
-    defaultTipRate:
-      typeof data.defaultTipRate === 'number' ? data.defaultTipRate : undefined,
-  };
+/**
+ * Loads `users/{userId}/settings/private` only when `viewerUserId === userId`.
+ * Callers must not use this for arbitrary users (social/search/batch for others).
+ */
+async function loadPrivateSettingsWhenSelf(
+  userId: string,
+  viewerUserId: string | null
+): Promise<Partial<UserSettings>> {
+  if (viewerUserId == null || viewerUserId !== userId) return {};
+
+  const snap = await getDoc(privateSettingsDocRef(userId));
+  if (!snap.exists()) return {};
+  return snap.data();
 }
 
-export async function fetchUser(userId: string): Promise<UserWithId> {
-  const userRef = doc(db, 'users', userId);
-  const userSnap = await getDoc(userRef);
+export async function fetchUser(
+  userId: string,
+  viewerUserId: string | null = getAuthUserId()
+): Promise<UserWithId> {
+  const userSnap = await getDoc(userDocRef(userId));
 
   if (!userSnap.exists()) {
     throw new Error('User not found');
   }
 
-  // eTransferEmail and bankPreference are on the public doc — readable by anyone.
-  const baseUser = mapPublicUserDataToUserWithId(userSnap.id, userSnap.data());
-  const authUserId = getUserId();
-  if (authUserId !== (userId as UserIdT)) {
-    return baseUser;
-  }
-
-  // For the current user, also merge private settings (dietary prefs, location, etc.)
-  const settingsRef = doc(db, 'users', userId, 'settings', 'private');
-  const settingsSnap = await getDoc(settingsRef);
-  if (!settingsSnap.exists()) {
-    return baseUser;
-  }
-
-  return {
-    ...baseUser,
-    ...mapSettingsData(settingsSnap.data()),
-  };
+  const profile = userSnap.data();
+  const settings = await loadPrivateSettingsWhenSelf(userId, viewerUserId);
+  return toUserWithId(userSnap.id, profile, settings);
 }
 
 // Firestore prefix search on username (stored lowercase — reliable & case-safe).
@@ -115,17 +100,18 @@ export async function searchUsersByUsername(
   if (!searchQuery.trim()) return [];
 
   const q = searchQuery.trim().toLowerCase();
-  const usersRef = collection(db, 'users');
-  const firestoreQuery = query(
+  const usersRef = usersCollectionRef();
+  const firestoreQuery: Query<UserProfile, DocumentData> = query(
     usersRef,
     where('username', '>=', q),
     where('username', '<=', q + '\uf8ff'),
     limit(resultLimit)
   );
   const snapshot = await getDocs(firestoreQuery);
-  return snapshot.docs.map((d) =>
-    mapPublicUserDataToUserWithId(d.id, d.data())
-  );
+  return snapshot.docs.map((d) => {
+    const profile = d.data();
+    return toUserWithId(d.id, profile, {});
+  });
 }
 
 export const useUserIds = createQuery<UserIdT[], void, Error>({
@@ -137,9 +123,9 @@ export const useUserIds = createQuery<UserIdT[], void, Error>({
   },
 });
 
-export const useUser = createQuery<UserWithId, UserIdT, Error>({
+export const useUser = createQuery<UserWithId, UseUserVariables, Error>({
   queryKey: ['users', 'userId'],
-  fetcher: async (userId) => fetchUser(userId),
+  fetcher: async ({ userId, viewerUserId }) => fetchUser(userId, viewerUserId),
 });
 
 export const useSearchUsers = createQuery<UserWithId[], string, Error>({
@@ -161,33 +147,50 @@ function chunkUserIds(userIds: UserIdT[]): UserIdT[][] {
   return chunks;
 }
 
-async function fetchUsersBatch(userIds: UserIdT[]): Promise<UserWithId[]> {
+export async function fetchUsersBatch(
+  userIds: UserIdT[],
+  viewerUserId: string | null
+): Promise<UserWithId[]> {
   if (userIds.length === 0) return [];
 
-  const usersRef = collection(db, 'users');
+  const usersRef = usersCollectionRef();
   const chunks = chunkUserIds(userIds);
   const snapshots = await Promise.all(
     chunks.map((chunk) =>
-      getDocs(query(usersRef, where(documentId(), 'in', [...chunk])))
+      getDocs(
+        query<UserProfile, DocumentData>(
+          usersRef,
+          where(documentId(), 'in', [...chunk])
+        )
+      )
     )
   );
 
-  const byId = new Map<UserIdT, UserWithId>();
+  const profileById = new Map<string, UserProfile>();
   for (const snapshot of snapshots) {
     for (const userDoc of snapshot.docs) {
-      const user = mapPublicUserDataToUserWithId(userDoc.id, userDoc.data());
-      byId.set(user.id, user);
+      profileById.set(userDoc.id, userDoc.data());
     }
   }
 
-  const missingUserId = userIds.find((userId) => !byId.has(userId));
+  const missingUserId = userIds.find((userId) => !profileById.has(userId));
   if (missingUserId) {
     throw new Error('User not found');
   }
 
-  return userIds
-    .map((userId) => byId.get(userId))
-    .filter(Boolean) as UserWithId[];
+  let selfPrivate: Partial<UserSettings> = {};
+  if (viewerUserId != null && userIds.some((id) => id === viewerUserId)) {
+    selfPrivate = await loadPrivateSettingsWhenSelf(viewerUserId, viewerUserId);
+  }
+
+  return userIds.map((userId) => {
+    const profile = profileById.get(userId);
+    if (!profile) {
+      throw new Error('User not found');
+    }
+    const settings = viewerUserId === userId ? selfPrivate : {};
+    return toUserWithId(userId, profile, settings);
+  });
 }
 
 export function useUsersAsPeople(
@@ -198,13 +201,15 @@ export function useUsersAsPeople(
   isLoading: boolean;
   isError: boolean;
 } {
+  const viewerUserId = useAuth.use.userId() ?? null;
+
   const {
     data: users = [],
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ['users', 'batch', userIds],
-    queryFn: () => fetchUsersBatch(userIds),
+    queryKey: ['users', 'batch', userIds, viewerUserId],
+    queryFn: () => fetchUsersBatch(userIds, viewerUserId),
     staleTime: 5 * 60 * 1000,
     enabled: userIds.length > 0,
   });

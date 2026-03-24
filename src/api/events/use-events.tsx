@@ -14,6 +14,7 @@ import {
 
 import { db } from '@/api/common/firebase';
 import { useUser } from '@/api/people/use-users';
+import { useAuth } from '@/lib/auth';
 import {
   type Event,
   type EventIdT,
@@ -231,8 +232,9 @@ export function useEventParticipant({
 
   const isParticipant = eventQuery.data?.participants.includes(userId) ?? false;
 
+  const viewerUserId = useAuth.use.userId() ?? null;
   const userQuery = useUser({
-    variables: userId,
+    variables: { userId, viewerUserId },
     enabled: enabled && isParticipant,
   });
 

@@ -8,7 +8,6 @@ export type BankOption = {
 };
 
 export const BANK_OPTIONS: BankOption[] = [
-  { label: 'None selected', value: 'none' },
   { label: 'All banks (Interac)', value: 'all-banks' },
   { label: 'Interac e-Transfer', value: 'interac' },
   { label: 'RBC', value: 'rbc' },
@@ -33,6 +32,7 @@ export const BANK_OPTIONS: BankOption[] = [
 ];
 
 export function isBankPreference(value: string): value is BankPreference {
+  if (value === 'none') return true;
   return BANK_OPTIONS.some((option) => option.value === value);
 }
 
@@ -143,7 +143,7 @@ export async function openBankFlow(
 }
 
 export function getBankLabel(bankPreference?: BankPreference): string {
-  if (!bankPreference) return 'Bank app';
+  if (!bankPreference || bankPreference === 'none') return 'Bank app';
   const option = BANK_OPTIONS.find((item) => item.value === bankPreference);
   return option?.label ?? 'Bank app';
 }

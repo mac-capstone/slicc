@@ -3,8 +3,19 @@ import { Alert, TextInput } from 'react-native';
 
 import { useUser } from '@/api/people/use-users';
 import { updateDefaultRatesInFirestore } from '@/api/people/user-api';
+import { InlineSelectRow } from '@/components/settings/inline-select-row';
 import { Pressable, Text, View } from '@/components/ui';
 import { useAuth, useDefaultTaxRate } from '@/lib';
+import { useUserSettings } from '@/lib/hooks/use-user-settings';
+import {
+  resolveDefaultTaxRate,
+  resolveDefaultTipRate,
+} from '@/lib/resolve-user-default-rates';
+import {
+  isTipPercentOption,
+  normalizeStoredTipPercent,
+  TIP_PERCENT_SELECT_OPTIONS,
+} from '@/lib/tip-percent-options';
 import { type UserIdT } from '@/types';
 
 /** Strips anything that isn't a digit or decimal point, and prevents multiple decimals. */
@@ -77,27 +88,22 @@ function RateRow({
 
 export const TaxItem = () => {
   const userId = useAuth.use.userId();
+  const viewerUserId = userId ?? null;
   const { data: user } = useUser({
-    variables: userId as UserIdT,
+    variables: { userId: userId as UserIdT, viewerUserId },
     enabled: Boolean(userId),
   });
   const { defaultTaxRate: mmkvTaxRate, setDefaultTaxRate: setMmkvTaxRate } =
     useDefaultTaxRate();
 
-  // Firestore values take precedence; MMKV is the offline fallback
-  const firestoreTaxRate = user?.defaultTaxRate;
-  const firestoreTipRate = user?.defaultTipRate;
-  const resolvedTaxRate = firestoreTaxRate ?? mmkvTaxRate;
-  const resolvedTipRate = firestoreTipRate ?? 0;
+  const { defaultTipPercent: mmkvTipRate } = useUserSettings();
+  const resolvedTaxRate = resolveDefaultTaxRate(user, mmkvTaxRate);
+  const resolvedTipRate = resolveDefaultTipRate(user, mmkvTipRate);
 
   const [taxInput, setTaxInput] = useState(
     resolvedTaxRate > 0 ? resolvedTaxRate.toString() : ''
   );
-  const [tipInput, setTipInput] = useState(
-    resolvedTipRate > 0 ? resolvedTipRate.toString() : ''
-  );
   const [editingTax, setEditingTax] = useState(false);
-  const [editingTip, setEditingTip] = useState(false);
 
   // Sync inputs when Firestore data arrives
   useEffect(() => {
@@ -105,12 +111,6 @@ export const TaxItem = () => {
       setTaxInput(resolvedTaxRate > 0 ? resolvedTaxRate.toString() : '');
     }
   }, [resolvedTaxRate, editingTax]);
-
-  useEffect(() => {
-    if (!editingTip) {
-      setTipInput(resolvedTipRate > 0 ? resolvedTipRate.toString() : '');
-    }
-  }, [resolvedTipRate, editingTip]);
 
   const handleSaveTax = async () => {
     const raw = taxInput.trim();
@@ -126,8 +126,7 @@ export const TaxItem = () => {
     if (userId) {
       try {
         await updateDefaultRatesInFirestore(userId, {
-          defaultTaxRate: parsed > 0 ? parsed : undefined,
-          defaultTipRate: resolvedTipRate > 0 ? resolvedTipRate : undefined,
+          defaultTaxRate: parsed,
         });
       } catch (e) {
         console.error('[tax-item] failed to save tax rate', e);
@@ -136,27 +135,16 @@ export const TaxItem = () => {
     setEditingTax(false);
   };
 
-  const handleSaveTip = async () => {
-    const raw = tipInput.trim();
-    const parsed = raw === '' ? 0 : parseFloat(raw);
-    if (isNaN(parsed) || parsed < 0 || parsed > 100) {
-      Alert.alert(
-        'Invalid Tip Rate',
-        'Please enter a value between 0 and 100.'
-      );
-      return;
+  const handleTipSelect = async (raw: string | number) => {
+    const parsed = Number.parseInt(String(raw), 10);
+    if (!userId || !isTipPercentOption(parsed)) return;
+    try {
+      await updateDefaultRatesInFirestore(userId, {
+        defaultTipRate: parsed,
+      });
+    } catch (e) {
+      console.error('[tax-item] failed to save tip rate', e);
     }
-    if (userId) {
-      try {
-        await updateDefaultRatesInFirestore(userId, {
-          defaultTaxRate: resolvedTaxRate > 0 ? resolvedTaxRate : undefined,
-          defaultTipRate: parsed > 0 ? parsed : undefined,
-        });
-      } catch (e) {
-        console.error('[tax-item] failed to save tip rate', e);
-      }
-    }
-    setEditingTip(false);
   };
 
   return (
@@ -174,19 +162,14 @@ export const TaxItem = () => {
         isEditing={editingTax}
         displayValue={resolvedTaxRate > 0 ? `${resolvedTaxRate}%` : 'Not set'}
       />
-      <RateRow
-        label="Default Tip Rate"
-        value={tipInput}
-        onChangeText={setTipInput}
-        onSave={handleSaveTip}
-        onCancel={() => setEditingTip(false)}
-        onPress={() => {
-          setTipInput(resolvedTipRate > 0 ? resolvedTipRate.toString() : '');
-          setEditingTip(true);
-        }}
-        isEditing={editingTip}
-        displayValue={resolvedTipRate > 0 ? `${resolvedTipRate}%` : 'Not set'}
-      />
+      <View className="px-4">
+        <InlineSelectRow
+          label="Default Tip Rate"
+          value={String(normalizeStoredTipPercent(resolvedTipRate))}
+          options={[...TIP_PERCENT_SELECT_OPTIONS]}
+          onSelect={(v) => void handleTipSelect(v)}
+        />
+      </View>
     </>
   );
 };

@@ -20,6 +20,9 @@ yarn-error.log
 expo-env.d.ts
 # @end expo-cli
 .env
+.env.*
+!.env.example
+
 GoogleService-Info.plist
 google-services.json
 service-account-key.json
