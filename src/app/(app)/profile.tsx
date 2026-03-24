@@ -182,7 +182,7 @@ export default function Profile() {
                 {user?.displayName ?? 'Profile'}
               </Text>
               <Text className="mt-2 font-inter text-[16px] text-text-800">
-                {user?.username ? `@${user.username}` : '@username'}
+                {user?.username ? `@${user.username}` : '@unknown'}
               </Text>
             </View>
 
