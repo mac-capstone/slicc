@@ -32,7 +32,11 @@ export function FriendRequestsModal({
     <View className="rounded-3xl bg-background-900 p-5">
       <View className="mb-4 flex-row items-center justify-between">
         <Text className="text-2xl font-bold text-text-50">Friend Requests</Text>
-        <Pressable onPress={onClose}>
+        <Pressable
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Close friend requests"
+        >
           <Octicons name="x" size={22} color={colors.text[800]} />
         </Pressable>
       </View>
@@ -75,7 +79,7 @@ export function FriendRequestsModal({
                   className="size-10 items-center justify-center rounded-full bg-white"
                   disabled={busy}
                   onPress={() => onAcceptRequest(request.id)}
-                  accessibilityLabel="Accept friend request"
+                  accessibilityLabel={`Accept friend request from ${request.displayName}`}
                   accessibilityRole="button"
                 >
                   {acceptPending && acceptingRequestId === request.id ? (
@@ -88,7 +92,7 @@ export function FriendRequestsModal({
                   className="bg-background-800 size-10 items-center justify-center rounded-full"
                   disabled={busy}
                   onPress={() => onDeclineRequest(request.id)}
-                  accessibilityLabel="Decline friend request"
+                  accessibilityLabel={`Decline friend request from ${request.displayName}`}
                   accessibilityRole="button"
                 >
                   {declinePending && decliningRequestId === request.id ? (

@@ -39,7 +39,7 @@ export function useBalances(userId: UserIdT | null) {
         const expense = result.data;
         if (!expense) continue;
 
-        // The main payer is whoever fronted the expense (falls back to creator)
+        // The expense owner is whoever paid for the expense (falls back to creator)
         const payerId = expense.payerUserId ?? expense.createdBy ?? null;
         const isPayer = payerId === userId;
         const isParticipant = expense.people.some((p) => p.id === userId);

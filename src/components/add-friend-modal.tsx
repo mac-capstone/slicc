@@ -64,6 +64,12 @@ export function AddFriendModal({
       setAddFriendError('Enter a username');
       return;
     }
+
+    // `userId` can be `null` (not loaded yet) or the guest sentinel; guard both.
+    if (userId === null) {
+      setAddFriendError('Sign in to add friends.');
+      return;
+    }
     if (userId === 'guest_user') {
       setAddFriendError('Sign in to add friends.');
       return;
@@ -73,7 +79,7 @@ export function AddFriendModal({
     setAddFriendError(null);
     try {
       await sendFriendRequest({
-        fromUserId: userId as UserIdT,
+        fromUserId: userId,
         toUsername: candidate,
       });
       queryClient.invalidateQueries({ queryKey: ['friendRequests'] });

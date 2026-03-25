@@ -148,6 +148,13 @@ function useMainPayerOptions({
     }
   }, [currentPayerId, eventId, payerOptions, setPayerUserId]);
 
+  useEffect(() => {
+    if (eventId || !userId) return;
+    if (currentPayerId !== userId) {
+      setPayerUserId(userId);
+    }
+  }, [currentPayerId, eventId, setPayerUserId, userId]);
+
   return payerOptions;
 }
 
@@ -352,21 +359,23 @@ export default function AddExpense() {
             }}
           />
         </View>
-        <View className="pb-2">
-          <Text className="!dark:text-text-200 pb-2 text-base font-semibold">
-            Main payer
-          </Text>
-          <Select
-            value={currentPayerId}
-            placeholder="Select who paid all or most of the expense"
-            options={payerOptions}
-            onSelect={(value) => {
-              if (typeof value === 'string') {
-                setPayerUserId(value);
-              }
-            }}
-          />
-        </View>
+        {eventId ? (
+          <View className="pb-2">
+            <Text className="!dark:text-text-200 pb-2 text-base font-semibold">
+              Expense Owner
+            </Text>
+            <Select
+              value={currentPayerId}
+              placeholder="Select who paid all or most of the expense"
+              options={payerOptions}
+              onSelect={(value) => {
+                if (typeof value === 'string') {
+                  setPayerUserId(value);
+                }
+              }}
+            />
+          </View>
+        ) : null}
         <View className="flex-1 flex-col gap-4">
           <FlashList
             data={tempExpense?.items || []}

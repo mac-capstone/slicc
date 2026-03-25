@@ -27,12 +27,8 @@ import { useEvent } from '@/api/events/use-events';
 import { useExpense } from '@/api/expenses/use-expenses';
 import { useItem } from '@/api/items/use-items';
 import { usePeopleIdsForItem } from '@/api/people/use-people';
-import {
-  useSearchUsers,
-  useUser,
-  useUsersAsPeople,
-} from '@/api/people/use-users';
-import { type UserWithId } from '@/api/people/use-users';
+import { useUser, useUsersAsPeople } from '@/api/people/use-users';
+import { useFriendUserIds } from '@/api/social/friendships';
 import { colors } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { useExpenseCreation } from '@/lib/store';
@@ -184,52 +180,10 @@ function EventParticipantRow({
   );
 }
 
-// ── Row for a real user found via search ─────────────────────────────────────
-function UserSearchRow({
-  user,
-  onAdd,
-  disabled,
-}: {
-  user: UserWithId;
-  onAdd: (user: UserWithId) => Promise<void>;
-  disabled: boolean;
-}) {
-  return (
-    <View className="mb-2 flex-row items-center justify-between rounded-lg border border-text-900 p-3">
-      <View className="flex-row items-center">
-        <PersonAvatar
-          size="sm"
-          userId={user.id}
-          inSplitView
-          isSelected={false}
-        />
-        <View className="ml-3">
-          <Text className="text-white">{user.displayName}</Text>
-          {user.username ? (
-            <Text className="text-xs text-gray-400">@{user.username}</Text>
-          ) : null}
-        </View>
-      </View>
-      <TouchableOpacity
-        onPress={() => onAdd(user)}
-        disabled={disabled}
-        className="bg-background-700 rounded-lg px-4 py-2"
-        activeOpacity={0.8}
-      >
-        <View className="flex-row items-center">
-          <Ionicons name="add" size={16} color="#9ca3af" />
-          <Text className="ml-1 font-bold text-gray-400">Add</Text>
-        </View>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
 // ── Modal containing the full people management UI ───────────────────────────
 function ManagePeopleModal({
   visible,
   onClose,
-  eventId,
   people,
   combinedRows,
   addedIds,
@@ -242,11 +196,9 @@ function ManagePeopleModal({
   onPersonNameChange,
   previewColor,
   onAddGuest,
-  onAddRealUser,
 }: {
   visible: boolean;
   onClose: () => void;
-  eventId?: EventIdT;
   people: PersonWithId[];
   combinedRows: (EventPerson & { id: UserIdT })[];
   addedIds: Set<string>;
@@ -262,15 +214,7 @@ function ManagePeopleModal({
   onPersonNameChange: (name: string) => void;
   previewColor: string;
   onAddGuest: () => Promise<void>;
-  onAddRealUser: (user: UserWithId) => Promise<void>;
 }) {
-  const [userSearch, setUserSearch] = useState('');
-  const { data: searchResults = [] } = useSearchUsers({
-    variables: userSearch,
-    enabled: !eventId && userSearch.trim().length > 1,
-  });
-  const visibleSearchResults = searchResults.filter((u) => !addedIds.has(u.id));
-
   return (
     <Modal
       visible={visible}
@@ -290,84 +234,48 @@ function ManagePeopleModal({
             Manage People
           </Text>
 
-          {/* User search — only in non-event mode */}
-          {!eventId && (
-            <TextInput
-              className="mb-3 rounded-lg border border-text-900 px-3 py-2 text-white"
-              placeholder="Search users to add..."
-              placeholderTextColor="#6b7280"
-              value={userSearch}
-              onChangeText={setUserSearch}
-            />
-          )}
-
           <ScrollView
             className="mb-4"
             style={{ maxHeight: 300 }}
             showsVerticalScrollIndicator
           >
-            {/* Search results (non-event mode) */}
-            {!eventId &&
-              visibleSearchResults.map((user) => (
-                <UserSearchRow
-                  key={user.id}
-                  user={user}
-                  onAdd={onAddRealUser}
+            {combinedRows.map((participant, index) => {
+              const isInExpense = addedIds.has(participant.id);
+              const isAssigned =
+                isInExpense &&
+                assignedPeopleIds.includes(participant.id as UserIdT);
+
+              if (isInExpense) {
+                const expensePerson = people.find(
+                  (p) => p.id === participant.id
+                );
+                const displayPerson: PersonWithId = {
+                  id: participant.id,
+                  name: participant.name,
+                  color: avatarColors[index % avatarColors.length],
+                  userRef: participant.id,
+                  subtotal: expensePerson?.subtotal ?? 0,
+                  paid: expensePerson?.paid ?? 0,
+                };
+                return (
+                  <ExpensePersonRow
+                    key={participant.id}
+                    person={displayPerson}
+                    isAssigned={isAssigned}
+                    onToggle={makeToggleHandler(participant.id, isAssigned)}
+                  />
+                );
+              }
+
+              return (
+                <EventParticipantRow
+                  key={participant.id}
+                  participant={participant}
+                  onAdd={onAddParticipant}
                   disabled={maxPeopleReached}
                 />
-              ))}
-
-            {eventId
-              ? combinedRows.map((participant, index) => {
-                  const isInExpense = addedIds.has(participant.id);
-                  const isAssigned =
-                    isInExpense &&
-                    assignedPeopleIds.includes(participant.id as UserIdT);
-
-                  if (isInExpense) {
-                    const expensePerson = people.find(
-                      (p) => p.id === participant.id
-                    );
-                    const displayPerson: PersonWithId = {
-                      id: participant.id,
-                      name: participant.name,
-                      color: avatarColors[index % avatarColors.length],
-                      userRef: participant.id,
-                      subtotal: expensePerson?.subtotal ?? 0,
-                      paid: expensePerson?.paid ?? 0,
-                    };
-                    return (
-                      <ExpensePersonRow
-                        key={participant.id}
-                        person={displayPerson}
-                        isAssigned={isAssigned}
-                        onToggle={makeToggleHandler(participant.id, isAssigned)}
-                      />
-                    );
-                  }
-
-                  return (
-                    <EventParticipantRow
-                      key={participant.id}
-                      participant={participant}
-                      onAdd={onAddParticipant}
-                      disabled={maxPeopleReached}
-                    />
-                  );
-                })
-              : people.map((person) => {
-                  const isAssigned = assignedPeopleIds.includes(
-                    person.id as UserIdT
-                  );
-                  return (
-                    <ExpensePersonRow
-                      key={person.id}
-                      person={person}
-                      isAssigned={isAssigned}
-                      onToggle={makeToggleHandler(person.id, isAssigned)}
-                    />
-                  );
-                })}
+              );
+            })}
           </ScrollView>
 
           {/* Manual add row — add a guest who doesn't have the app */}
@@ -384,7 +292,7 @@ function ManagePeopleModal({
             </View>
             <TextInput
               className="ml-3 flex-1 text-white"
-              placeholder="Add guest (no app)"
+              placeholder="Add guest (non-user)"
               placeholderTextColor="#6b7280"
               value={newPersonName}
               onChangeText={onPersonNameChange}
@@ -418,6 +326,7 @@ function ManagePeopleModal({
 
 // ── Main component ────────────────────────────────────────────────────────────
 export const AddRemovePerson = ({ itemID, expenseId, eventId }: Props) => {
+  const currentUserId = useAuth.use.userId();
   const {
     data: tempExpense,
     isPending,
@@ -444,9 +353,32 @@ export const AddRemovePerson = ({ itemID, expenseId, eventId }: Props) => {
 
   // Fetch event participants when eventId is present
   const { data: event } = useEvent({ variables: eventId, enabled: !!eventId });
+  const { data: friendUserIds = [] } = useFriendUserIds({
+    variables: currentUserId,
+    enabled:
+      !eventId && Boolean(currentUserId) && currentUserId !== 'guest_user',
+  });
+  const nonEventUserIds = useMemo(() => {
+    const ids = new Set<UserIdT>();
+    if (currentUserId) ids.add(currentUserId as UserIdT);
+    for (const friendUserId of friendUserIds) ids.add(friendUserId);
+    return [...ids];
+  }, [currentUserId, friendUserIds]);
+  const { people: nonEventParticipants, isLoading: isUsersLoading } =
+    useUsersAsPeople(nonEventUserIds, avatarColors);
   const { people: eventParticipants } = useUsersAsPeople(
     (event?.participants ?? []) as UserIdT[],
     avatarColors
+  );
+
+  const nonEventParticipantRows = useMemo(
+    () =>
+      getCombinedEventParticipantRows(
+        'non-event' as EventIdT,
+        nonEventParticipants,
+        (tempExpense?.people ?? []) as PersonWithId[]
+      ),
+    [nonEventParticipants, tempExpense?.people]
   );
 
   const combinedEventParticipantRows = useMemo(
@@ -459,7 +391,8 @@ export const AddRemovePerson = ({ itemID, expenseId, eventId }: Props) => {
     [eventId, eventParticipants, tempExpense?.people]
   );
 
-  if (isPending || isAssignedPending) return <ActivityIndicator />;
+  if (isPending || isAssignedPending || (!eventId && isUsersLoading))
+    return <ActivityIndicator />;
   if (isError || isAssignedError)
     return <Text>Error loading temp expense</Text>;
 
@@ -547,36 +480,8 @@ export const AddRemovePerson = ({ itemID, expenseId, eventId }: Props) => {
     await invalidateItem();
   };
 
-  // ── Add a real app user to the expense (via search) ──────────────────────
-  const handleAddRealUser = async (user: UserWithId) => {
-    if (maxPeopleReached) return;
-    if (isTempExpense) {
-      const newPerson: PersonWithId = {
-        id: user.id,
-        name: user.displayName,
-        color: randomColor(),
-        userRef: user.id,
-        subtotal: 0,
-        paid: 0,
-      };
-      addPerson(newPerson);
-    } else {
-      try {
-        const personRef = doc(db, 'expenses', expenseId, 'people', user.id);
-        await writeBatch(db).set(personRef, { subtotal: 0, paid: 0 }).commit();
-      } catch (error) {
-        console.error('Failed to add user:', error);
-        Alert.alert('Error', 'Failed to add user. Please try again.');
-        return;
-      }
-    }
-    await invalidateExpense();
-    await invalidateItemPeople();
-    await invalidateItem();
-  };
-
-  // ── Add an event participant to the expense ───────────────────────────────
-  const handleAddEventParticipant = async (
+  // ── Add a listed participant to the expense ───────────────────────────────
+  const handleAddParticipant = async (
     participant: EventPerson & { id: UserIdT }
   ) => {
     if (maxPeopleReached) return;
@@ -626,20 +531,20 @@ export const AddRemovePerson = ({ itemID, expenseId, eventId }: Props) => {
       <ManagePeopleModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
-        eventId={eventId}
         people={people}
-        combinedRows={combinedEventParticipantRows}
+        combinedRows={
+          eventId ? combinedEventParticipantRows : nonEventParticipantRows
+        }
         addedIds={addedIds}
         assignedPeopleIds={assignedPeopleIds}
         avatarColors={avatarColors}
         maxPeopleReached={maxPeopleReached}
         makeToggleHandler={makeToggleHandler}
-        onAddParticipant={handleAddEventParticipant}
+        onAddParticipant={handleAddParticipant}
         newPersonName={newPersonName}
         onPersonNameChange={setNewPersonName}
         previewColor={previewColor}
         onAddGuest={handleAddManualPerson}
-        onAddRealUser={handleAddRealUser}
       />
 
       <View className="pb-4">
