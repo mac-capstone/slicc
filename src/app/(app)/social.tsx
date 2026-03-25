@@ -197,11 +197,12 @@ export default function Social() {
       .map((q) => q.data)
       .filter((u): u is NonNullable<typeof u> => u != null)
       .map((u) => {
-        const username = u.username?.trim();
+        const username = u.username ? u.username.trim() : null;
+        const handle = username ? `@${username}` : 'handle not found';
         return {
           id: u.id,
           displayName: u.displayName || 'Unknown',
-          handle: `@${username}` || 'handle not found',
+          handle,
         };
       });
   }, [friendUserQueries]);

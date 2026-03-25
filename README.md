@@ -239,7 +239,11 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
 ## Friend requests (Firebase)
 
 - Deploy composite indexes from the repo root: `firebase deploy --only firestore:indexes` (see `firestore.indexes.json`). The app queries `friendRequests` with `toUserId` + `status`.
-- Configure **security rules** for `friendRequests` and `friendships` so users can only create/read/update documents that involve their own `uid` (create outgoing requests, read/update incoming pending requests, create friendships on accept). Without rules, client writes will fail in production.
+- Configure **security rules** for `friendRequests`, `friendships`, and `users/{uid}.friends` to cover both the accept and unfriend flows:
+  - Accept: update the relevant `friendRequests` document(s) (set status to `accepted`), create the `friendships` doc, and update both participants' `users/{uid}.friends` (client uses `arrayUnion` in a single transaction).
+  - Unfriend: delete the relevant `friendships` doc and update both participants' `users/{uid}.friends` (client uses `arrayRemove` in a single transaction); the client also deletes related `friendRequests` docs (forward and reverse doc ids) when present.
+  - Rules must allow creation/update of `users/{uid}.friends` only for the owning `users/{uid}` document while still permitting the mutual accept/unfriend transaction that updates both users' arrays (i.e., each `users/{uid}.friends` write must be authorized for that `uid`).
+  - Rules must allow deletion of `friendships` when `request.auth.uid` is part of that friendship (the actor must be included in the `friendships/{pairId}` document's `userIds`).
 
 ## 📄 License
 
