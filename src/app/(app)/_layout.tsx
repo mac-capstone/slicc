@@ -8,10 +8,12 @@ import {
   useAuth,
   useIncomingFriendRequestsLiveSync,
   useIsFirstTime,
+  usePlaceLikesFirestoreSync,
   useUserExistsInFirestore,
 } from '@/lib';
 
 export default function TabLayout() {
+  usePlaceLikesFirestoreSync();
   const status = useAuth.use.status();
   const userId = useAuth.use.userId();
   const [isFirstTime] = useIsFirstTime();

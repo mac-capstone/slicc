@@ -198,3 +198,12 @@ export const expenseItemSchema = z.object({
 });
 
 export const expenseItemConverter = zodConverter(expenseItemSchema);
+
+// ── Place likes (collaborative recommendations) ────────────────────────────
+
+export const placeLikesSchema = z.object({
+  placeIds: z.array(z.string()).default([]),
+  updatedAt: firestoreTimestamp.optional(),
+});
+
+export type PlaceLikes = z.infer<typeof placeLikesSchema>;

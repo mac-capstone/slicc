@@ -17,7 +17,21 @@ slicc is a cross-platform mobile app (iOS & Android) built with React Native and
 - Save the folder path where ninja.exe is as `NINJA_HOME` env variable or follow the steps below
 - Unzip and place the ninja.exe file in "C:\ninja\ninja.exe" (same path as `-DCMAKE_MAKE_PROGRAM=${path}` in `android\app\build.gradle`)
 
-## Env variables (wip)
+## Setup
+
+### Environment variables
+
+1. Copy `.env.example` to `.env`
+2. Fill in your API keys (Google Places, Gemini, Firebase, etc.)
+3. Never commit `.env` — it contains secrets
+
+### Generate native projects
+
+The files containing the Google Maps API key (AndroidManifest.xml, Info.plist, AppDelegate.swift) are gitignored. Run prebuild before `pnpm android` or `pnpm ios`:
+
+```sh
+pnpm prebuild --clean
+```
 
 ## Run the app
 
