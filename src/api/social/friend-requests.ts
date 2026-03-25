@@ -186,12 +186,13 @@ export async function sendFriendRequest(params: {
     throw new FriendRequestConflictError('Enter a username');
   }
 
-  const toUserId = await getUserIdByUsername(normalized, fromUserId);
-  if (!toUserId) {
-    throw new FriendRequestConflictError('No user found with that username.');
-  }
+  const toUserId = await getUserIdByUsername(normalized);
+  // If the username belongs to the requesting user, fail early with the correct error.
   if (toUserId === fromUserId) {
     throw new FriendRequestConflictError('You cannot add yourself.');
+  }
+  if (!toUserId) {
+    throw new FriendRequestConflictError('No user found with that username.');
   }
 
   await runTransaction(db, async (transaction) => {
