@@ -249,13 +249,15 @@ function ManagePeopleModal({
                 const expensePerson = people.find(
                   (p) => p.id === participant.id
                 );
+                if (!expensePerson) return null;
                 const displayPerson: PersonWithId = {
-                  id: participant.id,
-                  name: participant.name,
-                  color: avatarColors[index % avatarColors.length],
-                  userRef: participant.id,
-                  subtotal: expensePerson?.subtotal ?? 0,
-                  paid: expensePerson?.paid ?? 0,
+                  ...expensePerson,
+                  name: expensePerson.name ?? participant.name,
+                  color:
+                    expensePerson.color ??
+                    participant.color ??
+                    avatarColors[index % avatarColors.length] ??
+                    '',
                 };
                 return (
                   <ExpensePersonRow
