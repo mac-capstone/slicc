@@ -26,11 +26,11 @@ function GroupChatRow({ groupId, onClose }: GroupChatRowProps) {
       }}
       className="mb-2 flex-row items-center gap-3 rounded-xl bg-background-900 px-4 py-3"
     >
-      <View className="size-8 items-center justify-center rounded-full bg-primary-600/20">
+      <View className="size-8 items-center justify-center rounded-full bg-accent-800/20">
         <Octicons
           name="comment-discussion"
           size={16}
-          color={colors.primary[500]}
+          color={colors.accent[100]}
         />
       </View>
       <Text
@@ -54,12 +54,12 @@ export function ChatFab() {
     <>
       <TouchableOpacity
         onPress={() => setOpen(true)}
-        className="absolute bottom-6 right-5 size-14 items-center justify-center rounded-full bg-primary-600 shadow-lg"
+        className="absolute bottom-6 right-5 size-14 items-center justify-center rounded-full bg-accent-800 shadow-lg"
         style={{ elevation: 6 }}
         accessibilityLabel="Open group chats"
         accessibilityRole="button"
       >
-        <Octicons name="comment-discussion" size={24} color="#ffffff" />
+        <Octicons name="comment-discussion" size={24} color={colors.white} />
       </TouchableOpacity>
 
       <Modal

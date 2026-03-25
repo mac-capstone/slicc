@@ -31,7 +31,7 @@ function EmptyChat() {
 function LoadingMoreSpinner() {
   return (
     <View className="items-center py-3" style={{ transform: [{ scaleY: -1 }] }}>
-      <ActivityIndicator size="small" color={colors.primary[500]} />
+      <ActivityIndicator size="small" color={colors.accent[100]} />
     </View>
   );
 }
@@ -49,7 +49,7 @@ export function MessageList({
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center">
-        <ActivityIndicator color={colors.primary[500]} />
+        <ActivityIndicator color={colors.accent[100]} />
       </View>
     );
   }

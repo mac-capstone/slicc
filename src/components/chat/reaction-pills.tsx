@@ -10,18 +10,18 @@ type Props = {
 };
 
 export function ReactionPills({ reactions, currentUserId, onToggle }: Props) {
-  const entries = Object.entries(reactions).filter(
-    ([, users]) => users.length > 0
-  );
+  const entries = Object.entries(reactions)
+    .filter(([, users]) => users.length > 0)
+    .sort(([a], [b]) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
   if (entries.length === 0) return null;
 
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ gap: 4, paddingTop: 4 }}
+      contentContainerStyle={{ flexDirection: 'row', paddingTop: 4 }}
     >
-      {entries.map(([emoji, users]) => {
+      {entries.map(([emoji, users], index) => {
         const isMine = users.includes(currentUserId);
         return (
           <Pressable
@@ -35,21 +35,21 @@ export function ReactionPills({ reactions, currentUserId, onToggle }: Props) {
               borderRadius: 12,
               paddingHorizontal: 8,
               paddingVertical: 3,
-              gap: 4,
-              backgroundColor: isMine
-                ? colors.primary[700]
-                : colors.background[900],
+              marginRight: index < entries.length - 1 ? 4 : 0,
+              minHeight: 28,
+              backgroundColor: isMine ? colors.accent[200] : colors.accent[900],
               borderWidth: 1,
-              borderColor: isMine
-                ? colors.primary[500]
-                : colors.background[900],
+              borderColor: isMine ? colors.accent[100] : colors.accent[200],
             }}
           >
             <Text style={{ fontSize: 13 }}>{emoji}</Text>
             <Text
               style={{
                 fontSize: 11,
-                color: isMine ? '#fff' : colors.text[800],
+                minWidth: 16,
+                textAlign: 'center',
+                fontVariant: ['tabular-nums'],
+                color: colors.text[50],
                 fontWeight: '600',
               }}
             >

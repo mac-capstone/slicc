@@ -1,12 +1,15 @@
+import { doc, onSnapshot } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
 
 import {
   ensureIdentityKeyPair,
+  ensureKeyBundlesForMissingMembers,
   initGroupKey,
   resolveGroupKey,
 } from '@/api/chat/key-api';
 import type { UseMessagesResult } from '@/api/chat/messages';
 import { sendTextMessage, useMessages } from '@/api/chat/messages';
+import { db } from '@/api/common/firebase';
 import { decryptMessage } from '@/lib/crypto/e2e-crypto';
 import type { ChatMessageWithId, GroupIdT, UserIdT } from '@/types';
 
@@ -43,6 +46,19 @@ export function useGroupChat(
   const [messages, setMessages] = useState<ChatMessageWithId[]>([]);
   const [isSending, setIsSending] = useState(false);
 
+  // Drop key/messages when switching chat or user so we never decrypt with the wrong key.
+  useEffect(() => {
+    if (!groupId || !userId) {
+      setGroupKey(null);
+      setEncryptionReady(false);
+      setMessages([]);
+      return;
+    }
+    setGroupKey(null);
+    setEncryptionReady(false);
+    setMessages([]);
+  }, [groupId, userId]);
+
   // Initialize identity key + resolve group key
   useEffect(() => {
     if (!userId || !groupId) return;
@@ -53,8 +69,18 @@ export function useGroupChat(
       await ensureIdentityKeyPair(userId!);
       let key = await resolveGroupKey(groupId!, userId!);
 
-      if (!key && memberIds.length > 0) {
-        // initGroupKey returns the plaintext key directly — no second read needed
+      if (key && memberIds.length > 0) {
+        try {
+          await ensureKeyBundlesForMissingMembers({
+            groupId: groupId!,
+            memberIds,
+            initiatorUserId: userId!,
+            groupKeyPlaintext: key,
+          });
+        } catch (e) {
+          console.error('ensureKeyBundlesForMissingMembers failed:', e);
+        }
+      } else if (!key && memberIds.length > 0) {
         key = await initGroupKey(groupId!, memberIds, userId!);
       }
 
@@ -68,12 +94,52 @@ export function useGroupChat(
       console.error('Encryption init failed:', err);
       if (!cancelled) setEncryptionError(err);
     });
+
+    return () => {
+      cancelled = true;
+    };
   }, [groupId, userId, memberIds.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Pick up a key bundle written later (e.g. another member added your bundle). */
+  useEffect(() => {
+    if (!groupId || !userId) return;
+    if (groupKey) return;
+
+    let cancelled = false;
+    const ref = doc(db, 'groups', groupId, 'keyBundles', userId);
+    const unsub = onSnapshot(ref, async (snap) => {
+      if (!snap.exists() || cancelled) return;
+      const next = await resolveGroupKey(groupId, userId);
+      if (next && !cancelled) setGroupKey(next);
+    });
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, [groupId, userId, groupKey]);
 
   // Decrypt messages whenever raw messages or group key changes (synchronous)
   useEffect(() => {
-    if (!groupKey || rawMessages.length === 0) {
-      setMessages(rawMessages);
+    if (rawMessages.length === 0) {
+      setMessages([]);
+      return;
+    }
+
+    if (!groupKey) {
+      setMessages((prev) => {
+        const prevById = new Map(prev.map((m) => [m.id, m]));
+        return rawMessages.map((msg) => {
+          const prior = prevById.get(msg.id);
+          if (
+            prior?.decryptedContent != null &&
+            msg.type === 'text' &&
+            msg.encryptedContent
+          ) {
+            return { ...msg, decryptedContent: prior.decryptedContent };
+          }
+          return msg;
+        });
+      });
       return;
     }
 

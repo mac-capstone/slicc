@@ -63,16 +63,89 @@ export async function fetchUserPublicKey(
   return key;
 }
 
+export type EnsureKeyBundlesParams = {
+  groupId: string;
+  memberIds: string[];
+  initiatorUserId: string;
+  groupKeyPlaintext: string;
+};
+
 /**
- * Generate a new group key, wrap it for every member who has a registered
- * identity key, and return the plaintext group key so the caller can use it
- * immediately — avoiding a redundant resolveGroupKey read.
+ * When the current user already has the group key, write missing key bundles
+ * for other members (same keyVersion) so they can unwrap without rotating.
+ */
+export async function ensureKeyBundlesForMissingMembers({
+  groupId,
+  memberIds,
+  initiatorUserId,
+  groupKeyPlaintext,
+}: EnsureKeyBundlesParams): Promise<void> {
+  const initiatorSnap = await getDoc(
+    doc(db, 'groups', groupId, 'keyBundles', initiatorUserId)
+  );
+  if (!initiatorSnap.exists()) return;
+
+  const { keyVersion } = initiatorSnap.data() as { keyVersion: number };
+  const senderPriv = getIdentityPrivateKey();
+  const senderPub = getIdentityPublicKey();
+  if (!senderPriv || !senderPub) return;
+
+  await Promise.all(
+    memberIds.map(async (memberId) => {
+      const snap = await getDoc(
+        doc(db, 'groups', groupId, 'keyBundles', memberId)
+      );
+      if (snap.exists()) return;
+
+      const recipPub =
+        memberId === initiatorUserId
+          ? senderPub
+          : await fetchUserPublicKey(memberId);
+      if (!recipPub) {
+        console.warn(
+          `ensureKeyBundlesForMissingMembers: skip ${memberId} (no public key)`
+        );
+        return;
+      }
+
+      const { ciphertext, nonce } = wrapGroupKey(
+        groupKeyPlaintext,
+        recipPub,
+        senderPriv
+      );
+      await setDoc(doc(db, 'groups', groupId, 'keyBundles', memberId), {
+        encryptedGroupKey: ciphertext,
+        senderPublicKey: senderPub,
+        nonce,
+        keyVersion,
+        updatedAt: Timestamp.now(),
+      });
+    })
+  );
+}
+
+/**
+ * Generate a new group key only when the group has no key bundles yet.
+ * If bundles already exist, never rotate (that would make older ciphertext
+ * undecryptable). Returns null when the initiator still has no bundle.
  */
 export async function initGroupKey(
   groupId: string,
   memberIds: string[],
   initiatorUserId: string
-): Promise<string> {
+): Promise<string | null> {
+  const bundlesSnap = await getDocs(
+    collection(db, 'groups', groupId, 'keyBundles')
+  );
+  if (!bundlesSnap.empty) {
+    const resolved = await resolveGroupKey(groupId, initiatorUserId);
+    if (resolved) return resolved;
+    console.warn(
+      'initGroupKey: bundles exist for this group but not for this user; refusing to rotate group key'
+    );
+    return null;
+  }
+
   const groupKey = generateGroupKey();
   const senderPriv = getIdentityPrivateKey();
   const senderPub = getIdentityPublicKey();

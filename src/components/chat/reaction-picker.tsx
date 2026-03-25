@@ -17,7 +17,7 @@ const REACTION_THEME = {
   skinTonesContainer: colors.background[925],
   category: {
     icon: colors.text[800],
-    iconActive: colors.primary[500],
+    iconActive: colors.accent[100],
     container: 'transparent',
     containerActive: colors.background[925],
   },
@@ -34,7 +34,7 @@ const REACTION_THEME = {
     backgroundPressed: colors.background[900],
   },
   emoji: {
-    selected: colors.primary[700],
+    selected: colors.accent[100],
   },
 };
 

@@ -64,8 +64,14 @@ export function useMessages(groupId: string | null): UseMessagesResult {
   useEffect(() => {
     if (!groupId) {
       setIsLoading(false);
+      setMessages([]);
       return;
     }
+
+    const boot = messageCache.get(groupId);
+    setMessages(boot?.messages ?? []);
+    setHasMore(boot?.hasMore ?? true);
+    setIsLoading(!boot);
 
     const ref = collection(db, 'groups', groupId, 'messages').withConverter(
       chatMessageConverter

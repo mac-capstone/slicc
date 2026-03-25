@@ -158,7 +158,7 @@ export default function GroupDetailScreen() {
 
         <TouchableOpacity
           onPress={() => router.push(`/chat/${groupId}` as const)}
-          className="absolute bottom-6 right-5 size-14 items-center justify-center rounded-full bg-primary-600"
+          className="absolute bottom-6 right-5 size-14 items-center justify-center rounded-full bg-accent-800"
           style={{ elevation: 6 }}
           accessibilityLabel="Open group chat"
           accessibilityRole="button"

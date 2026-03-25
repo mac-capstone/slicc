@@ -33,7 +33,7 @@ export function LocationCard({ location }: Props) {
       >
         <View className="mb-1 flex-row items-center gap-2">
           <View className="size-8 items-center justify-center rounded-full bg-primary-600/20">
-            <Octicons name="location" size={14} color={colors.primary[500]} />
+            <Octicons name="location" size={14} color={colors.accent[100]} />
           </View>
           <View className="flex-1">
             <Text
@@ -69,16 +69,13 @@ export function LocationCard({ location }: Props) {
             ) : null}
           </View>
           <View className="flex-row items-center gap-1">
-            <Text
-              className="text-[10px]"
-              style={{ color: colors.primary[500] }}
-            >
+            <Text className="text-[10px]" style={{ color: colors.accent[100] }}>
               Open in Maps
             </Text>
             <Octicons
               name="link-external"
               size={10}
-              color={colors.primary[500]}
+              color={colors.accent[100]}
             />
           </View>
         </View>

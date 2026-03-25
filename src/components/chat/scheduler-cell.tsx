@@ -33,7 +33,7 @@ export function SchedulerCell({ count, total, isMine }: Props) {
         borderRadius: 3,
         backgroundColor: bgColor,
         borderWidth: isMine ? 1.5 : 0,
-        borderColor: isMine ? colors.text[50] : 'transparent',
+        borderColor: isMine ? colors.text[900] : 'transparent',
       }}
       accessibilityLabel={`${count} of ${total} available`}
       accessibilityState={{ selected: isMine }}

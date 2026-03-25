@@ -121,11 +121,11 @@ function GroupRow({ groupId, isSending, wasSent, onSend }: GroupRowProps) {
         <Text className="text-sm font-medium text-text-50">{name}</Text>
       </View>
       {isSending ? (
-        <ActivityIndicator size="small" color={colors.primary[500]} />
+        <ActivityIndicator size="small" color={colors.accent[100]} />
       ) : wasSent ? (
-        <Octicons name="check-circle" size={18} color={colors.primary[500]} />
+        <Octicons name="check-circle" size={18} color={colors.accent[100]} />
       ) : (
-        <Octicons name="paper-airplane" size={16} color={colors.primary[500]} />
+        <Octicons name="paper-airplane" size={16} color={colors.accent[100]} />
       )}
     </TouchableOpacity>
   );

@@ -18,23 +18,6 @@ type Props = {
   groupId: string;
 };
 
-const SENDER_COLOURS = [
-  colors.primary[400],
-  '#60a5fa',
-  '#34d399',
-  '#f472b6',
-  '#fb923c',
-  '#a78bfa',
-  '#38bdf8',
-];
-
-function senderColour(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++)
-    hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-  return SENDER_COLOURS[hash % SENDER_COLOURS.length];
-}
-
 function formatTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
@@ -72,7 +55,7 @@ export function MessageBubble({
     }).catch(console.error);
   }
 
-  const bubbleBg = isMine ? colors.primary[600] : colors.background[900];
+  const bubbleBg = isMine ? colors.accent[800] : colors.accent[900];
 
   return (
     // maxWidth caps the bubble at 80 % of screen width so long messages wrap.
@@ -81,7 +64,7 @@ export function MessageBubble({
       {!isMine && (
         <Text
           className="mb-0.5 ml-1 text-xs font-semibold"
-          style={{ color: senderColour(senderName) }}
+          style={{ color: colors.accent[100] }}
         >
           {senderName}
         </Text>
@@ -107,7 +90,8 @@ export function MessageBubble({
             <LocationCard location={message.locationPayload} />
           ) : (
             <Text
-              className={`text-sm leading-5 ${isMine ? 'text-white' : 'text-text-50'}`}
+              className="text-sm leading-5"
+              style={{ color: colors.text[50] }}
             >
               {message.decryptedContent ?? '🔒'}
             </Text>
