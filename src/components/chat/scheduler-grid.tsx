@@ -10,7 +10,9 @@ import {
   computeSlotCounts,
   computeTimeRowUsers,
 } from '@/api/chat/scheduler';
+import { PersonAvatar } from '@/components/person-avatar';
 import { colors, Text } from '@/components/ui';
+import type { UserIdT } from '@/types';
 
 import { SchedulerCell } from './scheduler-cell';
 
@@ -29,21 +31,18 @@ const LEGEND = [
   colors.primary[400],
 ];
 
-// Stable per-name colour (matches message bubble palette)
-const AVATAR_COLOURS = [
-  '#a78bfa',
-  '#60a5fa',
-  '#34d399',
-  '#f472b6',
-  '#fb923c',
-  '#38bdf8',
-  '#4ade80',
-  '#facc15',
-];
-function avatarColour(name: string): string {
+const AVATAR_COLOR_KEYS = [
+  'red',
+  'blue',
+  'green',
+  'yellow',
+  'white',
+] as const satisfies readonly (keyof typeof colors.avatar)[];
+
+function avatarColorKeyForUid(uid: string): (typeof AVATAR_COLOR_KEYS)[number] {
   let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-  return AVATAR_COLOURS[h % AVATAR_COLOURS.length];
+  for (let i = 0; i < uid.length; i++) h = (h * 31 + uid.charCodeAt(i)) >>> 0;
+  return AVATAR_COLOR_KEYS[h % AVATAR_COLOR_KEYS.length];
 }
 
 function formatTimeKey(timeKey: string): string {
@@ -74,32 +73,27 @@ function slotAt({
   );
 }
 
-// ── Member avatar ─────────────────────────────────────────────────────────────
+// ── Member avatar (overlap panel) ────────────────────────────────────────────
 
-type MemberAvatarProps = {
+type SchedulerMemberChipProps = {
+  userId: string;
   name: string;
-  // photoURL is not in the current userProfileSchema.
-  // When it is added, swap the initial View for an <Image source={{ uri: photoURL }} />.
   onPress: () => void;
 };
 
-function MemberAvatar({ name, onPress }: MemberAvatarProps) {
+function SchedulerMemberChip({
+  userId,
+  name,
+  onPress,
+}: SchedulerMemberChipProps) {
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.7}
-      style={{
-        width: 16,
-        height: 16,
-        borderRadius: 8,
-        backgroundColor: avatarColour(name),
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Text style={{ fontSize: 7, color: '#fff', fontWeight: '700' }}>
-        {name.charAt(0).toUpperCase()}
-      </Text>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+      <PersonAvatar
+        userId={userId as UserIdT}
+        fallbackLabel={name}
+        size={16}
+        color={avatarColorKeyForUid(userId)}
+      />
     </TouchableOpacity>
   );
 }
@@ -169,8 +163,9 @@ function OverlapPanel({
                   {entries.map((entry) => {
                     const name = memberNames[entry.uid] ?? '?';
                     return (
-                      <MemberAvatar
+                      <SchedulerMemberChip
                         key={entry.uid}
+                        userId={entry.uid}
                         name={name}
                         onPress={() => onAvatarPress({ timeKey, entry, name })}
                       />
@@ -222,13 +217,11 @@ function DetailCard({
             key={entry.uid}
             className="mb-0.5 flex-row items-center gap-1.5"
           >
-            <View
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: 4,
-                backgroundColor: avatarColour(name),
-              }}
+            <PersonAvatar
+              userId={entry.uid as UserIdT}
+              fallbackLabel={name}
+              size={20}
+              color={avatarColorKeyForUid(entry.uid)}
             />
             <Text
               style={{
