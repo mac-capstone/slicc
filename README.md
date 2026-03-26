@@ -253,11 +253,13 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
 ## Friend requests (Firebase)
 
 - Deploy composite indexes from the repo root: `firebase deploy --only firestore:indexes` (see `firestore.indexes.json`). The app queries `friendRequests` with `toUserId` + `status`.
-- Configure **security rules** for `friendRequests`, `friendships`, and `users/{uid}.friends` to cover both the accept and unfriend flows:
-  - Accept: update the relevant `friendRequests` document(s) (set status to `accepted`), create the `friendships` doc, and update both participants' `users/{uid}.friends` (client uses `arrayUnion` in a single transaction).
-  - Unfriend: delete the relevant `friendships` doc and update both participants' `users/{uid}.friends` (client uses `arrayRemove` in a single transaction); the client also deletes related `friendRequests` docs (forward and reverse doc ids) when present.
-  - Rules must allow creation/update of `users/{uid}.friends` only for the owning `users/{uid}` document while still permitting the mutual accept/unfriend transaction that updates both users' arrays (i.e., each `users/{uid}.friends` write must be authorized for that `uid`).
-  - Rules must allow deletion of `friendships` when `request.auth.uid` is part of that friendship (the actor must be included in the `friendships/{pairId}` document's `userIds`).
+- **What the client does (one transaction each):**
+  - **Accept** (`src/api/social/friend-requests.ts`, `completeFriendshipInTransaction`): updates the `friendRequests` doc to `accepted`, creates `friendships/{pairId}` with sorted `userIds`, and updates **both** `users/{fromUserId}` and `users/{toUserId}` with `friends: arrayUnion(…)` (reciprocal entries).
+  - **Unfriend** (`src/api/social/friendships.ts`, `unfriendUser`): deletes `friendships/{pairId}`, deletes forward/reverse `friendRequests` docs when they exist, and updates **both** `users/{currentUserId}` and `users/{friendUserId}` with `friends: arrayRemove(…)`.
+- **Security rules:** Firestore evaluates **every write** in a transaction; `request.auth.uid` is the signed-in user. A simple **owner-only** rule on `users/{uid}` (e.g. `allow update: if request.auth.uid == uid`) authorizes that user’s document only. It does **not** authorize the same client session to update the **other** participant’s `users/{otherUid}` in the same transaction, so those client flows will fail until you either:
+  - **Relax or specialize rules** — e.g. still require owner-only updates for most fields, but allow a **narrow** update to another user’s `friends` (and maybe `updatedAt`) when a `get()` on the matching `friendRequests` / `friendships` data proves the actor is the other party and the operation matches the intended state transition; or
+  - **Move symmetric updates server-side** — e.g. Cloud Function or trusted backend using the Admin SDK after an authorized client write to `friendRequests` / `friendships` only.
+- Allow **deletion** of `friendships/{pairId}` when `request.auth.uid` is one of the `userIds` on that document. Define create/update rules for `friendRequests` and `friendships` separately (e.g. sender creates pending requests, recipient accepts or declines, both parties may unfriend per the flows above).
 
 ## 📄 License
 
