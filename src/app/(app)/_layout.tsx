@@ -8,10 +8,12 @@ import {
   useAuth,
   useIncomingFriendRequestsLiveSync,
   useIsFirstTime,
+  usePlaceLikesFirestoreSync,
   useUserExistsInFirestore,
 } from '@/lib';
 
 export default function TabLayout() {
+  usePlaceLikesFirestoreSync();
   const status = useAuth.use.status();
   const userId = useAuth.use.userId();
   const [isFirstTime] = useIsFirstTime();
@@ -126,6 +128,13 @@ export default function TabLayout() {
             <Octicons name="search" size={24} color={color} />
           ),
           tabBarButtonTestID: 'explore-tab',
+        }}
+      />
+      <Tabs.Screen
+        name="place/[place-id]"
+        options={{
+          href: null,
+          title: 'Place Details',
         }}
       />
       <Tabs.Screen

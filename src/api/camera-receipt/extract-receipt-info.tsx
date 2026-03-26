@@ -1,10 +1,14 @@
+import { Env } from '@env';
 import { GoogleGenAI } from '@google/genai';
 
-const geminiApiKey = 'AIzaSyB-e1mHwUNsdjnqPp2Z-nel4M-6JRsF4Vg';
-
 export async function extractReceiptInfo(base64Image: string) {
-  // Replace with your API key, or load from env
-  const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+  const apiKey = Env.EXPO_PUBLIC_GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      'EXPO_PUBLIC_GEMINI_API_KEY is required for receipt extraction. Add it to your .env file.'
+    );
+  }
+  const ai = new GoogleGenAI({ apiKey });
   const contents = [
     {
       inlineData: {
