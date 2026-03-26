@@ -40,6 +40,47 @@ type PlacesApiPlace = {
   priceLevel?: PriceLevel;
 };
 
+/** Key / billing / permission issues — UI can show a single friendly message */
+export const PLACES_API_CONFIG_ERROR_CODE = 'config' as const;
+
+export class PlacesApiError extends Error {
+  readonly statusCode: number;
+  readonly code: typeof PLACES_API_CONFIG_ERROR_CODE | 'unknown';
+
+  constructor(
+    message: string,
+    statusCode: number,
+    code: typeof PLACES_API_CONFIG_ERROR_CODE | 'unknown'
+  ) {
+    super(message);
+    this.name = 'PlacesApiError';
+    this.statusCode = statusCode;
+    this.code = code;
+  }
+}
+
+export function isPlacesApiConfigError(error: unknown): boolean {
+  return (
+    error instanceof PlacesApiError &&
+    error.code === PLACES_API_CONFIG_ERROR_CODE
+  );
+}
+
+async function handlePlacesHttpError(res: Response): Promise<never> {
+  const status = res.status;
+  if (status === 401 || status === 403) {
+    await res.text().catch(() => '');
+    throw new PlacesApiError(
+      'Your Google Places API key is invalid or restricted.',
+      status,
+      'config'
+    );
+  }
+  const err = await res.text();
+  const snippet = err.length > 200 ? `${err.slice(0, 200)}…` : err;
+  throw new Error(`Places API error: ${status} ${snippet}`);
+}
+
 export function hasPlacesApiKey(): boolean {
   return !!Env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY;
 }
@@ -102,8 +143,7 @@ export async function searchNearby({
   });
 
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Places API error: ${res.status} ${err}`);
+    await handlePlacesHttpError(res);
   }
 
   const data = (await res.json()) as { places?: PlacesApiPlace[] };
@@ -156,8 +196,7 @@ export async function searchNearbyForRecommendations(
   });
 
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Places API error: ${res.status} ${err}`);
+    await handlePlacesHttpError(res);
   }
 
   const data = (await res.json()) as { places?: PlacesApiPlace[] };
@@ -183,8 +222,7 @@ export async function getPlaceDetails(placeId: string): Promise<Place | null> {
   });
   if (!res.ok) {
     if (res.status === 404) return null;
-    const err = await res.text();
-    throw new Error(`Places API error: ${res.status} ${err}`);
+    await handlePlacesHttpError(res);
   }
   const raw = (await res.json()) as PlacesApiPlace & { name?: string };
   return mapPlace({ ...raw, name: raw.name ?? `places/${id}` });
@@ -227,8 +265,7 @@ export async function searchText(
   });
 
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Places API error: ${res.status} ${err}`);
+    await handlePlacesHttpError(res);
   }
 
   const data = (await res.json()) as { places?: PlacesApiPlace[] };

@@ -20,6 +20,7 @@ import type { Place } from './places-api';
 import {
   getPlaceDetailsBatch,
   hasPlacesApiKey,
+  isPlacesApiConfigError,
   searchNearbyForRecommendations,
 } from './places-api';
 
@@ -142,6 +143,10 @@ async function contentBasedRecommendations(
         }
       );
     } catch (err) {
+      if (isPlacesApiConfigError(err)) {
+        recDebug('nearby fetch FAILED (API key / restriction)', { tierIndex });
+        throw err;
+      }
       const message = err instanceof Error ? err.message : String(err);
       recDebug('nearby fetch FAILED', { tierIndex, message });
       console.error(REC_DEBUG, 'searchNearbyForRecommendations', err);
@@ -448,6 +453,10 @@ export function useRecommendations({
           ratedPlaceIds,
         });
       } catch (err) {
+        if (isPlacesApiConfigError(err)) {
+          recDebug('queryFn Places API config error', { runId });
+          throw err;
+        }
         const message = err instanceof Error ? err.message : String(err);
         recDebug('queryFn ERROR (rethrowing)', { runId, message });
         console.error(REC_DEBUG, 'useRecommendations queryFn', err);

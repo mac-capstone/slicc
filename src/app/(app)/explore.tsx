@@ -2,7 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Keyboard, View } from 'react-native';
 
 import type { Place } from '@/api/places/places-api';
-import { hasPlacesApiKey } from '@/api/places/places-api';
+import {
+  hasPlacesApiKey,
+  isPlacesApiConfigError,
+} from '@/api/places/places-api';
 import { usePlaces } from '@/api/places/use-places';
 import { useRecommendations } from '@/api/places/use-recommendations';
 import { colors, Input } from '@/components/ui';
@@ -183,6 +186,7 @@ export default function Explore() {
 
   const isApiKeyError = useMemo(() => {
     if (!activeError) return false;
+    if (isPlacesApiConfigError(activeError)) return true;
     const msg = String((activeError as Error).message ?? '').toLowerCase();
     return (
       msg.includes('403') ||
@@ -190,7 +194,9 @@ export default function Explore() {
       msg.includes('api key') ||
       msg.includes('invalid') ||
       msg.includes('forbidden') ||
-      msg.includes('unauthorized')
+      msg.includes('unauthorized') ||
+      msg.includes('permission_denied') ||
+      msg.includes('restriction')
     );
   }, [activeError]);
 
