@@ -46,14 +46,6 @@ export function SchedulerModal({
     }
   }, [availability, currentUserId, isDragging]);
 
-  // Override the current user's entry with the optimistic localSlots so the
-  // overlap panel (computeTimeRowUsers) stays in sync with the grid cell highlights
-  // instead of showing stale Firestore data during in-flight writes.
-  const mergedAvailability = useMemo(
-    () => ({ ...availability, [currentUserId]: Array.from(localSlots) }),
-    [availability, currentUserId, localSlots]
-  );
-
   // Single write to Firestore — called for both taps and completed drags
   const handleBatchUpdate = useCallback(
     async (slots: Set<string>) => {
@@ -124,10 +116,11 @@ export function SchedulerModal({
             >
               <SchedulerGrid
                 weekStart={weekStart}
-                availability={mergedAvailability}
+                serverAvailability={availability}
                 memberCount={memberIds.length}
                 memberNames={memberNames}
                 mySlots={localSlots}
+                currentUserId={currentUserId}
                 onBatchUpdate={handleBatchUpdate}
                 onDragStateChange={setIsDragging}
               />

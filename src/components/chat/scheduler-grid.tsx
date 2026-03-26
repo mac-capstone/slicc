@@ -45,10 +45,14 @@ function avatarColorKeyForUid(uid: string): (typeof AVATAR_COLOR_KEYS)[number] {
   return AVATAR_COLOR_KEYS[h % AVATAR_COLOR_KEYS.length];
 }
 
-function formatTimeKey(timeKey: string): string {
-  const [h, m] = timeKey.split(':').map(Number);
-  const period = h < 12 ? 'AM' : 'PM';
-  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${period}`;
+function formatTimeKey(timeKey: string, addMinute: 0 | 30 = 0): string {
+  const [h, m = 0] = timeKey.split(':').map(Number);
+  const totalMinutes = h * 60 + m + addMinute;
+  const newH = Math.floor(totalMinutes / 60) % 24;
+  const newM = totalMinutes % 60;
+
+  const period = newH < 12 ? 'AM' : 'PM';
+  return `${newH % 12 || 12}:${String(newM).padStart(2, '0')} ${period}`;
 }
 
 function slotAt({
@@ -202,7 +206,7 @@ function DetailCard({
     >
       <View className="mb-1 flex-row items-center justify-between">
         <Text className="text-[11px] font-bold text-text-50">
-          {formatTimeKey(info.timeKey)}
+          {formatTimeKey(info.timeKey)} - {formatTimeKey(info.timeKey, 30)}
         </Text>
         <TouchableOpacity onPress={onDismiss}>
           <Text className="text-[10px] text-text-800">✕</Text>
@@ -246,7 +250,8 @@ function DetailCard({
 
 type Props = {
   weekStart: Date;
-  availability: GroupAvailability;
+  serverAvailability: GroupAvailability;
+  currentUserId: UserIdT;
   memberCount: number;
   memberNames: Record<string, string>;
   mySlots: Set<string>;
@@ -256,7 +261,8 @@ type Props = {
 
 export function SchedulerGrid({
   weekStart,
-  availability,
+  serverAvailability,
+  currentUserId,
   memberCount,
   memberNames,
   mySlots,
@@ -288,12 +294,43 @@ export function SchedulerGrid({
     [weekStart]
   );
 
-  const slotCounts = computeSlotCounts(availability);
+  // Base derived data is computed once from server state *excluding* the current
+  // user. While dragging/tapping, we only adjust it with `renderSlots`
+  // (optimistic selection), which is much cheaper than recomputing for all users.
+  const othersAvailability = useMemo(() => {
+    const { [currentUserId]: _ignored, ...rest } = serverAvailability;
+    return rest as GroupAvailability;
+  }, [serverAvailability, currentUserId]);
 
-  const timeRowUsers = useMemo(
-    () => computeTimeRowUsers(availability, weekStart),
-    [availability, weekStart]
+  const baseSlotCounts = useMemo(
+    () => computeSlotCounts(othersAvailability),
+    [othersAvailability]
   );
+
+  const baseTimeRowUsers = useMemo(
+    () => computeTimeRowUsers(othersAvailability, weekStart),
+    [othersAvailability, weekStart]
+  );
+
+  const myTimeRowUsers = useMemo(
+    () =>
+      computeTimeRowUsers(
+        { [currentUserId]: Array.from(renderSlots) },
+        weekStart
+      ),
+    [renderSlots, weekStart, currentUserId]
+  );
+
+  const timeRowUsers = useMemo(() => {
+    const result: Record<string, TimeRowUserEntry[]> = {
+      ...baseTimeRowUsers,
+    };
+
+    for (const [timeKey, entries] of Object.entries(myTimeRowUsers)) {
+      result[timeKey] = [...(result[timeKey] ?? []), ...entries];
+    }
+    return result;
+  }, [baseTimeRowUsers, myTimeRowUsers]);
 
   // ── Gesture helpers ───────────────────────────────────────────────────────
 
@@ -384,25 +421,24 @@ export function SchedulerGrid({
               ([0, 30] as const)
                 .filter((min) => hour < 22 || min === 0)
                 .map((min) => (
-                  <View
-                    key={`${hour}:${min}`}
-                    className="flex-row items-center"
-                  >
+                  <View key={`${hour}:${min}`} className="flex-row items-start">
                     <View style={{ width: LW }} className="items-end pr-1">
                       <Text className="text-[9px] text-text-800">
                         {min === 0
-                          ? `${hour % 12 || 12}${hour < 12 ? 'a' : 'p'}`
+                          ? `${hour % 12 || 12}${hour < 12 ? 'am' : 'pm'}`
                           : ''}
                       </Text>
                     </View>
                     {days.map((d, di) => {
                       const k = buildSlotKey(d, hour, min);
+                      const isMine = renderSlots.has(k);
+                      const count = (baseSlotCounts[k] ?? 0) + (isMine ? 1 : 0);
                       return (
                         <View key={di} style={{ width: CW }}>
                           <SchedulerCell
-                            count={slotCounts[k] ?? 0}
+                            count={count}
                             total={memberCount}
-                            isMine={renderSlots.has(k)}
+                            isMine={isMine}
                           />
                         </View>
                       );
