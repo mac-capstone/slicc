@@ -26,6 +26,13 @@ const W_QUALITY = 0.35;
 const W_DISTANCE = 0.3;
 const W_PERSONAL = 0.35;
 
+/** Exposed for match UI; same values as used in `computePlaceCompositeScore`. */
+export const COMPOSITE_WEIGHTS = {
+  quality: W_QUALITY,
+  distance: W_DISTANCE,
+  personalization: W_PERSONAL,
+} as const;
+
 /** Bayesian prior for star ratings when review count is low */
 const BAYESIAN_PRIOR_RATING = 3.5;
 const BAYESIAN_PRIOR_WEIGHT = 8;
@@ -235,6 +242,86 @@ export type ScoreCollaborativeParams = {
   topN?: number;
 };
 
+export type CollaborativeScoreForPlaceParams = ScoreCollaborativeParams & {
+  candidatePlaceId: string;
+};
+
+function buildPlaceToUsersMap(
+  usersWhoLiked: UserPlaceLikesDoc[],
+  excludeUserIds: Set<string>
+): Map<string, Set<string>> {
+  const pool = usersWhoLiked.filter((d) => !excludeUserIds.has(d.id));
+  const placeToUsers = new Map<string, Set<string>>();
+  for (const doc of pool) {
+    for (const pid of doc.placeIds) {
+      let set = placeToUsers.get(pid);
+      if (!set) {
+        set = new Set();
+        placeToUsers.set(pid, set);
+      }
+      set.add(doc.id);
+    }
+  }
+  return placeToUsers;
+}
+
+function computeMaxCollaborativeSimForCandidate(
+  candidatePlaceId: string,
+  seeds: string[],
+  placeToUsers: Map<string, Set<string>>
+): number {
+  const c = candidatePlaceId;
+  const Uc = placeToUsers.get(c);
+  if (!Uc || Uc.size === 0) return 0;
+
+  let maxSim = 0;
+  for (const s of seeds) {
+    if (s === c) continue;
+    const Us = placeToUsers.get(s);
+    if (!Us || Us.size === 0) continue;
+
+    let inter = 0;
+    for (const u of Us) {
+      if (Uc.has(u)) inter += 1;
+    }
+    if (inter === 0) continue;
+
+    const sim = inter / Math.sqrt(Us.size * Uc.size);
+    if (sim > maxSim) maxSim = sim;
+  }
+  return maxSim;
+}
+
+/**
+ * Max item–item similarity between `candidatePlaceId` and any seed (same math as batch CF).
+ * Does not exclude `candidatePlaceId` for being in `currentUserLikedIds`, so place detail can
+ * show a community score for places the user already liked.
+ */
+export function collaborativeScoreForPlaceId(
+  params: CollaborativeScoreForPlaceParams
+): number | undefined {
+  const {
+    usersWhoLiked,
+    seedPlaceIds,
+    ratedPlaceIds,
+    excludeUserIds,
+    candidatePlaceId,
+  } = params;
+
+  if (ratedPlaceIds.has(candidatePlaceId)) return undefined;
+
+  const placeToUsers = buildPlaceToUsersMap(usersWhoLiked, excludeUserIds);
+  const seeds = seedPlaceIds.filter((s) => placeToUsers.has(s));
+  if (seeds.length === 0) return undefined;
+
+  const maxSim = computeMaxCollaborativeSimForCandidate(
+    candidatePlaceId,
+    seeds,
+    placeToUsers
+  );
+  return maxSim > 0 ? maxSim : undefined;
+}
+
 /**
  * Item–item collaborative filtering: cosine similarity between implicit user sets
  * in the fetched pool. sim(s,c) = |U_s ∩ U_c| / sqrt(|U_s|·|U_c|), aggregated by max over seeds.
@@ -252,18 +339,7 @@ export function scoreCollaborativeCandidates(
   } = params;
 
   const pool = usersWhoLiked.filter((d) => !excludeUserIds.has(d.id));
-
-  const placeToUsers = new Map<string, Set<string>>();
-  for (const doc of pool) {
-    for (const pid of doc.placeIds) {
-      let set = placeToUsers.get(pid);
-      if (!set) {
-        set = new Set();
-        placeToUsers.set(pid, set);
-      }
-      set.add(doc.id);
-    }
-  }
+  const placeToUsers = buildPlaceToUsersMap(usersWhoLiked, excludeUserIds);
 
   const seeds = seedPlaceIds.filter((s) => placeToUsers.has(s));
   if (seeds.length === 0) return [];
@@ -280,25 +356,11 @@ export function scoreCollaborativeCandidates(
   const scores = new Map<string, number>();
 
   for (const c of candidates) {
-    const Uc = placeToUsers.get(c);
-    if (!Uc || Uc.size === 0) continue;
-
-    let maxSim = 0;
-    for (const s of seeds) {
-      if (s === c) continue;
-      const Us = placeToUsers.get(s);
-      if (!Us || Us.size === 0) continue;
-
-      let inter = 0;
-      for (const u of Us) {
-        if (Uc.has(u)) inter += 1;
-      }
-      if (inter === 0) continue;
-
-      const sim = inter / Math.sqrt(Us.size * Uc.size);
-      if (sim > maxSim) maxSim = sim;
-    }
-
+    const maxSim = computeMaxCollaborativeSimForCandidate(
+      c,
+      seeds,
+      placeToUsers
+    );
     if (maxSim > 0) scores.set(c, maxSim);
   }
 
@@ -390,6 +452,63 @@ export type CompositeRankingContext = {
   contentScoreById: Map<string, number>;
   collabScoreById: Map<string, number>;
 };
+
+export type PlaceMatchBreakdown = {
+  /** Normalized quality [0, 1] from Bayesian rating. */
+  quality: number;
+  /** Distance decay [0, 1]. */
+  distance: number;
+  /** Raw TF–IDF cosine vs liked places, if defined for this place. */
+  content: number | undefined;
+  /** Raw collaborative similarity, if defined for this place. */
+  collaborative: number | undefined;
+  /** Blend used in composite (same as `personalizationScore`). */
+  personalization: number;
+  weightedQuality: number;
+  weightedDistance: number;
+  weightedPersonal: number;
+  composite: number;
+  weights: typeof COMPOSITE_WEIGHTS;
+};
+
+/**
+ * Scalar used to rank places in Explore; same formula as `getPlaceMatchBreakdown`.composite.
+ */
+export function computePlaceCompositeScore(
+  place: Place,
+  ctx: CompositeRankingContext
+): number {
+  return placeCompositeScore(place, ctx);
+}
+
+/**
+ * Per-factor scores and weighted contributions for match UI (place detail).
+ */
+export function getPlaceMatchBreakdown(
+  place: Place,
+  ctx: CompositeRankingContext
+): PlaceMatchBreakdown {
+  const q = ratingToUnit(
+    bayesianAverageRating(place.rating, place.userRatingCount)
+  );
+  const d = distanceScoreForPlace(place, ctx.userLocation);
+  const collabRaw = ctx.collabScoreById.get(place.id);
+  const contentRaw = ctx.contentScoreById.get(place.id);
+  const p = personalizationScore(collabRaw, contentRaw);
+  const composite = W_QUALITY * q + W_DISTANCE * d + W_PERSONAL * p;
+  return {
+    quality: q,
+    distance: d,
+    content: contentRaw,
+    collaborative: collabRaw,
+    personalization: p,
+    weightedQuality: W_QUALITY * q,
+    weightedDistance: W_DISTANCE * d,
+    weightedPersonal: W_PERSONAL * p,
+    composite,
+    weights: COMPOSITE_WEIGHTS,
+  };
+}
 
 /**
  * Final ordering: weighted composite of quality (Bayesian), distance decay, and personalization.

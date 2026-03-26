@@ -27,8 +27,9 @@ import {
 const STALE_TIME = 60 * 60 * 1000; // 60 minutes
 const GC_TIME = 24 * 60 * 60 * 1000; // 24 hours
 
-const MAX_LIKED_PLACES_TO_QUERY = 5;
-const MAX_USERS_PER_PLACE = 50;
+/** Exported for `use-place-match` — keep in sync with collaborative pipeline. */
+export const MAX_LIKED_PLACES_TO_QUERY = 5;
+export const MAX_USERS_PER_PLACE = 50;
 const MIN_COLLABORATIVE_IDS = 1;
 const MAX_RECOMMENDATION_RESULTS = 20;
 const MERGE_WITH_CONTENT_BELOW = 12;

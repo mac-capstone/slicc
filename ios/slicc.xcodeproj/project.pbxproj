@@ -7,47 +7,47 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0C96F06AFD404075AFE670B8 /* FuturaCyrillicHeavy.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FD4679B7882C486BBF140A8B /* FuturaCyrillicHeavy.ttf */; };
+		07FD58E9973C3078753E218E /* libPods-slicc.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 51AF97C601A973A545C101AB /* libPods-slicc.a */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
-		1D47D60FD9BD42B0B01F926C /* FuturaCyrillicBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 8EC15F9F5890487E83451117 /* FuturaCyrillicBold.ttf */; };
-		1E32FD0606D64863BFE00A54 /* FuturaCyrillicMedium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E5CBCF2FD68B48D6966DBDC7 /* FuturaCyrillicMedium.ttf */; };
-		2D3F9D4BF7AB9A3A5FFFDC1E /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB12F8B8FBAD029FBD02AE85 /* ExpoModulesProvider.swift */; };
+		2B328B8806F045D89B61A98C /* FuturaCyrillicLight.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9007CA1B679C44F690E86BE3 /* FuturaCyrillicLight.ttf */; };
+		2DCF4EC87D6BCB08C9B179AE /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B230885B352733A51504A997 /* ExpoModulesProvider.swift */; };
+		3C7678A6EE1B48A4AE622509 /* FuturaCyrillicDemi.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 536A5F0178FF44ACBF83EEDD /* FuturaCyrillicDemi.ttf */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		553336B5EDB817C356924B9E /* libPods-slicc.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 695E68B267C85EBF8BEB8C14 /* libPods-slicc.a */; };
-		5DCF64982EB341658354FE54 /* FuturaCyrillicBook.ttf in Resources */ = {isa = PBXBuildFile; fileRef = C7D52A4A0566408694E7B239 /* FuturaCyrillicBook.ttf */; };
-		B67707D6E8BD4DFDA42F9A1E /* FuturaCyrillicExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B460916073774E44AFA4F896 /* FuturaCyrillicExtraBold.ttf */; };
+		41577D18C22C45ACB4F2D3D9 /* FuturaCyrillicBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = DCFCDEE873184775A4F99DE3 /* FuturaCyrillicBold.ttf */; };
+		749F251436C145A7BA1F676D /* FuturaCyrillicBook.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9F2B8BD590BA476F94442DA2 /* FuturaCyrillicBook.ttf */; };
+		809AE19E68914673B6BADDD7 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3FEAF87E752D4D0C95FA3BF1 /* GoogleService-Info.plist */; };
+		A1BDB943F7B899192E49A454 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 8B0EB6157B43232B3F0CBFCD /* PrivacyInfo.xcprivacy */; };
+		A70F678DD5B34F0982375FEF /* FuturaCyrillicHeavy.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A31C09B5882743AD93BA7685 /* FuturaCyrillicHeavy.ttf */; };
+		ACB789C9405F436092C12144 /* Inter.ttf in Resources */ = {isa = PBXBuildFile; fileRef = CD5C3D93DE5D43F48B17061A /* Inter.ttf */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
-		C3FACA8DEF4779E4F213132E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 561ABD1109A5E9A06662EDAA /* PrivacyInfo.xcprivacy */; };
-		CEBB3377F3A44ABD83BF001D /* FuturaCyrillicLight.ttf in Resources */ = {isa = PBXBuildFile; fileRef = C547A558071D4BE5B71045CC /* FuturaCyrillicLight.ttf */; };
-		D0EA18C44A3C4958B4433BA5 /* Inter.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 96FC0E913BAC49FC97DA60E3 /* Inter.ttf */; };
-		D56A78B1EF754A2E83817789 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 764234124CB74911901A5D43 /* GoogleService-Info.plist */; };
+		D1F81FACE6AE4BD585CE56FB /* FuturaCyrillicExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 5826FFE8CA4F410B8E985E46 /* FuturaCyrillicExtraBold.ttf */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
-		FC483111530B45CC89FFB16C /* FuturaCyrillicDemi.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 8C171D14C0FD4B608B34BF53 /* FuturaCyrillicDemi.ttf */; };
+		F5F01D3F2C884A34AC625F5B /* FuturaCyrillicMedium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A67F72CF135B45CE9918FF48 /* FuturaCyrillicMedium.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		03E5DC537472FEE80AD44FEC /* Pods-slicc.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-slicc.release.xcconfig"; path = "Target Support Files/Pods-slicc/Pods-slicc.release.xcconfig"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* slicc.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = slicc.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = slicc/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = slicc/Info.plist; sourceTree = "<group>"; };
-		213C838B708C10B4D6F3F5F5 /* Pods-slicc.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-slicc.release.xcconfig"; path = "Target Support Files/Pods-slicc/Pods-slicc.release.xcconfig"; sourceTree = "<group>"; };
-		561ABD1109A5E9A06662EDAA /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = slicc/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		695E68B267C85EBF8BEB8C14 /* libPods-slicc.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-slicc.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		764234124CB74911901A5D43 /* GoogleService-Info.plist */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "slicc/GoogleService-Info.plist"; sourceTree = "<group>"; };
-		8C171D14C0FD4B608B34BF53 /* FuturaCyrillicDemi.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = FuturaCyrillicDemi.ttf; path = ../assets/fonts/FuturaCyrillicDemi.ttf; sourceTree = "<group>"; };
-		8C9372D4D6C80B61A67B767C /* Pods-slicc.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-slicc.debug.xcconfig"; path = "Target Support Files/Pods-slicc/Pods-slicc.debug.xcconfig"; sourceTree = "<group>"; };
-		8EC15F9F5890487E83451117 /* FuturaCyrillicBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = FuturaCyrillicBold.ttf; path = ../assets/fonts/FuturaCyrillicBold.ttf; sourceTree = "<group>"; };
-		96FC0E913BAC49FC97DA60E3 /* Inter.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = Inter.ttf; path = ../assets/fonts/Inter.ttf; sourceTree = "<group>"; };
+		3FEAF87E752D4D0C95FA3BF1 /* GoogleService-Info.plist */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "slicc/GoogleService-Info.plist"; sourceTree = "<group>"; };
+		4628765E49C2CD2DD4F1A32E /* Pods-slicc.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-slicc.debug.xcconfig"; path = "Target Support Files/Pods-slicc/Pods-slicc.debug.xcconfig"; sourceTree = "<group>"; };
+		51AF97C601A973A545C101AB /* libPods-slicc.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-slicc.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		536A5F0178FF44ACBF83EEDD /* FuturaCyrillicDemi.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = FuturaCyrillicDemi.ttf; path = ../assets/fonts/FuturaCyrillicDemi.ttf; sourceTree = "<group>"; };
+		5826FFE8CA4F410B8E985E46 /* FuturaCyrillicExtraBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = FuturaCyrillicExtraBold.ttf; path = ../assets/fonts/FuturaCyrillicExtraBold.ttf; sourceTree = "<group>"; };
+		8B0EB6157B43232B3F0CBFCD /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = slicc/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		9007CA1B679C44F690E86BE3 /* FuturaCyrillicLight.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = FuturaCyrillicLight.ttf; path = ../assets/fonts/FuturaCyrillicLight.ttf; sourceTree = "<group>"; };
+		9F2B8BD590BA476F94442DA2 /* FuturaCyrillicBook.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = FuturaCyrillicBook.ttf; path = ../assets/fonts/FuturaCyrillicBook.ttf; sourceTree = "<group>"; };
+		A31C09B5882743AD93BA7685 /* FuturaCyrillicHeavy.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = FuturaCyrillicHeavy.ttf; path = ../assets/fonts/FuturaCyrillicHeavy.ttf; sourceTree = "<group>"; };
+		A67F72CF135B45CE9918FF48 /* FuturaCyrillicMedium.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = FuturaCyrillicMedium.ttf; path = ../assets/fonts/FuturaCyrillicMedium.ttf; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = slicc/SplashScreen.storyboard; sourceTree = "<group>"; };
-		AB12F8B8FBAD029FBD02AE85 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-slicc/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		B460916073774E44AFA4F896 /* FuturaCyrillicExtraBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = FuturaCyrillicExtraBold.ttf; path = ../assets/fonts/FuturaCyrillicExtraBold.ttf; sourceTree = "<group>"; };
+		B230885B352733A51504A997 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-slicc/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
-		C547A558071D4BE5B71045CC /* FuturaCyrillicLight.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = FuturaCyrillicLight.ttf; path = ../assets/fonts/FuturaCyrillicLight.ttf; sourceTree = "<group>"; };
-		C7D52A4A0566408694E7B239 /* FuturaCyrillicBook.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = FuturaCyrillicBook.ttf; path = ../assets/fonts/FuturaCyrillicBook.ttf; sourceTree = "<group>"; };
-		E5CBCF2FD68B48D6966DBDC7 /* FuturaCyrillicMedium.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = FuturaCyrillicMedium.ttf; path = ../assets/fonts/FuturaCyrillicMedium.ttf; sourceTree = "<group>"; };
+		CD5C3D93DE5D43F48B17061A /* Inter.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = Inter.ttf; path = ../assets/fonts/Inter.ttf; sourceTree = "<group>"; };
+		DCFCDEE873184775A4F99DE3 /* FuturaCyrillicBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = FuturaCyrillicBold.ttf; path = ../assets/fonts/FuturaCyrillicBold.ttf; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = slicc/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* slicc-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "slicc-Bridging-Header.h"; path = "slicc/slicc-Bridging-Header.h"; sourceTree = "<group>"; };
-		FD4679B7882C486BBF140A8B /* FuturaCyrillicHeavy.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = FuturaCyrillicHeavy.ttf; path = ../assets/fonts/FuturaCyrillicHeavy.ttf; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -55,21 +55,13 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				553336B5EDB817C356924B9E /* libPods-slicc.a in Frameworks */,
+				07FD58E9973C3078753E218E /* libPods-slicc.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		06611C61089A8B8D28935927 /* slicc */ = {
-			isa = PBXGroup;
-			children = (
-				AB12F8B8FBAD029FBD02AE85 /* ExpoModulesProvider.swift */,
-			);
-			name = slicc;
-			sourceTree = "<group>";
-		};
 		13B07FAE1A68108700A75B9A /* slicc */ = {
 			isa = PBXGroup;
 			children = (
@@ -79,50 +71,50 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				764234124CB74911901A5D43 /* GoogleService-Info.plist */,
-				561ABD1109A5E9A06662EDAA /* PrivacyInfo.xcprivacy */,
+				3FEAF87E752D4D0C95FA3BF1 /* GoogleService-Info.plist */,
+				8B0EB6157B43232B3F0CBFCD /* PrivacyInfo.xcprivacy */,
 			);
 			name = slicc;
-			sourceTree = "<group>";
-		};
-		2B2B9608AA134E5F82DFE06C /* Resources */ = {
-			isa = PBXGroup;
-			children = (
-				96FC0E913BAC49FC97DA60E3 /* Inter.ttf */,
-				8EC15F9F5890487E83451117 /* FuturaCyrillicBold.ttf */,
-				C7D52A4A0566408694E7B239 /* FuturaCyrillicBook.ttf */,
-				8C171D14C0FD4B608B34BF53 /* FuturaCyrillicDemi.ttf */,
-				B460916073774E44AFA4F896 /* FuturaCyrillicExtraBold.ttf */,
-				FD4679B7882C486BBF140A8B /* FuturaCyrillicHeavy.ttf */,
-				C547A558071D4BE5B71045CC /* FuturaCyrillicLight.ttf */,
-				E5CBCF2FD68B48D6966DBDC7 /* FuturaCyrillicMedium.ttf */,
-			);
-			name = Resources;
-			path = "";
 			sourceTree = "<group>";
 		};
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				695E68B267C85EBF8BEB8C14 /* libPods-slicc.a */,
+				51AF97C601A973A545C101AB /* libPods-slicc.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		48A2D361206F27D82CCB8B40 /* ExpoModulesProviders */ = {
+		461C2777A0551D02B22036C8 /* slicc */ = {
 			isa = PBXGroup;
 			children = (
-				06611C61089A8B8D28935927 /* slicc */,
+				B230885B352733A51504A997 /* ExpoModulesProvider.swift */,
 			);
-			name = ExpoModulesProviders;
+			name = slicc;
 			sourceTree = "<group>";
 		};
-		4B8367FBF0C46DDE9CB5C9BE /* Pods */ = {
+		4AD35F3E0FCB4A689567F6F6 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				8C9372D4D6C80B61A67B767C /* Pods-slicc.debug.xcconfig */,
-				213C838B708C10B4D6F3F5F5 /* Pods-slicc.release.xcconfig */,
+				CD5C3D93DE5D43F48B17061A /* Inter.ttf */,
+				DCFCDEE873184775A4F99DE3 /* FuturaCyrillicBold.ttf */,
+				9F2B8BD590BA476F94442DA2 /* FuturaCyrillicBook.ttf */,
+				536A5F0178FF44ACBF83EEDD /* FuturaCyrillicDemi.ttf */,
+				5826FFE8CA4F410B8E985E46 /* FuturaCyrillicExtraBold.ttf */,
+				A31C09B5882743AD93BA7685 /* FuturaCyrillicHeavy.ttf */,
+				9007CA1B679C44F690E86BE3 /* FuturaCyrillicLight.ttf */,
+				A67F72CF135B45CE9918FF48 /* FuturaCyrillicMedium.ttf */,
+			);
+			name = Resources;
+			path = "";
+			sourceTree = "<group>";
+		};
+		6BD9A0D96964BC4D79A9646C /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				4628765E49C2CD2DD4F1A32E /* Pods-slicc.debug.xcconfig */,
+				03E5DC537472FEE80AD44FEC /* Pods-slicc.release.xcconfig */,
 			);
 			name = Pods;
 			path = Pods;
@@ -142,9 +134,9 @@
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
-				2B2B9608AA134E5F82DFE06C /* Resources */,
-				4B8367FBF0C46DDE9CB5C9BE /* Pods */,
-				48A2D361206F27D82CCB8B40 /* ExpoModulesProviders */,
+				4AD35F3E0FCB4A689567F6F6 /* Resources */,
+				6BD9A0D96964BC4D79A9646C /* Pods */,
+				8C6D0379E1C84083F59867C3 /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -157,6 +149,14 @@
 				13B07F961A680F5B00A75B9A /* slicc.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		8C6D0379E1C84083F59867C3 /* ExpoModulesProviders */ = {
+			isa = PBXGroup;
+			children = (
+				461C2777A0551D02B22036C8 /* slicc */,
+			);
+			name = ExpoModulesProviders;
 			sourceTree = "<group>";
 		};
 		BB2F792B24A3F905000567C9 /* Supporting */ = {
@@ -176,13 +176,13 @@
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "slicc" */;
 			buildPhases = (
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
-				1BA022390A1BB55D9FCEC9CB /* [Expo] Configure project */,
+				F6D4AD7675F9E084C427EEF1 /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
-				C9CF6A103674B6955F59D901 /* [CP] Embed Pods Frameworks */,
+				244B5AB144AA02299E826BAC /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -232,16 +232,16 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				D56A78B1EF754A2E83817789 /* GoogleService-Info.plist in Resources */,
-				D0EA18C44A3C4958B4433BA5 /* Inter.ttf in Resources */,
-				1D47D60FD9BD42B0B01F926C /* FuturaCyrillicBold.ttf in Resources */,
-				5DCF64982EB341658354FE54 /* FuturaCyrillicBook.ttf in Resources */,
-				FC483111530B45CC89FFB16C /* FuturaCyrillicDemi.ttf in Resources */,
-				B67707D6E8BD4DFDA42F9A1E /* FuturaCyrillicExtraBold.ttf in Resources */,
-				0C96F06AFD404075AFE670B8 /* FuturaCyrillicHeavy.ttf in Resources */,
-				CEBB3377F3A44ABD83BF001D /* FuturaCyrillicLight.ttf in Resources */,
-				1E32FD0606D64863BFE00A54 /* FuturaCyrillicMedium.ttf in Resources */,
-				C3FACA8DEF4779E4F213132E /* PrivacyInfo.xcprivacy in Resources */,
+				809AE19E68914673B6BADDD7 /* GoogleService-Info.plist in Resources */,
+				ACB789C9405F436092C12144 /* Inter.ttf in Resources */,
+				41577D18C22C45ACB4F2D3D9 /* FuturaCyrillicBold.ttf in Resources */,
+				749F251436C145A7BA1F676D /* FuturaCyrillicBook.ttf in Resources */,
+				3C7678A6EE1B48A4AE622509 /* FuturaCyrillicDemi.ttf in Resources */,
+				D1F81FACE6AE4BD585CE56FB /* FuturaCyrillicExtraBold.ttf in Resources */,
+				A70F678DD5B34F0982375FEF /* FuturaCyrillicHeavy.ttf in Resources */,
+				2B328B8806F045D89B61A98C /* FuturaCyrillicLight.ttf in Resources */,
+				F5F01D3F2C884A34AC625F5B /* FuturaCyrillicMedium.ttf in Resources */,
+				A1BDB943F7B899192E49A454 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -287,29 +287,27 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		1BA022390A1BB55D9FCEC9CB /* [Expo] Configure project */ = {
+		244B5AB144AA02299E826BAC /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);
-			inputFileListPaths = (
-			);
 			inputPaths = (
-				"$(SRCROOT)/.xcode.env",
-				"$(SRCROOT)/.xcode.env.local",
-				"$(SRCROOT)/slicc/slicc.entitlements",
-				"$(SRCROOT)/Pods/Target Support Files/Pods-slicc/expo-configure-project.sh",
+				"${PODS_ROOT}/Target Support Files/Pods-slicc/Pods-slicc-frameworks.sh",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/React-Core-prebuilt/React.framework/React",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ReactNativeDependencies/ReactNativeDependencies.framework/ReactNativeDependencies",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
 			);
-			name = "[Expo] Configure project";
-			outputFileListPaths = (
-			);
+			name = "[CP] Embed Pods Frameworks";
 			outputPaths = (
-				"$(SRCROOT)/Pods/Target Support Files/Pods-slicc/ExpoModulesProvider.swift",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/React.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ReactNativeDependencies.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-slicc/expo-configure-project.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-slicc/Pods-slicc-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
 		};
 		800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -369,27 +367,29 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-slicc/Pods-slicc-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		C9CF6A103674B6955F59D901 /* [CP] Embed Pods Frameworks */ = {
+		F6D4AD7675F9E084C427EEF1 /* [Expo] Configure project */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);
-			inputPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-slicc/Pods-slicc-frameworks.sh",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/React-Core-prebuilt/React.framework/React",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ReactNativeDependencies/ReactNativeDependencies.framework/ReactNativeDependencies",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
+			inputFileListPaths = (
 			);
-			name = "[CP] Embed Pods Frameworks";
+			inputPaths = (
+				"$(SRCROOT)/.xcode.env",
+				"$(SRCROOT)/.xcode.env.local",
+				"$(SRCROOT)/slicc/slicc.entitlements",
+				"$(SRCROOT)/Pods/Target Support Files/Pods-slicc/expo-configure-project.sh",
+			);
+			name = "[Expo] Configure project";
+			outputFileListPaths = (
+			);
 			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/React.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ReactNativeDependencies.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
+				"$(SRCROOT)/Pods/Target Support Files/Pods-slicc/ExpoModulesProvider.swift",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-slicc/Pods-slicc-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
+			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-slicc/expo-configure-project.sh\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -399,7 +399,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				2D3F9D4BF7AB9A3A5FFFDC1E /* ExpoModulesProvider.swift in Sources */,
+				2DCF4EC87D6BCB08C9B179AE /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -408,7 +408,7 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 8C9372D4D6C80B61A67B767C /* Pods-slicc.debug.xcconfig */;
+			baseConfigurationReference = 4628765E49C2CD2DD4F1A32E /* Pods-slicc.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -444,7 +444,7 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 213C838B708C10B4D6F3F5F5 /* Pods-slicc.release.xcconfig */;
+			baseConfigurationReference = 03E5DC537472FEE80AD44FEC /* Pods-slicc.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;

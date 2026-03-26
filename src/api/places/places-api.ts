@@ -37,8 +37,23 @@ type PlacesApiPlace = {
   userRatingCount?: number;
   primaryType?: string;
   types?: string[];
-  priceLevel?: PriceLevel;
+  /** API may return `MODERATE` or `PRICE_LEVEL_MODERATE` */
+  priceLevel?: string;
 };
+
+function normalizePriceLevel(raw: unknown): PriceLevel | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const key = raw.replace(/^PRICE_LEVEL_/, '');
+  if (
+    key === 'FREE' ||
+    key === 'INEXPENSIVE' ||
+    key === 'MODERATE' ||
+    key === 'EXPENSIVE'
+  ) {
+    return key as PriceLevel;
+  }
+  return undefined;
+}
 
 /** Key / billing / permission issues — UI can show a single friendly message */
 export const PLACES_API_CONFIG_ERROR_CODE = 'config' as const;
@@ -106,7 +121,7 @@ function mapPlace(raw: PlacesApiPlace): Place {
     userRatingCount: raw.userRatingCount,
     primaryType: raw.primaryType,
     types: raw.types,
-    priceLevel: raw.priceLevel,
+    priceLevel: normalizePriceLevel(raw.priceLevel),
   };
 }
 

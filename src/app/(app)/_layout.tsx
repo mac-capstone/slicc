@@ -131,6 +131,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="place/[place-id]"
+        options={{
+          href: null,
+          title: 'Place Details',
+        }}
+      />
+      <Tabs.Screen
         name="notifications"
         options={{
           title: 'Notifications',

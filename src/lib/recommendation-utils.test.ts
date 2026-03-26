@@ -2,6 +2,9 @@ import type { Place } from '@/api/places/places-api';
 
 import {
   bayesianAverageRating,
+  collaborativeScoreForPlaceId,
+  computePlaceCompositeScore,
+  getPlaceMatchBreakdown,
   mergeWithRrf,
   rankPlacesByContentRelevance,
   RRF_K,
@@ -73,6 +76,49 @@ describe('scoreCollaborativeCandidates', () => {
     expect(scored).toHaveLength(1);
     expect(scored[0].placeId).toBe('candB');
     expect(scored[0].score).toBeCloseTo(1, 5);
+  });
+});
+
+describe('getPlaceMatchBreakdown', () => {
+  it('matches computePlaceCompositeScore on the composite field', () => {
+    const p = place('p1', { primaryType: 'cafe', types: ['cafe'] });
+    const ctx = {
+      userLocation: { latitude: 43.65, longitude: -79.38 },
+      contentScoreById: new Map([['p1', 0.4]]),
+      collabScoreById: new Map([['p1', 0.2]]),
+    };
+    const bd = getPlaceMatchBreakdown(p, ctx);
+    expect(bd.composite).toBe(computePlaceCompositeScore(p, ctx));
+    expect(
+      bd.weightedQuality + bd.weightedDistance + bd.weightedPersonal
+    ).toBeCloseTo(bd.composite, 5);
+  });
+});
+
+describe('collaborativeScoreForPlaceId', () => {
+  it('returns the same score as batch scoring for a candidate', () => {
+    const usersWhoLiked = [
+      { id: 'u1', placeIds: ['seedA', 'candB'] },
+      { id: 'u2', placeIds: ['seedA', 'candB'] },
+    ];
+    const batch = scoreCollaborativeCandidates({
+      usersWhoLiked,
+      seedPlaceIds: ['seedA'],
+      currentUserLikedIds: new Set(['seedA']),
+      ratedPlaceIds: new Set(),
+      excludeUserIds: new Set(),
+      topN: 5,
+    });
+    const single = collaborativeScoreForPlaceId({
+      usersWhoLiked,
+      seedPlaceIds: ['seedA'],
+      candidatePlaceId: 'candB',
+      currentUserLikedIds: new Set(['seedA']),
+      ratedPlaceIds: new Set(),
+      excludeUserIds: new Set(),
+    });
+    expect(single).toBeCloseTo(batch[0]?.score ?? 0, 5);
+    expect(single).toBeCloseTo(1, 5);
   });
 });
 

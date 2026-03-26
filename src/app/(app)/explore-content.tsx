@@ -42,7 +42,7 @@ type Props = {
   hasLikes: boolean;
   isSearching: boolean;
   locationStatus: string | null;
-  onPlacePress: () => void;
+  onPlacePress: (place: Place) => void;
 };
 
 export function ExploreContent({

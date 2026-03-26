@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { router } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Keyboard, View } from 'react-native';
 
 import type { Place } from '@/api/places/places-api';
@@ -200,7 +201,13 @@ export default function Explore() {
     );
   }, [activeError]);
 
-  const handlePlacePress = () => Keyboard.dismiss();
+  const handlePlacePress = useCallback((place: Place) => {
+    Keyboard.dismiss();
+    router.push({
+      pathname: '/place/[place-id]',
+      params: { 'place-id': place.id, returnTo: 'explore' },
+    });
+  }, []);
 
   const searchViewData = useMemo((): Place[] | null => {
     if (!isSearching) return null;
