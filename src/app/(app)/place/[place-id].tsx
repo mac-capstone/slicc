@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { usePlaceDetails } from '@/api/places/use-place-details';
 import { PlaceMatchSection } from '@/components/place-match-section';
+import { PlaceSocialMatchSection } from '@/components/place-social-match-section';
 import { Button, colors, Text, TouchableOpacity, View } from '@/components/ui';
 import { formatDistance, haversineDistance } from '@/lib/geo';
 import { buildGoogleMapsPlaceUrl } from '@/lib/google-maps-url';
@@ -248,6 +249,8 @@ export default function PlaceDetailScreen(): React.ReactElement {
         </View>
 
         <PlaceMatchSection place={place} />
+
+        <PlaceSocialMatchSection place={place} />
 
         <Button
           label="Open in Google Maps"

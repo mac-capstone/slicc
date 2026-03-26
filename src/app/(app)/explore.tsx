@@ -1,6 +1,14 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Keyboard, View } from 'react-native';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { Keyboard, Platform, Pressable, Text, View } from 'react-native';
+import Animated, { FadeInUp, FadeOutDown } from 'react-native-reanimated';
 
 import type { Place } from '@/api/places/places-api';
 import {
@@ -39,6 +47,13 @@ function placeMatchesSearch(place: Place, query: string): boolean {
 
 const LOADING_PLACEHOLDER_ID = '__loading__';
 
+function sortedPlaceIdsKey(places: Place[]): string {
+  return places
+    .map((p) => p.id)
+    .sort()
+    .join(',');
+}
+
 type ExploreSection = {
   id: string;
   title: string;
@@ -54,10 +69,61 @@ export default function Explore() {
   const { location: userLocation, status: locationStatus } = useUserLocation();
   const likedPlaces = useLikedPlaces();
   const ratedPlaceIds = useRatedPlaceIds();
+  const likedPlacesRef = useRef(likedPlaces);
+  likedPlacesRef.current = likedPlaces;
+
+  /** Snapshot for the recommendations query — avoids refetch on every like while on Recommended. */
+  const [recommendationLikesBasis, setRecommendationLikesBasis] = useState<
+    Place[]
+  >([]);
+
+  useEffect(() => {
+    if (sectionFilter !== 'recommended') {
+      setRecommendationLikesBasis(likedPlaces);
+      return;
+    }
+    setRecommendationLikesBasis((prev) => {
+      if (prev.length === 0 && likedPlaces.length > 0) {
+        return likedPlaces;
+      }
+      return prev;
+    });
+  }, [sectionFilter, likedPlaces]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (sectionFilter === 'recommended') {
+        setRecommendationLikesBasis(likedPlacesRef.current);
+      }
+    }, [sectionFilter])
+  );
+
+  const likesForRecommendationsQuery = useMemo((): Place[] => {
+    if (sectionFilter !== 'recommended') {
+      return likedPlaces;
+    }
+    if (recommendationLikesBasis.length === 0 && likedPlaces.length > 0) {
+      return likedPlaces;
+    }
+    return recommendationLikesBasis.length > 0
+      ? recommendationLikesBasis
+      : likedPlaces;
+  }, [sectionFilter, likedPlaces, recommendationLikesBasis]);
+
+  const handleRefreshRecommendations = useCallback((): void => {
+    setRecommendationLikesBasis(likedPlaces);
+  }, [likedPlaces]);
 
   const isSearching = searchQuery.trim().length >= 2;
   const hasLikes = likedPlaces.length > 0;
   const hasLocation = !!userLocation;
+
+  const recommendationsOutOfDate =
+    sectionFilter === 'recommended' &&
+    hasLikes &&
+    sortedPlaceIdsKey(recommendationLikesBasis) !==
+      sortedPlaceIdsKey(likedPlaces) &&
+    !(recommendationLikesBasis.length === 0 && likedPlaces.length > 0);
 
   useEffect(() => {
     console.log(
@@ -94,7 +160,7 @@ export default function Explore() {
     isError: recsError,
     error: recsErrorDetail,
   } = useRecommendations({
-    likedPlaces,
+    likedPlaces: likesForRecommendationsQuery,
     userLocation,
     ratedPlaceIds,
     userId,
@@ -330,6 +396,48 @@ export default function Explore() {
         locationStatus={locationStatus}
         onPlacePress={handlePlacePress}
       />
+      {recommendationsOutOfDate ? (
+        <Animated.View
+          entering={FadeInUp.springify().damping(40).stiffness(220)}
+          exiting={FadeOutDown.duration(200)}
+          pointerEvents="box-none"
+          style={{
+            position: 'absolute',
+            left: 16,
+            right: 16,
+            bottom: 12,
+            zIndex: 50,
+            ...Platform.select({
+              ios: {
+                shadowColor: '#000',
+                shadowOpacity: 0.35,
+                shadowRadius: 14,
+                shadowOffset: { width: 0, height: 8 },
+              },
+              android: { elevation: 14 },
+            }),
+          }}
+        >
+          <Pressable
+            onPress={handleRefreshRecommendations}
+            className="rounded-2xl px-4 py-3.5"
+            style={{
+              backgroundColor: colors.background[900],
+              borderWidth: 1,
+              borderColor: colors.text[800],
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Refresh recommendations based on your latest likes"
+          >
+            <Text
+              className="text-center text-sm font-semibold"
+              style={{ color: colors.text[800] }}
+            >
+              Refresh recommendations
+            </Text>
+          </Pressable>
+        </Animated.View>
+      ) : null}
     </View>
   );
 }

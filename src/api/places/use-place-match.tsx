@@ -1,13 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
-import {
-  getUsersWhoLikedPlace,
-  type UserPlaceLikesDoc,
-} from '@/api/places/place-likes-api';
+import { fetchCollaborativeScoreForPlace } from '@/api/places/compute-match-for-subject';
 import { DEFAULT_LOCATION } from '@/lib/geo';
 import {
-  collaborativeScoreForPlaceId,
   type CompositeRankingContext,
   getPlaceMatchBreakdown,
   type PlaceMatchBreakdown,
@@ -15,10 +11,6 @@ import {
 } from '@/lib/recommendation-utils';
 
 import type { Place } from './places-api';
-import {
-  MAX_LIKED_PLACES_TO_QUERY,
-  MAX_USERS_PER_PLACE,
-} from './use-recommendations';
 
 const STALE_TIME = 60 * 60 * 1000;
 const GC_TIME = 24 * 60 * 60 * 1000;
@@ -39,44 +31,6 @@ export type UsePlaceMatchResult = {
   isCollabEnabled: boolean;
   collabError: boolean;
 };
-
-type FetchCollaborativeScoreParams = {
-  placeId: string;
-  likedPlaces: Place[];
-  userId: string;
-  ratedPlaceIds: Set<string>;
-};
-
-async function fetchCollaborativeScoreForPlace(
-  params: FetchCollaborativeScoreParams
-): Promise<number | null> {
-  const { placeId, likedPlaces, userId, ratedPlaceIds } = params;
-  const placeIdsToQuery = likedPlaces
-    .map((p) => p.id)
-    .slice(0, MAX_LIKED_PLACES_TO_QUERY);
-
-  const allDocs: UserPlaceLikesDoc[] = [];
-  for (const pid of placeIdsToQuery) {
-    const docs = await getUsersWhoLikedPlace(pid, MAX_USERS_PER_PLACE);
-    allDocs.push(...docs);
-  }
-
-  const uniqueByUserId = Array.from(
-    new Map(allDocs.map((d) => [d.id, d])).values()
-  );
-
-  const likedIds = new Set(likedPlaces.map((p) => p.id));
-  const raw = collaborativeScoreForPlaceId({
-    usersWhoLiked: uniqueByUserId,
-    seedPlaceIds: placeIdsToQuery,
-    candidatePlaceId: placeId,
-    currentUserLikedIds: likedIds,
-    ratedPlaceIds,
-    excludeUserIds: new Set([userId]),
-  });
-  /** TanStack Query forbids `undefined` as successful query data. */
-  return raw ?? null;
-}
 
 export function usePlaceMatch({
   place,
