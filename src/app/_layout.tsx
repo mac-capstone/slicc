@@ -15,7 +15,12 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { FullWindowOverlay } from 'react-native-screens';
 
 import { APIProvider } from '@/api';
-import { hydrateAuth, hydrateGroupPreferences, loadSelectedTheme } from '@/lib';
+import {
+  hydrateAuth,
+  hydrateGroupPreferences,
+  hydratePlacePreferences,
+  loadSelectedTheme,
+} from '@/lib';
 import { configureGoogleSignIn } from '@/lib/auth/google-auth';
 import { useThemeConfig } from '@/lib/use-theme-config';
 
@@ -28,6 +33,7 @@ export const unstable_settings = {
 configureGoogleSignIn();
 hydrateAuth();
 hydrateGroupPreferences();
+hydratePlacePreferences();
 loadSelectedTheme();
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();

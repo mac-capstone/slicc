@@ -69,6 +69,8 @@ const envSchema = z.object({
   EXPO_PUBLIC_FIREBASE_APP_ID: z.string().min(1),
   EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID: z.string().min(1),
   EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: z.string().min(1),
+  EXPO_PUBLIC_GOOGLE_PLACES_API_KEY: z.string().optional(),
+  EXPO_PUBLIC_GEMINI_API_KEY: z.string().optional(),
 });
 
 /**
@@ -98,6 +100,11 @@ const _env = {
     process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
   EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID:
     process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+  EXPO_PUBLIC_GOOGLE_PLACES_API_KEY:
+    process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY ??
+    process.env.GOOGLE_PLACES_API_KEY,
+  EXPO_PUBLIC_GEMINI_API_KEY:
+    process.env.EXPO_PUBLIC_GEMINI_API_KEY ?? process.env.GEMINI_API_KEY,
 };
 
 /**
