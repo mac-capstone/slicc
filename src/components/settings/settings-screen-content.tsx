@@ -66,6 +66,7 @@ export function SettingsScreenContent({
       <Text
         tx="settings.title"
         className="font-futuraBold text-5xl text-text-50"
+        style={{ lineHeight: 56, paddingBottom: 2 }}
       />
 
       <View className="mt-10">
