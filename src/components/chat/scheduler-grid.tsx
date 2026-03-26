@@ -17,7 +17,7 @@ import type { UserIdT } from '@/types';
 import { SchedulerCell } from './scheduler-cell';
 
 // Grid dimensions
-// LW + 7×CW + PANEL_W ≈ 340 px → fills a 375 px phone (32 px total padding)
+// LW + 7×CW + PANEL_W ≈ 340 px -> fills a 375 px phone (32 px total padding)
 const LW = 36; // label column width
 const CW = 40; // day column width
 const CH = 24; // cell height (22px content + 1px margin × 2)

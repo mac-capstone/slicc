@@ -199,7 +199,7 @@ export const expenseItemSchema = z.object({
 
 export const expenseItemConverter = zodConverter(expenseItemSchema);
 
-// ── Chat message (subcollection: groups/{groupId}/messages/{messageId}) ────
+// ── Chat message (Realtime DB: groups/{groupId}/messages/{pushId}) ─────────
 
 export const locationPayloadSchema = z.object({
   name: z.string(),
@@ -226,14 +226,14 @@ export const chatMessageSchema = z.object({
     .custom<Timestamp | null>((val) => val instanceof Timestamp || val === null)
     .transform((val) => (val instanceof Timestamp ? val.toDate() : new Date())),
   readBy: z.array(z.string()).default([]),
-  // emoji → array of userIds who reacted with that emoji.
+  // emoji -> array of userIds who reacted with that emoji.
   // Use arrayUnion / arrayRemove on reactions.<emoji> to toggle.
   reactions: z.record(z.string(), z.array(z.string())).default({}),
 });
 
 export const chatMessageConverter = zodConverter(chatMessageSchema);
 
-// ── Key bundle (subcollection: groups/{groupId}/keyBundles/{userId}) ────────
+// ── Key bundle (Realtime DB: groups/{groupId}/keyBundles/{userId}) ───────────
 
 export const chatKeyBundleSchema = z.object({
   encryptedGroupKey: z.string(),
@@ -245,7 +245,7 @@ export const chatKeyBundleSchema = z.object({
 
 export const chatKeyBundleConverter = zodConverter(chatKeyBundleSchema);
 
-// ── Scheduler availability (subcollection: groups/{groupId}/availability/{userId}) ─
+// ── Scheduler availability (Realtime DB: groups/{groupId}/availability/{userId}) ─
 
 export const availabilitySchema = z.object({
   slots: z.array(z.string()).default([]),

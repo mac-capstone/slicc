@@ -49,7 +49,7 @@ function copyMmkvContents(from: MMKV, to: MMKV): void {
 }
 
 /**
- * One-time migration: plain `slicc-crypto-v1` → encrypted `slicc-crypto-v2`.
+ * One-time migration: plain `slicc-crypto-v1` -> encrypted `slicc-crypto-v2`.
  */
 function migrateFromLegacyIfNeeded(encrypted: MMKV): void {
   if (encrypted.getAllKeys().length > 0) return;

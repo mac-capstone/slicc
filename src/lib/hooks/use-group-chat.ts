@@ -1,4 +1,4 @@
-import { doc, onSnapshot } from 'firebase/firestore';
+import { onValue, ref as dbRef } from 'firebase/database';
 import { useCallback, useEffect, useState } from 'react';
 
 import {
@@ -9,7 +9,7 @@ import {
 } from '@/api/chat/key-api';
 import type { UseMessagesResult } from '@/api/chat/messages';
 import { sendTextMessage, useMessages } from '@/api/chat/messages';
-import { db } from '@/api/common/firebase';
+import { rtdb } from '@/api/common/firebase';
 import { decryptMessage } from '@/lib/crypto/e2e-crypto';
 import type { ChatMessageWithId, GroupIdT, UserIdT } from '@/types';
 
@@ -106,8 +106,8 @@ export function useGroupChat(
     if (groupKey) return;
 
     let cancelled = false;
-    const ref = doc(db, 'groups', groupId, 'keyBundles', userId);
-    const unsub = onSnapshot(ref, async (snap) => {
+    const bundleRef = dbRef(rtdb, `groups/${groupId}/keyBundles/${userId}`);
+    const unsub = onValue(bundleRef, async (snap) => {
       if (!snap.exists() || cancelled) return;
       const next = await resolveGroupKey(groupId, userId);
       if (next && !cancelled) setGroupKey(next);

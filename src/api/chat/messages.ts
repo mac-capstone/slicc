@@ -1,38 +1,107 @@
 import {
-  addDoc,
-  arrayRemove,
-  arrayUnion,
-  collection,
-  doc,
-  getDocs,
-  limit,
-  onSnapshot,
-  orderBy,
+  type DataSnapshot,
+  endBefore,
+  get,
+  limitToLast,
+  onValue,
+  orderByKey,
+  push,
   query,
-  type QueryDocumentSnapshot,
+  ref as dbRef,
+  runTransaction,
   serverTimestamp,
-  startAfter,
-  updateDoc,
-} from 'firebase/firestore';
+  set,
+} from 'firebase/database';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { db } from '@/api/common/firebase';
+import { rtdb } from '@/api/common/firebase';
 import { encryptMessage } from '@/lib/crypto/e2e-crypto';
 import type { ChatMessageIdT, ChatMessageWithId, LocationShare } from '@/types';
-import { chatMessageConverter } from '@/types/schema';
 
 const PAGE_SIZE = 30;
 
+function messagesPath(groupId: string): string {
+  return `groups/${groupId}/messages`;
+}
+
+/** Normalize RTDB JSON into the same `ChatMessage` shape the UI already expects. */
+function parseChatMessageRtdb(
+  id: string,
+  raw: unknown
+): ChatMessageWithId | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const senderId = r.senderId;
+  const type = r.type;
+  if (typeof senderId !== 'string') return null;
+  if (type !== 'text' && type !== 'location' && type !== 'system') return null;
+
+  let sentAt: Date;
+  const st = r.sentAt;
+  if (typeof st === 'number' && Number.isFinite(st)) sentAt = new Date(st);
+  else sentAt = new Date();
+
+  const readBy = Array.isArray(r.readBy)
+    ? r.readBy.filter((x): x is string => typeof x === 'string')
+    : [];
+
+  const reactions: Record<string, string[]> = {};
+  if (
+    r.reactions &&
+    typeof r.reactions === 'object' &&
+    !Array.isArray(r.reactions)
+  ) {
+    for (const [emoji, users] of Object.entries(
+      r.reactions as Record<string, unknown>
+    )) {
+      if (Array.isArray(users))
+        reactions[emoji] = users.filter(
+          (u): u is string => typeof u === 'string'
+        );
+    }
+  }
+
+  return {
+    id: id as ChatMessageIdT,
+    senderId,
+    type,
+    encryptedContent:
+      typeof r.encryptedContent === 'string' ? r.encryptedContent : undefined,
+    nonce: typeof r.nonce === 'string' ? r.nonce : undefined,
+    keyVersion: typeof r.keyVersion === 'number' ? r.keyVersion : 0,
+    locationPayload:
+      r.locationPayload && typeof r.locationPayload === 'object'
+        ? (r.locationPayload as LocationShare)
+        : undefined,
+    systemText: typeof r.systemText === 'string' ? r.systemText : undefined,
+    sentAt,
+    readBy,
+    reactions,
+    decryptedContent: undefined,
+  };
+}
+
+function snapshotToMessageList(snapshot: DataSnapshot): ChatMessageWithId[] {
+  const rows: ChatMessageWithId[] = [];
+  snapshot.forEach((child) => {
+    const id = child.key;
+    if (!id) return false;
+    const m = parseChatMessageRtdb(id, child.val());
+    if (m) rows.push(m);
+    return false;
+  });
+  rows.reverse();
+  return rows;
+}
+
 /**
- * Messages are stored in DESCENDING order (newest -> oldest).
- * This matches the `inverted` FlatList which renders data[0] at the visual bottom.
- *
- * oldestSnap is the cursor for the next loadMore call (startAfter in desc order
- * = fetch messages even older than our current oldest).
+ * Messages are stored with Firebase `push()` ids (chronological when sorted as strings).
+ * The live window uses `orderByKey` + `limitToLast` (newest keys). `data[0]` = newest
+ * for the inverted FlatList.
  */
 type GroupChatCache = {
   messages: ChatMessageWithId[];
-  oldestSnap: QueryDocumentSnapshot | null;
+  oldestKey: string | null;
   hasMore: boolean;
 };
 
@@ -46,7 +115,7 @@ export type UseMessagesResult = {
   loadMore: () => Promise<void>;
 };
 
-/** Real-time subscription to the latest messages in a group chat. */
+/** Real-time subscription to the latest messages in a group chat (Realtime DB). */
 export function useMessages(groupId: string | null): UseMessagesResult {
   const cached = groupId ? messageCache.get(groupId) : undefined;
 
@@ -73,44 +142,38 @@ export function useMessages(groupId: string | null): UseMessagesResult {
     setHasMore(boot?.hasMore ?? true);
     setIsLoading(!boot);
 
-    const ref = collection(db, 'groups', groupId, 'messages').withConverter(
-      chatMessageConverter
-    );
-    // Descending order + limit: gives the most recent PAGE_SIZE messages.
-    // docChanges() so subsequent snaps only process the delta.
-    const q = query(ref, orderBy('sentAt', 'desc'), limit(PAGE_SIZE));
+    const baseRef = dbRef(rtdb, messagesPath(groupId));
+    const q = query(baseRef, orderByKey(), limitToLast(PAGE_SIZE));
 
-    const unsub = onSnapshot(q, (snap) => {
+    const unsub = onValue(q, (snap) => {
       const prev = messageCache.get(groupId);
+      if (!snap.exists()) {
+        messageCache.set(groupId, {
+          messages: [],
+          oldestKey: null,
+          hasMore: false,
+        });
+        setMessages([]);
+        setHasMore(false);
+        setIsLoading(false);
+        return;
+      }
 
-      // IDs in the live window — replace with fresh data from this snapshot.
-      const snapIds = new Set(snap.docs.map((d) => d.id));
-
-      // Keep any older messages that fell out of the live window due to pagination
-      // (e.g. after 31+ messages exist, msg #1 leaves the window but user loaded it)
+      const recentMessages = snapshotToMessageList(snap);
+      const snapIds = new Set(recentMessages.map((m) => m.id));
       const olderMessages = (prev?.messages ?? []).filter(
         (m) => !snapIds.has(m.id)
       );
-
-      const recentMessages: ChatMessageWithId[] = snap.docs.map((d) => ({
-        id: d.id as ChatMessageIdT,
-        ...d.data(),
-        decryptedContent: undefined,
-      }));
-
-      // DESC: recent first (data[0] = newest = visual bottom of inverted list),
-      // then older messages already fetched via pagination appended at the end
-      // (data[last] = oldest = visual top of inverted list).
       const combined = [...recentMessages, ...olderMessages];
 
-      // Oldest cursor: initialise from live window; don't overwrite once pagination
-      // has pushed it further back.
-      const oldestSnap = prev?.oldestSnap ?? snap.docs.at(-1) ?? null;
-      const hasMoreVal = prev?.hasMore ?? snap.docs.length >= PAGE_SIZE;
+      const oldestKey =
+        combined.length > 0 ? combined[combined.length - 1]!.id : null;
+      const keyCount = snap.size;
+      const hasMoreVal = prev?.hasMore ?? keyCount >= PAGE_SIZE;
 
       messageCache.set(groupId, {
         messages: combined,
-        oldestSnap,
+        oldestKey,
         hasMore: hasMoreVal,
       });
       setMessages(combined);
@@ -118,44 +181,43 @@ export function useMessages(groupId: string | null): UseMessagesResult {
       setIsLoading(false);
     });
 
-    return () => unsub();
+    return unsub;
   }, [groupId]);
 
   const loadMore = useCallback(async () => {
     const gid = groupIdRef.current;
     if (!gid || isLoadingMoreRef.current) return;
     const prev = messageCache.get(gid);
-    if (!prev?.oldestSnap || !prev.hasMore) return;
+    if (!prev?.oldestKey || !prev.hasMore) return;
 
     isLoadingMoreRef.current = true;
     setIsLoadingMore(true);
     try {
-      const ref = collection(db, 'groups', gid, 'messages').withConverter(
-        chatMessageConverter
-      );
-      // startAfter in DESC order = fetch messages older than our current oldest
+      const baseRef = dbRef(rtdb, messagesPath(gid));
       const q = query(
-        ref,
-        orderBy('sentAt', 'desc'),
-        startAfter(prev.oldestSnap),
-        limit(PAGE_SIZE)
+        baseRef,
+        orderByKey(),
+        endBefore(prev.oldestKey),
+        limitToLast(PAGE_SIZE)
       );
-      const snap = await getDocs(q);
+      const snap = await get(q);
+      if (!snap.exists()) {
+        messageCache.set(gid, { ...prev, hasMore: false });
+        setHasMore(false);
+        return;
+      }
 
-      const olderMessages: ChatMessageWithId[] = snap.docs.map((d) => ({
-        id: d.id as ChatMessageIdT,
-        ...d.data(),
-        decryptedContent: undefined,
-      }));
+      const olderBatch = snapshotToMessageList(snap);
+      const newOldestKey =
+        olderBatch.length > 0
+          ? olderBatch[olderBatch.length - 1]!.id
+          : prev.oldestKey;
+      const hasMoreVal = olderBatch.length >= PAGE_SIZE;
 
-      const newOldestSnap = snap.docs.at(-1) ?? prev.oldestSnap;
-      const hasMoreVal = snap.docs.length >= PAGE_SIZE;
-
-      // Append at end (these are older, so they go toward the visual top)
-      const combined = [...prev.messages, ...olderMessages];
+      const combined = [...prev.messages, ...olderBatch];
       messageCache.set(gid, {
         messages: combined,
-        oldestSnap: newOldestSnap,
+        oldestKey: newOldestKey,
         hasMore: hasMoreVal,
       });
       setMessages(combined);
@@ -182,7 +244,8 @@ export async function sendTextMessage({
   groupKey: string;
 }): Promise<void> {
   const { ciphertext, nonce } = encryptMessage(plaintext, groupKey);
-  await addDoc(collection(db, 'groups', groupId, 'messages'), {
+  const msgRef = push(dbRef(rtdb, messagesPath(groupId)));
+  await set(msgRef, {
     senderId,
     type: 'text',
     encryptedContent: ciphertext,
@@ -199,7 +262,8 @@ export async function sendLocationMessage(
   senderId: string,
   location: LocationShare
 ): Promise<void> {
-  await addDoc(collection(db, 'groups', groupId, 'messages'), {
+  const msgRef = push(dbRef(rtdb, messagesPath(groupId)));
+  await set(msgRef, {
     senderId,
     type: 'location',
     locationPayload: location,
@@ -211,15 +275,14 @@ export async function sendLocationMessage(
 
 /**
  * Toggle an emoji reaction on a message.
- * Adds the emoji if the user hasn't reacted yet; removes it if they have.
- * Uses arrayUnion / arrayRemove so each field is a per-emoji user list.
+ * Uses a transaction so concurrent toggles stay consistent.
  */
 export async function toggleReaction({
   groupId,
   messageId,
   emoji,
   userId,
-  currentReactions,
+  currentReactions: _currentReactions,
 }: {
   groupId: string;
   messageId: string;
@@ -227,12 +290,31 @@ export async function toggleReaction({
   userId: string;
   currentReactions: Record<string, string[]>;
 }): Promise<void> {
-  const hasReacted = (currentReactions[emoji] ?? []).includes(userId);
-  const msgRef = doc(db, 'groups', groupId, 'messages', messageId);
-  await updateDoc(msgRef, {
-    [`reactions.${emoji}`]: hasReacted
-      ? arrayRemove(userId)
-      : arrayUnion(userId),
+  const path = `${messagesPath(groupId)}/${messageId}`;
+  await runTransaction(dbRef(rtdb, path), (current) => {
+    if (current === null || current === undefined) return;
+    const row = current as Record<string, unknown>;
+    const reactionsRaw = row.reactions;
+    const reactions: Record<string, string[]> = {};
+    if (
+      reactionsRaw &&
+      typeof reactionsRaw === 'object' &&
+      !Array.isArray(reactionsRaw)
+    ) {
+      for (const [k, v] of Object.entries(
+        reactionsRaw as Record<string, unknown>
+      )) {
+        if (Array.isArray(v))
+          reactions[k] = v.filter((u): u is string => typeof u === 'string');
+      }
+    }
+    const list = [...(reactions[emoji] ?? [])];
+    const idx = list.indexOf(userId);
+    if (idx >= 0) list.splice(idx, 1);
+    else list.push(userId);
+    if (list.length === 0) delete reactions[emoji];
+    else reactions[emoji] = list;
+    return { ...row, reactions };
   });
 }
 
@@ -241,7 +323,8 @@ export async function sendSystemMessage(
   groupId: string,
   text: string
 ): Promise<void> {
-  await addDoc(collection(db, 'groups', groupId, 'messages'), {
+  const msgRef = push(dbRef(rtdb, messagesPath(groupId)));
+  await set(msgRef, {
     senderId: 'system',
     type: 'system',
     systemText: text,

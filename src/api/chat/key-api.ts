@@ -1,18 +1,11 @@
 /**
- * Manages E2E key bundles in Firestore.
- * Public keys stored at: users/{userId}/e2eKeys/identity
- * Encrypted group key bundles at: groups/{groupId}/keyBundles/{userId}
+ * E2E keys: identity public keys stay in Firestore (`users/{userId}/e2eKeys/identity`).
+ * Per-group encrypted key bundles live in Realtime Database: `groups/{groupId}/keyBundles/{userId}`.
  */
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  setDoc,
-  Timestamp,
-} from 'firebase/firestore';
+import { type DataSnapshot, get, ref as dbRef, set } from 'firebase/database';
+import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 
-import { db } from '@/api/common/firebase';
+import { db, rtdb } from '@/api/common/firebase';
 import {
   generateGroupKey,
   generateIdentityKeyPair,
@@ -28,11 +21,34 @@ import {
   storeIdentityKeyPair,
 } from '@/lib/crypto/key-store';
 
-/**
- * In-memory cache for user public keys fetched from Firestore.
- * Keys are immutable once registered, so this is safe for the app lifetime.
- */
 const pubKeyCache = new Map<string, string>();
+
+function keyBundlesPath(groupId: string): string {
+  return `groups/${groupId}/keyBundles`;
+}
+
+function parseKeyBundle(snap: DataSnapshot): {
+  encryptedGroupKey: string;
+  senderPublicKey: string;
+  nonce: string;
+  keyVersion: number;
+} | null {
+  if (!snap.exists()) return null;
+  const v = snap.val() as Record<string, unknown>;
+  if (
+    typeof v.encryptedGroupKey !== 'string' ||
+    typeof v.senderPublicKey !== 'string' ||
+    typeof v.nonce !== 'string' ||
+    typeof v.keyVersion !== 'number'
+  )
+    return null;
+  return {
+    encryptedGroupKey: v.encryptedGroupKey,
+    senderPublicKey: v.senderPublicKey,
+    nonce: v.nonce,
+    keyVersion: v.keyVersion,
+  };
+}
 
 /** Ensure identity key pair exists locally and is registered in Firestore. */
 export async function ensureIdentityKeyPair(userId: string): Promise<string> {
@@ -80,22 +96,23 @@ export async function ensureKeyBundlesForMissingMembers({
   initiatorUserId,
   groupKeyPlaintext,
 }: EnsureKeyBundlesParams): Promise<void> {
-  const initiatorSnap = await getDoc(
-    doc(db, 'groups', groupId, 'keyBundles', initiatorUserId)
+  const initiatorSnap = await get(
+    dbRef(rtdb, `${keyBundlesPath(groupId)}/${initiatorUserId}`)
   );
-  if (!initiatorSnap.exists()) return;
+  const initiatorData = parseKeyBundle(initiatorSnap);
+  if (!initiatorData) return;
 
-  const { keyVersion } = initiatorSnap.data() as { keyVersion: number };
+  const { keyVersion } = initiatorData;
   const senderPriv = getIdentityPrivateKey();
   const senderPub = getIdentityPublicKey();
   if (!senderPriv || !senderPub) return;
 
   await Promise.all(
     memberIds.map(async (memberId) => {
-      const snap = await getDoc(
-        doc(db, 'groups', groupId, 'keyBundles', memberId)
+      const existing = await get(
+        dbRef(rtdb, `${keyBundlesPath(groupId)}/${memberId}`)
       );
-      if (snap.exists()) return;
+      if (existing.exists()) return;
 
       const recipPub =
         memberId === initiatorUserId
@@ -113,12 +130,12 @@ export async function ensureKeyBundlesForMissingMembers({
         recipPub,
         senderPriv
       );
-      await setDoc(doc(db, 'groups', groupId, 'keyBundles', memberId), {
+      await set(dbRef(rtdb, `${keyBundlesPath(groupId)}/${memberId}`), {
         encryptedGroupKey: ciphertext,
         senderPublicKey: senderPub,
         nonce,
         keyVersion,
-        updatedAt: Timestamp.now(),
+        updatedAt: Date.now(),
       });
     })
   );
@@ -134,10 +151,11 @@ export async function initGroupKey(
   memberIds: string[],
   initiatorUserId: string
 ): Promise<string | null> {
-  const bundlesSnap = await getDocs(
-    collection(db, 'groups', groupId, 'keyBundles')
-  );
-  if (!bundlesSnap.empty) {
+  const bundlesSnap = await get(dbRef(rtdb, keyBundlesPath(groupId)));
+  const val = bundlesSnap.val() as Record<string, unknown> | null;
+  const hasAny = val && typeof val === 'object' && Object.keys(val).length > 0;
+
+  if (hasAny) {
     const resolved = await resolveGroupKey(groupId, initiatorUserId);
     if (resolved) return resolved;
     console.warn(
@@ -172,12 +190,12 @@ export async function initGroupKey(
         recipPub,
         senderPriv
       );
-      await setDoc(doc(db, 'groups', groupId, 'keyBundles', memberId), {
+      await set(dbRef(rtdb, `${keyBundlesPath(groupId)}/${memberId}`), {
         encryptedGroupKey: ciphertext,
         senderPublicKey: senderPub,
         nonce,
         keyVersion: version,
-        updatedAt: Timestamp.now(),
+        updatedAt: Date.now(),
       });
     })
   );
@@ -192,21 +210,16 @@ export async function initGroupKey(
   return groupKey;
 }
 
-/** Resolve the group key for the current user, decrypting from Firestore if needed. */
+/** Resolve the group key for the current user, decrypting from RTDB if needed. */
 export async function resolveGroupKey(
   groupId: string,
   userId: string
 ): Promise<string | null> {
-  const snap = await getDoc(doc(db, 'groups', groupId, 'keyBundles', userId));
-  if (!snap.exists()) return null;
+  const snap = await get(dbRef(rtdb, `${keyBundlesPath(groupId)}/${userId}`));
+  const data = parseKeyBundle(snap);
+  if (!data) return null;
 
-  const { encryptedGroupKey, senderPublicKey, nonce, keyVersion } =
-    snap.data() as {
-      encryptedGroupKey: string;
-      senderPublicKey: string;
-      nonce: string;
-      keyVersion: number;
-    };
+  const { encryptedGroupKey, senderPublicKey, nonce, keyVersion } = data;
 
   const cached = getGroupKey(groupId, keyVersion);
   if (cached) return cached;
@@ -229,9 +242,9 @@ export async function allMembersHaveKeyBundles(
   groupId: string,
   memberIds: string[]
 ): Promise<boolean> {
-  const bundleSnaps = await getDocs(
-    collection(db, 'groups', groupId, 'keyBundles')
-  );
-  const covered = new Set(bundleSnaps.docs.map((d) => d.id));
+  const bundlesSnap = await get(dbRef(rtdb, keyBundlesPath(groupId)));
+  if (!bundlesSnap.exists()) return memberIds.length === 0;
+  const val = bundlesSnap.val() as Record<string, unknown>;
+  const covered = new Set(Object.keys(val));
   return memberIds.every((id) => covered.has(id));
 }

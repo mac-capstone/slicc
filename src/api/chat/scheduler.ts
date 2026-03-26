@@ -1,13 +1,11 @@
-import {
-  collection,
-  doc,
-  onSnapshot,
-  setDoc,
-  Timestamp,
-} from 'firebase/firestore';
+import { onValue, ref as dbRef, set } from 'firebase/database';
 import { useEffect, useState } from 'react';
 
-import { db } from '@/api/common/firebase';
+import { rtdb } from '@/api/common/firebase';
+
+function availabilityPath(groupId: string): string {
+  return `groups/${groupId}/availability`;
+}
 
 /** Map of userId -> array of available ISO-8601 slot strings ("YYYY-MM-DDTHH:MM"). */
 export type GroupAvailability = Record<string, string[]>;
@@ -15,15 +13,14 @@ export type GroupAvailability = Record<string, string[]>;
 /**
  * Module-level cache: groupId -> availability snapshot.
  * Persists across modal open/close so reopening the scheduler never triggers
- * a cold re-read of the entire subcollection.
+ * a cold re-read of the entire subtree.
  */
 const availabilityCache = new Map<string, GroupAvailability>();
 
-/** Real-time subscription to all members' availability for a group. */
+/** Real-time subscription to all members' availability for a group (Realtime DB). */
 export function useGroupAvailability(
   groupId: string | null
 ): GroupAvailability {
-  // Seed from cache so the modal renders immediately with the last known state
   const [availability, setAvailability] = useState<GroupAvailability>(() =>
     groupId ? (availabilityCache.get(groupId) ?? {}) : {}
   );
@@ -31,26 +28,25 @@ export function useGroupAvailability(
   useEffect(() => {
     if (!groupId) return;
 
-    const ref = collection(db, 'groups', groupId, 'availability');
-
-    // docChanges() means subsequent snapshots only process the member docs that
-    // actually changed, not the entire collection on every write.
-    const unsub = onSnapshot(ref, (snap) => {
-      const data: GroupAvailability = {
-        ...(availabilityCache.get(groupId) ?? {}),
-      };
-      snap.docChanges().forEach((change) => {
-        if (change.type === 'removed') {
-          delete data[change.doc.id];
-        } else {
-          data[change.doc.id] = (change.doc.data().slots as string[]) ?? [];
+    const ref = dbRef(rtdb, availabilityPath(groupId));
+    const unsub = onValue(ref, (snap) => {
+      const val = snap.val() as
+        | Record<string, { slots?: string[] }>
+        | null
+        | undefined;
+      const data: GroupAvailability = {};
+      if (val && typeof val === 'object') {
+        for (const [uid, doc] of Object.entries(val)) {
+          data[uid] = Array.isArray(doc?.slots)
+            ? doc.slots.filter((s): s is string => typeof s === 'string')
+            : [];
         }
-      });
+      }
       availabilityCache.set(groupId, data);
       setAvailability({ ...data });
     });
 
-    return () => unsub();
+    return unsub;
   }, [groupId]);
 
   return availability;
@@ -62,9 +58,9 @@ export async function setMyAvailability(
   userId: string,
   slots: string[]
 ): Promise<void> {
-  await setDoc(doc(db, 'groups', groupId, 'availability', userId), {
+  await set(dbRef(rtdb, `${availabilityPath(groupId)}/${userId}`), {
     slots,
-    updatedAt: Timestamp.now(),
+    updatedAt: Date.now(),
   });
 }
 
@@ -124,7 +120,7 @@ export function computeTimeRowUsers(
 ): Record<string, TimeRowUserEntry[]> {
   const weekEndMs = weekStart.getTime() + 7 * 24 * 60 * 60 * 1000;
 
-  // timeKey → uid → Set<dayIndex (0=Su … 6=Sa)>
+  // timeKey -> uid -> Set<dayIndex (0=Su … 6=Sa)>
   const map: Record<string, Record<string, Set<number>>> = {};
 
   for (const [userId, slots] of Object.entries(availability)) {

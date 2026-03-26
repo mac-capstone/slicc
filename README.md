@@ -110,6 +110,8 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
 
 ## Schema
 
+### Firestore
+
 ```js
 // User collection
 {
@@ -119,6 +121,8 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
     friends: UserId[];
     createdAt?: Date;
     updatedAt?: Date;
+  };
+}
 
     // subcollection: users/{userId}/settings/private
     settings: {
@@ -152,62 +156,6 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
     events: EventId[];
     createdAt?: Date;
     updatedAt?: Date;
-
-    // subcollection: groups/{groupId}/messages/{messageId}
-    messages: {
-      [messageId: string]: {
-        senderId: UserId | "system";
-        type: "text" | "location" | "system";
-
-        // type="text" -- AES-256-GCM ciphertext; decryptable only by group members
-        encryptedContent?: string;
-        nonce?: string;        // base64 AES-GCM IV
-        keyVersion?: number;   // which group key version encrypted this message
-
-        // type="location" -- public place data shared from the Explore page
-        locationPayload?: {
-          name: string;
-          address: string;
-          coordinates: { lat: number; lng: number };
-          mapsUrl: string;
-          category?: string;
-          imageUrl?: string;
-          rating?: number;     // 0–5
-          priceLevel?: string; // "$" | "$$" | "$$$"
-        };
-
-        // type="system" -- human-readable event text (e.g. "Alice joined")
-        systemText?: string;
-
-        sentAt: Date;
-        readBy: UserId[];
-      }
-    }
-
-    // subcollection: groups/{groupId}/keyBundles/{userId}
-    // Each member holds an encrypted copy of the group's symmetric key.
-    // Wrapped via ECDH-derived key (sender priv + recipient pub -> AES-GCM).
-    keyBundles: {
-      [userId: UserId]: {
-        encryptedGroupKey: string; // base64 -- AES-256-GCM ciphertext of the 32-byte group key
-        senderPublicKey: string;   // JWK -- ECDH public key used to derive the wrapping key
-        nonce: string;             // base64 -- IV for the AES-GCM wrap
-        keyVersion: number;        // unix-ms timestamp; rotate on membership changes
-        updatedAt: Date;
-      }
-    }
-
-    // subcollection: groups/{groupId}/availability/{userId}
-    // When2Meet-style scheduler -- each user stores their available 30-min slots.
-    // TODO: slots are local wall-clock time ("YYYY-MM-DDTHH:MM") with no timezone offset.
-    //       For cross-timezone groups, store in UTC ("YYYY-MM-DDTHH:MMZ") and convert
-    //       to each viewer's local time on display (e.g. using Intl.DateTimeFormat or date-fns-tz).
-    availability: {
-      [userId: UserId]: {
-        slots: string[];   // ISO-8601 date-time strings "YYYY-MM-DDTHH:MM"
-        updatedAt?: Date;
-      }
-    }
   };
 }
 
@@ -302,6 +250,62 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
     createdAt: Date;
     readAt?: Date;
   };
+}
+```
+
+### Realtime Database
+
+Paths are rooted at the default RTDB URL (`databaseURL` in Firebase config). Message ids are Firebase **`push()`** keys under each group.
+
+```js
+// ── groups/{groupId}/messages/{pushId} ───────────────────────────────────────
+{
+  senderId: UserId | "system";
+  type: "text" | "location" | "system";
+
+  // type="text" - AES-256-GCM ciphertext; decryptable only by group members
+  encryptedContent?: string;
+  nonce?: string; // base64 AES-GCM IV
+  keyVersion?: number;
+
+  // type="location" - public place data (Explore page)
+  locationPayload?: {
+    name: string;
+    address: string;
+    coordinates: { lat: number; lng: number };
+    mapsUrl: string;
+    category?: string;
+    imageUrl?: string;
+    rating?: number; // 0–5
+    priceLevel?: string; // "$" | "$$" | "$$$"
+  };
+
+  // type="system" - human-readable line (e.g. "Alice joined")
+  systemText?: string;
+
+  sentAt: number; // server timestamp (ms) once committed
+  readBy: UserId[];
+  // emoji -> userIds who reacted (updated via transaction)
+  reactions?: Record<string, UserId[]>;
+}
+
+// ── groups/{groupId}/keyBundles/{userId} ───────────────────────────────────
+// Each member holds an encrypted copy of the group's symmetric key.
+// Wrapped via ECDH (sender priv + recipient pub -> AES-GCM).
+{
+  encryptedGroupKey: string; // base64 - AES-256-GCM ciphertext of the 32-byte group key
+  senderPublicKey: string; // JWK - ECDH public key for the wrapping key
+  nonce: string; // base64 IV for the AES-GCM wrap
+  keyVersion: number; // unix-ms when the group key was created; do not rotate casually
+  updatedAt: number; // ms
+}
+
+// ── groups/{groupId}/availability/{userId}  (When2Meet-style scheduler) ───
+// TODO: slots are local wall-clock "YYYY-MM-DDTHH:MM" with no TZ offset.
+//       For cross-timezone groups, prefer UTC ("…Z") and convert on display.
+{
+  slots: string[]; // ISO-8601 date-time strings "YYYY-MM-DDTHH:MM"
+  updatedAt: number; // ms
 }
 ```
 
