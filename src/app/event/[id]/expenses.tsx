@@ -102,7 +102,11 @@ export default function EventExpenses() {
         <FlashList
           data={filteredExpenses}
           renderItem={({ item: expenseId }) => (
-            <ExpenseCard id={expenseId} config="progress" />
+            <ExpenseCard
+              id={expenseId}
+              config="progress"
+              eventContextId={eventId}
+            />
           )}
           keyExtractor={(expenseId) => expenseId}
           ListEmptyComponent={
@@ -118,7 +122,7 @@ export default function EventExpenses() {
           }
           ListFooterComponent={
             filteredExpenses.length > 0 ? (
-              <View className="pt-5">
+              <View className="mb-10 pt-5">
                 <DottedAddButton
                   text="Add new expense"
                   path={`/expense/add-expense?eventId=${eventId}` as any}

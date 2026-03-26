@@ -8,6 +8,19 @@ import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 import { type UserIdT } from '@/types';
 
+/** Use `personAvatarColorForIndex(i)` in lists so avatars cycle through the palette. */
+export const PERSON_AVATAR_COLOR_KEYS = Object.keys(
+  colors.avatar ?? {}
+) as (keyof typeof colors.avatar)[];
+
+export function personAvatarColorForIndex(
+  index: number
+): keyof typeof colors.avatar {
+  const keys = PERSON_AVATAR_COLOR_KEYS;
+  if (keys.length === 0) return 'white';
+  return keys[index % keys.length]!;
+}
+
 const SIZE_CLASSES = {
   sm: 'size-6',
   md: 'size-8',

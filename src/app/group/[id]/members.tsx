@@ -6,7 +6,10 @@ import { Alert, ScrollView, View } from 'react-native';
 import { useGroup, useLeaveGroup } from '@/api/groups/use-groups';
 import { fetchUser } from '@/api/people/use-users';
 import { AddButton } from '@/components/add-button';
-import { PersonAvatar } from '@/components/person-avatar';
+import {
+  PersonAvatar,
+  personAvatarColorForIndex,
+} from '@/components/person-avatar';
 import { colors, Text } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import type { GroupIdT, UserIdT } from '@/types';
@@ -98,7 +101,7 @@ export default function GroupMembersScreen() {
                       userId={member.id as UserIdT}
                       fallbackLabel={member.name}
                       size={36}
-                      color="red"
+                      color={personAvatarColorForIndex(index)}
                     />
                   </View>
 

@@ -15,10 +15,6 @@ const firebaseConfig = {
   storageBucket: Env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: Env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: Env.EXPO_PUBLIC_FIREBASE_APP_ID,
-  /**
-   * Group chat, key bundles, and scheduler use Realtime Database.
-   * Default US host; if the console shows a regional URL (e.g. `.firebasedatabase.app`), replace this.
-   */
   databaseURL: `https://${Env.EXPO_PUBLIC_FIREBASE_PROJECT_ID}-default-rtdb.firebaseio.com`,
 };
 // Initialize Firebase using modular Web SDK

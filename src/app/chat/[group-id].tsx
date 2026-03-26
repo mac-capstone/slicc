@@ -5,7 +5,7 @@ import * as React from 'react';
 import { useMemo, useState } from 'react';
 import { TouchableOpacity, View } from 'react-native';
 
-import { fetchGroup } from '@/api/groups/use-groups';
+import { useGroup } from '@/api/groups/use-groups';
 import { fetchUser } from '@/api/people/use-users';
 import { ChatInput } from '@/components/chat/chat-input';
 import { MessageList } from '@/components/chat/message-list';
@@ -23,17 +23,10 @@ export default function GroupChatScreen() {
   const userId = useAuth.use.userId() as UserIdT;
   const [schedulerOpen, setSchedulerOpen] = useState(false);
 
-  const groupQuery = useQueries({
-    queries: [
-      {
-        queryKey: ['groups', 'groupId', groupId],
-        queryFn: () => fetchGroup(groupId as GroupIdT),
-        enabled: Boolean(groupId),
-      },
-    ],
-  })[0];
-
-  const group = groupQuery.data;
+  const { data: group } = useGroup({
+    variables: groupId as GroupIdT,
+    enabled: Boolean(groupId),
+  });
   const memberIds: string[] = useMemo(() => group?.members ?? [], [group]);
 
   const {
