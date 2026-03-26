@@ -1,7 +1,8 @@
 import Octicons from '@expo/vector-icons/Octicons';
 import { Redirect, router, SplashScreen, Tabs } from 'expo-router';
 import React, { useCallback, useEffect } from 'react';
-import { Text, TouchableOpacity } from 'react-native';
+import { Platform, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '@/components/ui';
 import {
@@ -12,7 +13,34 @@ import {
   useUserExistsInFirestore,
 } from '@/lib';
 
+const TAB_ICON_SLOT = 28;
+
+/**
+ * Fixed-size slot so vector icons and the expenses "$" glyph share the same
+ * optical center (tab bar items otherwise misalign).
+ */
+function TabIconSlot({ children }: { children: React.ReactNode }) {
+  return (
+    <View
+      style={{
+        width: TAB_ICON_SLOT,
+        height: TAB_ICON_SLOT,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {children}
+    </View>
+  );
+}
+
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+  const tabBarBottomPad = Math.max(
+    insets.bottom,
+    Platform.OS === 'android' ? 10 : 8
+  );
+
   usePlaceLikesFirestoreSync();
   const status = useAuth.use.status();
   const userId = useAuth.use.userId();
@@ -69,9 +97,19 @@ export default function TabLayout() {
           backgroundColor: colors.background[950],
         },
         tabBarStyle: {
-          minHeight: 80,
+          minHeight: 52 + tabBarBottomPad,
           paddingTop: 10,
+          paddingBottom: tabBarBottomPad,
           backgroundColor: colors.background[900],
+        },
+        tabBarItemStyle: {
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingVertical: 0,
+        },
+        tabBarIconStyle: {
+          marginTop: 0,
+          marginBottom: 0,
         },
         sceneStyle: {
           backgroundColor: colors.background[950],
@@ -85,7 +123,9 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => (
-            <Octicons name="home" size={24} color={color} />
+            <TabIconSlot>
+              <Octicons name="home" size={24} color={color} />
+            </TabIconSlot>
           ),
           tabBarButtonTestID: 'home-tab',
           headerRight: () => (
@@ -105,7 +145,23 @@ export default function TabLayout() {
         options={{
           title: 'Expenses',
           tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 24, fontWeight: 'bold', color }}>$</Text>
+            <TabIconSlot>
+              <Text
+                style={{
+                  color,
+                  fontSize: 22,
+                  fontWeight: '700',
+                  lineHeight: 22,
+                  textAlign: 'center',
+                  ...(Platform.OS === 'android' && {
+                    includeFontPadding: false,
+                    textAlignVertical: 'center',
+                  }),
+                }}
+              >
+                $
+              </Text>
+            </TabIconSlot>
           ),
           tabBarButtonTestID: 'expenses-tab',
         }}
@@ -115,7 +171,9 @@ export default function TabLayout() {
         options={{
           title: 'Social',
           tabBarIcon: ({ color }) => (
-            <Octicons name="people" size={24} color={color} />
+            <TabIconSlot>
+              <Octicons name="people" size={24} color={color} />
+            </TabIconSlot>
           ),
           tabBarButtonTestID: 'social-tab',
         }}
@@ -125,7 +183,9 @@ export default function TabLayout() {
         options={{
           title: 'Explore',
           tabBarIcon: ({ color }) => (
-            <Octicons name="search" size={24} color={color} />
+            <TabIconSlot>
+              <Octicons name="search" size={24} color={color} />
+            </TabIconSlot>
           ),
           tabBarButtonTestID: 'explore-tab',
         }}
@@ -150,7 +210,9 @@ export default function TabLayout() {
           title: 'Settings',
           href: null,
           tabBarIcon: ({ color }) => (
-            <Octicons name="gear" size={24} color={color} />
+            <TabIconSlot>
+              <Octicons name="gear" size={24} color={color} />
+            </TabIconSlot>
           ),
           tabBarButtonTestID: 'settings-tab',
         }}
@@ -160,7 +222,9 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color }) => (
-            <Octicons name="person" size={24} color={color} />
+            <TabIconSlot>
+              <Octicons name="person" size={24} color={color} />
+            </TabIconSlot>
           ),
           tabBarButtonTestID: 'profile-tab',
         }}

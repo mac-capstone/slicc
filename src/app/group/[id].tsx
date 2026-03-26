@@ -67,8 +67,8 @@ export default function GroupDetailScreen() {
 
   const handleBack = () =>
     router.push({ pathname: '/social', params: { segment: 'groups' } });
-  const handleSettings = () =>
-    router.push(`/group/${groupId}/members` as const);
+  const handleEditGroup = () =>
+    router.push(`/group/edit?groupId=${groupId}` as const);
   const handleNewEvent = () =>
     router.push(`/event/edit-event?groupId=${groupId}` as const);
 
@@ -113,10 +113,15 @@ export default function GroupDetailScreen() {
             </Pressable>
           ),
           headerRight: () => (
-            <Pressable onPress={handleSettings} className="px-2">
+            <Pressable
+              onPress={handleEditGroup}
+              className="px-2"
+              accessibilityRole="button"
+              accessibilityLabel="Edit group"
+            >
               <Feather
-                name="chevron-right"
-                size={40}
+                name="edit-2"
+                size={24}
                 color={theme.dark ? '#fff' : '#000'}
               />
             </Pressable>
