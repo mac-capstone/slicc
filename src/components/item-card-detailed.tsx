@@ -14,7 +14,7 @@ import { useItem } from '@/api/items/use-items';
 import { usePeopleIdsForItem } from '@/api/people/use-people';
 import { calculatePersonShare } from '@/lib';
 import { useExpenseCreation } from '@/lib/store';
-import { type ExpenseIdT, type ItemIdT } from '@/types';
+import { type ExpenseIdT, type ItemIdT, type UserIdT } from '@/types';
 
 import { PersonAvatar } from './person-avatar';
 import { Button } from './ui/button';
@@ -143,7 +143,11 @@ export const ItemCardDetailed = ({ expenseId, itemId }: Props) => {
           >
             {assignedPeople.map((person, index: number) => (
               <View key={person.id} className={index > 0 ? '-ml-3' : 'm-0'}>
-                <PersonAvatar size="lg" />
+                <PersonAvatar
+                  userId={person.id as UserIdT}
+                  fallbackLabel={person.name}
+                  size="lg"
+                />
               </View>
             ))}
           </ScrollView>

@@ -124,14 +124,22 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
 
 ## Schema
 
+### Firestore
+
 ```js
 // User collection
 {
   [userId: UserId]: {
     username: string; // unique
     displayName: string;
-  	friends: UserId[];
-    settings: { // sub col
+    friends: UserId[];
+    createdAt?: Date;
+    updatedAt?: Date;
+  };
+}
+
+    // subcollection: users/{userId}/settings/private
+    settings: {
       private: {
         locationPreference?: string;
         bankPreference?: string;
@@ -139,8 +147,15 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
         eTransferEmail?: string;
       }
     }
-    createdAt?: Date;
-    updatedAt?: Date;
+
+    // subcollection: users/{userId}/e2eKeys/identity
+    // Only the PUBLIC key lives here -- private key never leaves the device (MMKV)
+    e2eKeys: {
+      identity: {
+        publicKey: string;  // JWK JSON string for ECDH P-256 public key
+        updatedAt: Date;
+      }
+    }
   };
 }
 
@@ -151,8 +166,8 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
     description?: string;
     owner: UserId;
     admins: UserId[];
-  	members: UserId[];
-	  events: EventId[];
+    members: UserId[];
+    events: EventId[];
     createdAt?: Date;
     updatedAt?: Date;
   };
@@ -192,14 +207,16 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
     participantCount?: number;
     createdAt?: Date;
     updatedAt?: Date;
-    // subcollection
+
+    // subcollection: expenses/{expenseId}/people/{userId}
     people: {
       [userId: UserId]: {
         subtotal: number;
         paid: number;
       }
     }
-    // items subcollection
+
+    // subcollection: expenses/{expenseId}/items/{itemId}
     items: {
       [itemId: ItemId]: {
         name: string;
@@ -211,7 +228,7 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
   };
 }
 
-// friendRequests collection — dedicated request documents (workflow state)
+// friendRequests collection -- dedicated request documents (workflow state)
 {
   [requestId: string]: {
     fromUserId: UserId;
@@ -222,7 +239,7 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
   };
 }
 
-// friendships collection — separate representation of confirmed friendships (one doc per pair)
+// friendships collection -- separate representation of confirmed friendships (one doc per pair)
 {
   [friendshipId: string]: {
     userIds: [UserId, UserId];
@@ -247,6 +264,62 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
     createdAt: Date;
     readAt?: Date;
   };
+}
+```
+
+### Realtime Database
+
+Paths are rooted at the default RTDB URL (`databaseURL` in Firebase config). Message ids are Firebase **`push()`** keys under each group.
+
+```js
+// ── groups/{groupId}/messages/{pushId} ───────────────────────────────────────
+{
+  senderId: UserId | "system";
+  type: "text" | "location" | "system";
+
+  // type="text" - AES-256-GCM ciphertext; decryptable only by group members
+  encryptedContent?: string;
+  nonce?: string; // base64 AES-GCM IV
+  keyVersion?: number;
+
+  // type="location" - public place data (Explore page)
+  locationPayload?: {
+    name: string;
+    address: string;
+    coordinates: { lat: number; lng: number };
+    mapsUrl: string;
+    category?: string;
+    imageUrl?: string;
+    rating?: number; // 0–5
+    priceLevel?: string; // "$" | "$$" | "$$$"
+  };
+
+  // type="system" - human-readable line (e.g. "Alice joined")
+  systemText?: string;
+
+  sentAt: number; // server timestamp (ms) once committed
+  readBy: UserId[];
+  // emoji -> userIds who reacted (updated via transaction)
+  reactions?: Record<string, UserId[]>;
+}
+
+// ── groups/{groupId}/keyBundles/{userId} ───────────────────────────────────
+// Each member holds an encrypted copy of the group's symmetric key.
+// Wrapped via ECDH (sender priv + recipient pub -> AES-GCM).
+{
+  encryptedGroupKey: string; // base64 - AES-256-GCM ciphertext of the 32-byte group key
+  senderPublicKey: string; // JWK - ECDH public key for the wrapping key
+  nonce: string; // base64 IV for the AES-GCM wrap
+  keyVersion: number; // unix-ms when the group key was created; do not rotate casually
+  updatedAt: number; // ms
+}
+
+// ── groups/{groupId}/availability/{userId}  (When2Meet-style scheduler) ───
+// TODO: slots are local wall-clock "YYYY-MM-DDTHH:MM" with no TZ offset.
+//       For cross-timezone groups, prefer UTC ("…Z") and convert on display.
+{
+  slots: string[]; // ISO-8601 date-time strings "YYYY-MM-DDTHH:MM"
+  updatedAt: number; // ms
 }
 ```
 

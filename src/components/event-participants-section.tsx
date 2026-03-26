@@ -2,8 +2,11 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
 
 import { MemberPickerModal } from '@/components/member-picker-modal';
-import { PersonAvatar } from '@/components/person-avatar';
-import { colors, Pressable, Text, View } from '@/components/ui';
+import {
+  PersonAvatar,
+  personAvatarColorForIndex,
+} from '@/components/person-avatar';
+import { Pressable, Text, View } from '@/components/ui';
 import type { EventPerson, UserIdT, UserWithId } from '@/types';
 
 type Props = {
@@ -16,10 +19,6 @@ type Props = {
   onPickerClose: () => void;
   onPickerConfirm: (ids: UserIdT[]) => void;
 };
-
-const avatarColorKeys = Object.keys(
-  colors.avatar ?? {}
-) as (keyof typeof colors.avatar)[];
 
 export function EventParticipantsSection({
   participants,
@@ -58,7 +57,7 @@ export function EventParticipantsSection({
               <View className="mr-3">
                 <PersonAvatar
                   userId={participant.id}
-                  color={avatarColorKeys[index % avatarColorKeys.length]}
+                  color={personAvatarColorForIndex(index)}
                   size="md"
                 />
               </View>

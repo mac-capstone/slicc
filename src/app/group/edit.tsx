@@ -14,10 +14,10 @@ import {
   useGroup,
   useUpdateGroup,
 } from '@/api/groups/use-groups';
-import { fetchUser, useUser, useUserIds } from '@/api/people/use-users';
+import { fetchUser, useUserIds } from '@/api/people/use-users';
+import { PersonAvatar } from '@/components/person-avatar';
 import {
   Button,
-  colors,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -26,30 +26,6 @@ import {
 } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import type { GroupIdT, UserIdT, UserWithId } from '@/types';
-
-function UserAvatar({ userId, size = 36 }: { userId: UserIdT; size?: number }) {
-  const viewerUserId = useAuth.use.userId() ?? null;
-  const { data: user } = useUser({
-    variables: { userId, viewerUserId },
-  });
-  const colorKey = (user as { color?: string } | undefined)?.color ?? 'white';
-  const bgColor =
-    colors.avatar[colorKey as keyof typeof colors.avatar] ??
-    colors.avatar.white;
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: bgColor,
-      }}
-      className="items-center justify-center"
-    >
-      <Octicons name="person" size={Math.round(size * 0.55)} color="#D4D4D4" />
-    </View>
-  );
-}
 
 function GroupHeaderRow({
   groupTitle,
@@ -103,7 +79,7 @@ function GroupHeaderRow({
       </View>
       {currentUserId && (
         <View className="ml-3">
-          <UserAvatar userId={currentUserId} size={36} />
+          <PersonAvatar userId={currentUserId} size={36} />
         </View>
       )}
     </View>
@@ -121,7 +97,11 @@ function MemberRow({
 }) {
   return (
     <View className="flex-row items-center border-b border-neutral-800 py-3">
-      <UserAvatar userId={user.id} size={36} />
+      <PersonAvatar
+        userId={user.id}
+        fallbackLabel={user.displayName}
+        size={36}
+      />
       <View className="ml-3 flex-1">
         <Text className="text-base text-white">{user.displayName}</Text>
         {user.username ? (
@@ -326,7 +306,7 @@ export default function GroupFormScreen() {
                     key={uid}
                     className="mr-2 flex-row items-center rounded-full bg-neutral-800 px-2 py-1"
                   >
-                    <UserAvatar userId={uid} size={20} />
+                    <PersonAvatar userId={uid} size={20} />
                     <Text className="ml-1 text-sm text-white">
                       {user?.displayName?.split(' ')[0] ?? '...'}
                     </Text>

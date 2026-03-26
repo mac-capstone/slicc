@@ -96,6 +96,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     'expo-localization',
+    'expo-secure-store',
     'expo-router',
     '@react-native-community/datetimepicker',
     ['app-icon-badge', appIconBadgeConfig],

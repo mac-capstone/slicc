@@ -7,7 +7,7 @@ import { PortalHost } from '@rn-primitives/portal';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Platform, StyleSheet } from 'react-native';
 import FlashMessage from 'react-native-flash-message';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -22,6 +22,7 @@ import {
   loadSelectedTheme,
 } from '@/lib';
 import { configureGoogleSignIn } from '@/lib/auth/google-auth';
+import { initCryptoKeyStore } from '@/lib/crypto/key-store';
 import { useThemeConfig } from '@/lib/use-theme-config';
 
 export { ErrorBoundary } from 'expo-router';
@@ -44,6 +45,7 @@ SplashScreen.setOptions({
 });
 
 export default function RootLayout() {
+  const [cryptoReady, setCryptoReady] = useState(false);
   const [loadedFonts] = useFonts({
     Inter: require('../../assets/fonts/Inter.ttf'),
     FuturaCyrillic: require('../../assets/fonts/FuturaCyrillicMedium.ttf'),
@@ -56,15 +58,20 @@ export default function RootLayout() {
     FuturaCyrillicMedium: require('../../assets/fonts/FuturaCyrillicMedium.ttf'),
   });
   useEffect(() => {
+    void initCryptoKeyStore().then(() => setCryptoReady(true));
+  }, []);
+
+  useEffect(() => {
     if (loadedFonts) SplashScreen.hideAsync();
   }, [loadedFonts]);
 
-  if (!loadedFonts) return null;
+  if (!loadedFonts || !cryptoReady) return null;
   return (
     <Providers>
       <Stack>
         <Stack.Screen name="(app)" options={{ headerShown: false }} />
         <Stack.Screen name="group" options={{ headerShown: false }} />
+        <Stack.Screen name="chat" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="profile-create" />
