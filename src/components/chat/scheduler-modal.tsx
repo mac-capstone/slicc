@@ -123,6 +123,7 @@ export function SchedulerModal({
                 currentUserId={currentUserId}
                 onBatchUpdate={handleBatchUpdate}
                 onDragStateChange={setIsDragging}
+                isDragging={isDragging}
               />
             </ScrollView>
           </View>

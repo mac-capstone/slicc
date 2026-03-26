@@ -59,22 +59,18 @@ function slotAt({
   x,
   y,
   hdrH,
-  days,
+  slotKeysByDayAndSlotIndex,
 }: {
   x: number;
   y: number;
   hdrH: number;
-  days: Date[];
+  slotKeysByDayAndSlotIndex: string[][];
 }): string | null {
   const di = Math.floor((x - LW) / CW);
-  if (di < 0 || di >= days.length) return null;
+  if (di < 0 || di >= slotKeysByDayAndSlotIndex.length) return null;
   const si = Math.floor((y - hdrH) / CH);
   if (si < 0 || si >= HOURS.length * 2) return null;
-  return buildSlotKey(
-    days[di],
-    HOURS[Math.floor(si / 2)],
-    (si % 2 === 0 ? 0 : 30) as 0 | 30
-  );
+  return slotKeysByDayAndSlotIndex[di]?.[si] ?? null;
 }
 
 // ── Member avatar (overlap panel) ────────────────────────────────────────────
@@ -117,8 +113,7 @@ type OverlapPanelProps = {
   onAvatarPress: (info: TooltipInfo) => void;
 };
 
-// Panel width: 340 - (36 + 7×36) = 340 - 288 = 52 px
-// Shows 2 avatars (16 px each + 2 px gap) before horizontal scroll kicks in
+// Shows 3 avatars (16 px each + 2 px gap) before horizontal scroll kicks in
 const PANEL_W = 52;
 
 function OverlapPanel({
@@ -154,7 +149,7 @@ function OverlapPanel({
                 key={`${hour}:${min}`}
                 style={{
                   height: CH,
-                  width: PANEL_W - 6,
+                  width: PANEL_W,
                   justifyContent: 'center',
                 }}
               >
@@ -252,6 +247,7 @@ type Props = {
   weekStart: Date;
   serverAvailability: GroupAvailability;
   currentUserId: UserIdT;
+  isDragging: boolean;
   memberCount: number;
   memberNames: Record<string, string>;
   mySlots: Set<string>;
@@ -263,6 +259,7 @@ export function SchedulerGrid({
   weekStart,
   serverAvailability,
   currentUserId,
+  isDragging,
   memberCount,
   memberNames,
   mySlots,
@@ -294,6 +291,18 @@ export function SchedulerGrid({
     [weekStart]
   );
 
+  // Precompute all slot keys for this week once, so drag/tap renders don't do
+  // expensive Date/toISOString work for every cell.
+  const slotKeysByDayAndSlotIndex = useMemo(() => {
+    return days.map((day) =>
+      Array.from({ length: HOURS.length * 2 }, (_, si) => {
+        const hour = HOURS[Math.floor(si / 2)];
+        const minute = (si % 2 === 0 ? 0 : 30) as 0 | 30;
+        return buildSlotKey(day, hour, minute);
+      })
+    );
+  }, [days]);
+
   // Base derived data is computed once from server state *excluding* the current
   // user. While dragging/tapping, we only adjust it with `renderSlots`
   // (optimistic selection), which is much cheaper than recomputing for all users.
@@ -312,14 +321,15 @@ export function SchedulerGrid({
     [othersAvailability, weekStart]
   );
 
-  const myTimeRowUsers = useMemo(
-    () =>
-      computeTimeRowUsers(
-        { [currentUserId]: Array.from(renderSlots) },
-        weekStart
-      ),
-    [renderSlots, weekStart, currentUserId]
-  );
+  const myTimeRowUsers = useMemo(() => {
+    // While dragging, keep the grid responsive but skip the expensive
+    // per-time-row breakdown for the overlap panel.
+    if (isDragging) return {};
+    return computeTimeRowUsers(
+      { [currentUserId]: Array.from(renderSlots) },
+      weekStart
+    );
+  }, [renderSlots, weekStart, currentUserId, isDragging]);
 
   const timeRowUsers = useMemo(() => {
     const result: Record<string, TimeRowUserEntry[]> = {
@@ -345,7 +355,7 @@ export function SchedulerGrid({
   }
 
   function handleTap(x: number, y: number) {
-    const slot = slotAt({ x, y, hdrH, days });
+    const slot = slotAt({ x, y, hdrH, slotKeysByDayAndSlotIndex });
     if (!slot) return;
     const next = new Set(mySlots);
     if (next.has(slot)) next.delete(slot);
@@ -354,7 +364,7 @@ export function SchedulerGrid({
   }
 
   function handleDragStart(x: number, y: number) {
-    const slot = slotAt({ x, y, hdrH, days });
+    const slot = slotAt({ x, y, hdrH, slotKeysByDayAndSlotIndex });
     if (!slot) return;
     pending.current = new Set(mySlots);
     visited.current = new Set();
@@ -364,7 +374,7 @@ export function SchedulerGrid({
   }
 
   function handleDragMove(x: number, y: number) {
-    const slot = slotAt({ x, y, hdrH, days });
+    const slot = slotAt({ x, y, hdrH, slotKeysByDayAndSlotIndex });
     if (slot) applySlot(slot);
   }
 
@@ -383,7 +393,7 @@ export function SchedulerGrid({
     });
 
   const drag = Gesture.Pan()
-    .activateAfterLongPress(200)
+    .activateAfterLongPress(80)
     .onStart((e) => runOnJS(handleDragStart)(e.x, e.y))
     .onUpdate((e) => runOnJS(handleDragMove)(e.x, e.y))
     .onFinalize(() => runOnJS(handleDragEnd)());
@@ -420,31 +430,43 @@ export function SchedulerGrid({
             {HOURS.flatMap((hour) =>
               ([0, 30] as const)
                 .filter((min) => hour < 22 || min === 0)
-                .map((min) => (
-                  <View key={`${hour}:${min}`} className="flex-row items-start">
-                    <View style={{ width: LW }} className="items-end pr-1">
-                      <Text className="text-[9px] text-text-800">
-                        {min === 0
-                          ? `${hour % 12 || 12}${hour < 12 ? 'am' : 'pm'}`
-                          : ''}
-                      </Text>
+                .map((min) => {
+                  const hourIndex = hour - HOURS[0];
+                  const slotIndex = hourIndex * 2 + (min === 0 ? 0 : 1);
+
+                  return (
+                    <View
+                      key={`${hour}:${min}`}
+                      className="flex-row items-start"
+                    >
+                      <View
+                        style={{ width: LW, paddingBottom: 2 }}
+                        className="items-end pr-1"
+                      >
+                        <Text className="text-[9px] text-text-800">
+                          {min === 0
+                            ? `${hour % 12 || 12}${hour < 12 ? 'am' : 'pm'}`
+                            : ''}
+                        </Text>
+                      </View>
+                      {days.map((_, di) => {
+                        const k = slotKeysByDayAndSlotIndex[di][slotIndex];
+                        const isMine = renderSlots.has(k);
+                        const count =
+                          (baseSlotCounts[k] ?? 0) + (isMine ? 1 : 0);
+                        return (
+                          <View key={di} style={{ width: CW }}>
+                            <SchedulerCell
+                              count={count}
+                              total={memberCount}
+                              isMine={isMine}
+                            />
+                          </View>
+                        );
+                      })}
                     </View>
-                    {days.map((d, di) => {
-                      const k = buildSlotKey(d, hour, min);
-                      const isMine = renderSlots.has(k);
-                      const count = (baseSlotCounts[k] ?? 0) + (isMine ? 1 : 0);
-                      return (
-                        <View key={di} style={{ width: CW }}>
-                          <SchedulerCell
-                            count={count}
-                            total={memberCount}
-                            isMine={isMine}
-                          />
-                        </View>
-                      );
-                    })}
-                  </View>
-                ))
+                  );
+                })
             )}
 
             {/* Legend */}
