@@ -1,11 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 
+import { fetchPublicDietaryPreferencesByUserIds } from '@/api/people/user-api';
 import {
   getUsersWhoLikedPlace,
   type UserPlaceLikesDoc,
 } from '@/api/places/place-likes-api';
+import { normalizeDietaryPreferenceIds } from '@/lib/dietary-preference-options';
 import { DEFAULT_LOCATION } from '@/lib/geo';
 import {
+  buildPlaceToUsersMap,
+  type CompositeRankingContext,
+  computeDietaryPeerScoresByPlaceId,
   inferPlaceTypes,
   inferPriceRange,
   mergeWithRrf,
@@ -37,10 +43,10 @@ const MERGE_WITH_CONTENT_BELOW = 12;
 const CONTENT_SEARCH_MAX_RESULTS = 20;
 const COLLAB_CANDIDATE_TOP_N = 24;
 
-/** TEMP: remove after debugging empty recommendation lists */
 const REC_DEBUG = '[recommendations:debug]';
 
 function recDebug(message: string, data?: Record<string, unknown>): void {
+  if (!__DEV__) return;
   if (data !== undefined) {
     console.log(REC_DEBUG, message, data);
   } else {
@@ -58,6 +64,8 @@ type UseRecommendationsParams = {
   userLocation: UserLocation | null;
   ratedPlaceIds: Set<string>;
   userId: string | null;
+  /** Normalized dietary IDs for peer affinity (local settings / public profile). */
+  viewerDietaryPreferenceIds: string[];
   enabled?: boolean;
 };
 
@@ -150,7 +158,9 @@ async function contentBasedRecommendations(
       }
       const message = err instanceof Error ? err.message : String(err);
       recDebug('nearby fetch FAILED', { tierIndex, message });
-      console.error(REC_DEBUG, 'searchNearbyForRecommendations', err);
+      if (__DEV__) {
+        console.error(REC_DEBUG, 'searchNearbyForRecommendations', err);
+      }
       throw err;
     }
     recDebug('nearby fetch ok', {
@@ -197,6 +207,7 @@ type RunPipelineParams = {
   userId: string | null;
   useCollaborative: boolean;
   ratedPlaceIds: Set<string>;
+  viewerDietaryPreferenceIds: string[];
 };
 
 async function runRecommendationPipeline(
@@ -210,18 +221,32 @@ async function runRecommendationPipeline(
     userId,
     useCollaborative,
     ratedPlaceIds,
+    viewerDietaryPreferenceIds,
   } = params;
+
+  const viewerDiet = normalizeDietaryPreferenceIds(viewerDietaryPreferenceIds);
+  let dietaryScoreById = new Map<string, number>();
+
+  const makeRankingCtx = (
+    contentScoreById: Map<string, number>,
+    collabScoreById: Map<string, number>
+  ): CompositeRankingContext => ({
+    userLocation: searchLocation,
+    contentScoreById,
+    collabScoreById,
+    viewerDietaryActive: viewerDiet.length > 0,
+    dietaryScoreById: viewerDiet.length > 0 ? dietaryScoreById : undefined,
+  });
 
   const finalize = (
     places: Place[],
     contentScoreById: Map<string, number>,
     collabScoreById: Map<string, number>
   ): Place[] =>
-    rankPlacesByCompositeScore(places, {
-      userLocation: searchLocation,
-      contentScoreById,
-      collabScoreById,
-    }).slice(0, MAX_RECOMMENDATION_RESULTS);
+    rankPlacesByCompositeScore(
+      places,
+      makeRankingCtx(contentScoreById, collabScoreById)
+    ).slice(0, MAX_RECOMMENDATION_RESULTS);
 
   if (!useCollaborative) {
     if (contentBranch.places.length === 0) {
@@ -259,6 +284,21 @@ async function runRecommendationPipeline(
   const uniqueByUserId = Array.from(
     new Map(allDocs.map((d) => [d.id, d])).values()
   );
+
+  if (userId && viewerDiet.length > 0) {
+    const placeToUsers = buildPlaceToUsersMap(uniqueByUserId, excludeUserIds);
+    const peerIds = [...new Set(uniqueByUserId.map((d) => d.id))].filter(
+      (id) => id !== userId
+    );
+    const dietaryByUserId =
+      await fetchPublicDietaryPreferencesByUserIds(peerIds);
+    dietaryScoreById = computeDietaryPeerScoresByPlaceId({
+      placeToUsers,
+      viewerUserId: userId,
+      viewerDietaryIds: viewerDiet,
+      dietaryByUserId,
+    });
+  }
 
   recDebug('collaborative pool', {
     runId,
@@ -401,12 +441,23 @@ export function useRecommendations({
   userLocation,
   ratedPlaceIds,
   userId,
+  viewerDietaryPreferenceIds,
   enabled = true,
 }: UseRecommendationsParams) {
   const hasLikes = likedPlaces.length > 0;
   const searchLocation = userLocation ?? DEFAULT_LOCATION;
   const useCollaborative =
     !!userId && userId !== 'guest_user' && likedPlaces.length > 0;
+
+  const ratedIdsKey = useMemo(
+    () => Array.from(ratedPlaceIds).sort().join(','),
+    [ratedPlaceIds]
+  );
+
+  const dietaryIdsKey = useMemo(
+    () => [...viewerDietaryPreferenceIds].sort().join(','),
+    [viewerDietaryPreferenceIds]
+  );
 
   return useQuery({
     queryKey: [
@@ -415,6 +466,8 @@ export function useRecommendations({
         .map((p) => p.id)
         .sort()
         .join(','),
+      ratedIdsKey,
+      dietaryIdsKey,
       searchLocation.latitude,
       searchLocation.longitude,
       userId ?? 'guest',
@@ -452,6 +505,7 @@ export function useRecommendations({
           userId,
           useCollaborative,
           ratedPlaceIds,
+          viewerDietaryPreferenceIds,
         });
       } catch (err) {
         if (isPlacesApiConfigError(err)) {
@@ -460,7 +514,9 @@ export function useRecommendations({
         }
         const message = err instanceof Error ? err.message : String(err);
         recDebug('queryFn ERROR (rethrowing)', { runId, message });
-        console.error(REC_DEBUG, 'useRecommendations queryFn', err);
+        if (__DEV__) {
+          console.error(REC_DEBUG, 'useRecommendations queryFn', err);
+        }
         throw err;
       }
     },

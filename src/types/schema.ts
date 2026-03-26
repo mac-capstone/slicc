@@ -31,6 +31,8 @@ export const userProfileSchema = z.object({
   username: z.string(),
   displayName: z.string(),
   friends: z.array(z.string()).default([]),
+  /** Denormalized from private settings for peer recommendation signals (readable to signed-in users). */
+  dietaryPreferenceIds: z.array(z.string()).default([]),
   createdAt: firestoreTimestamp.optional(),
   updatedAt: firestoreTimestamp.optional(),
 });

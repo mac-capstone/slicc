@@ -77,6 +77,12 @@ export function PlaceMatchContent({
   const w = b.weights;
   const tasteRaw = b.content ?? 0;
   const collabRaw = b.collaborative;
+  const dietaryWeight = w.dietary;
+  const hasDietaryWeight = dietaryWeight !== undefined;
+
+  const factorSummary = hasDietaryWeight
+    ? `quality (${Math.round(w.quality * 100)}%), distance (${Math.round(w.distance * 100)}%), personalization (${Math.round(w.personalization * 100)}%), and dietary peers (${Math.round(dietaryWeight * 100)}%)`
+    : `quality (${Math.round(w.quality * 100)}%), distance (${Math.round(w.distance * 100)}%), and personalization (${Math.round(w.personalization * 100)}%)`;
 
   return (
     <View className="mb-6 rounded-2xl bg-neutral-850 p-5">
@@ -90,10 +96,7 @@ export function PlaceMatchContent({
         className="mt-2 text-xs leading-5"
         style={{ color: colors.text[800] }}
       >
-        Total uses quality ({Math.round(w.quality * 100)}%), distance (
-        {Math.round(w.distance * 100)}%), and personalization (
-        {Math.round(w.personalization * 100)}%), matching Explore
-        recommendations.
+        Total uses {factorSummary}, matching Explore recommendations.
       </Text>
 
       <RNView className="mt-5 gap-4">
@@ -149,6 +152,20 @@ export function PlaceMatchContent({
           label="Personalization (combined)"
           value={pct01(b.personalization)}
           detail={`Adds ${pct01(b.weightedPersonal)} to the total (blends taste + community)`}
+        />
+        <MatchRow
+          icon="person"
+          label="Dietary peers"
+          value={
+            b.dietaryIncludedInComposite && b.dietary !== null
+              ? pct01(b.dietary)
+              : 'N/A'
+          }
+          detail={
+            b.dietaryIncludedInComposite && b.dietary !== null
+              ? `Adds ${pct01(b.weightedDietary ?? 0)} to the total (likers with similar dietary preferences)`
+              : 'No peer dietary overlap for this place, or dietary preferences not set.'
+          }
         />
       </RNView>
     </View>

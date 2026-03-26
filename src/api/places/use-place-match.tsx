@@ -1,14 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
-import { fetchCollaborativeScoreForPlace } from '@/api/places/compute-match-for-subject';
+import { fetchPlaceMatchSignals } from '@/api/places/compute-match-for-subject';
 import { DEFAULT_LOCATION } from '@/lib/geo';
+import { getDietaryPreferenceIds } from '@/lib/hooks/use-user-settings';
 import {
   type CompositeRankingContext,
   getPlaceMatchBreakdown,
   type PlaceMatchBreakdown,
   rankPlacesByContentRelevance,
 } from '@/lib/recommendation-utils';
+import type { UserIdT } from '@/types';
 
 import type { Place } from './places-api';
 
@@ -67,24 +69,36 @@ export function usePlaceMatch({
     [ratedPlaceIds]
   );
 
+  const viewerDietaryPreferenceIds = useMemo(
+    () => getDietaryPreferenceIds((userId ?? null) as UserIdT | null),
+    [userId]
+  );
+
+  const dietaryIdsKey = useMemo(
+    () => [...viewerDietaryPreferenceIds].sort().join(','),
+    [viewerDietaryPreferenceIds]
+  );
+
   const {
-    data: collabScore,
+    data: matchSignals,
     isPending: isCollabPending,
     isError: collabError,
   } = useQuery({
     queryKey: [
-      'place-match-collab',
+      'place-match-signals',
       place.id,
       userId ?? 'guest',
       likedIdsKey,
       ratedIdsKey,
+      dietaryIdsKey,
     ],
     queryFn: () =>
-      fetchCollaborativeScoreForPlace({
+      fetchPlaceMatchSignals({
         placeId: place.id,
         likedPlaces,
         userId: userId!,
         ratedPlaceIds,
+        subjectDietaryPreferenceIds: viewerDietaryPreferenceIds,
       }),
     enabled: enabled && useCollaborative && !!userId && userId !== 'guest_user',
     staleTime: STALE_TIME,
@@ -99,15 +113,28 @@ export function usePlaceMatch({
       useCollaborative &&
       !isCollabPending &&
       !collabError &&
-      collabScore != null
+      matchSignals?.collab != null
     ) {
-      collabMap.set(place.id, collabScore);
+      collabMap.set(place.id, matchSignals.collab);
+    }
+
+    const dietaryMap = new Map<string, number>();
+    if (
+      useCollaborative &&
+      !isCollabPending &&
+      !collabError &&
+      matchSignals?.dietaryPeerScore != null
+    ) {
+      dietaryMap.set(place.id, matchSignals.dietaryPeerScore);
     }
 
     const ctx: CompositeRankingContext = {
       userLocation: searchLocation,
       contentScoreById,
       collabScoreById: collabMap,
+      viewerDietaryActive: viewerDietaryPreferenceIds.length > 0,
+      dietaryScoreById:
+        viewerDietaryPreferenceIds.length > 0 ? dietaryMap : undefined,
     };
 
     return getPlaceMatchBreakdown(place, ctx);
@@ -119,7 +146,8 @@ export function usePlaceMatch({
     useCollaborative,
     isCollabPending,
     collabError,
-    collabScore,
+    matchSignals,
+    viewerDietaryPreferenceIds,
   ]);
 
   return {

@@ -1,5 +1,6 @@
 import type { UserPlaceLikesDoc } from '@/api/places/place-likes-api';
 import type { Place, PriceLevel } from '@/api/places/places-api';
+import { normalizeDietaryPreferenceIds } from '@/lib/dietary-preference-options';
 import { haversineDistance } from '@/lib/geo';
 
 /**
@@ -21,16 +22,37 @@ const MAX_TYPES = 3;
 /** RRF constant k (rank fusion); common default ~60 */
 export const RRF_K = 60;
 
-/** Composite ranking weights (quality, distance decay, personalization) */
-const W_QUALITY = 0.35;
-const W_DISTANCE = 0.3;
-const W_PERSONAL = 0.35;
+/** Legacy 3-factor weights when the viewer has no dietary preferences. */
+const W_LEGACY_QUALITY = 0.35;
+const W_LEGACY_DISTANCE = 0.3;
+const W_LEGACY_PERSONAL = 0.35;
 
-/** Exposed for match UI; same values as used in `computePlaceCompositeScore`. */
+/** 4-factor weights (viewer has dietary prefs). Peer dietary term may still be omitted per place. */
+const W4_QUALITY = 0.3;
+const W4_DISTANCE = 0.25;
+const W4_PERSONAL = 0.3;
+const W4_DIETARY = 0.15;
+
+const W4_SUM_THREE = W4_QUALITY + W4_DISTANCE + W4_PERSONAL;
+
+/** When viewer tracks dietary prefs but a place has no peer dietary signal: reweight first three to sum to 1. */
+const W3_FROM4_QUALITY = W4_QUALITY / W4_SUM_THREE;
+const W3_FROM4_DISTANCE = W4_DISTANCE / W4_SUM_THREE;
+const W3_FROM4_PERSONAL = W4_PERSONAL / W4_SUM_THREE;
+
+/** Baseline 3-factor export (no dietary dimension). */
 export const COMPOSITE_WEIGHTS = {
-  quality: W_QUALITY,
-  distance: W_DISTANCE,
-  personalization: W_PERSONAL,
+  quality: W_LEGACY_QUALITY,
+  distance: W_LEGACY_DISTANCE,
+  personalization: W_LEGACY_PERSONAL,
+} as const;
+
+/** Full 4-factor weights when dietary peer data applies. */
+export const COMPOSITE_WEIGHTS_WITH_DIETARY = {
+  quality: W4_QUALITY,
+  distance: W4_DISTANCE,
+  personalization: W4_PERSONAL,
+  dietary: W4_DIETARY,
 } as const;
 
 /** Bayesian prior for star ratings when review count is low */
@@ -246,7 +268,7 @@ export type CollaborativeScoreForPlaceParams = ScoreCollaborativeParams & {
   candidatePlaceId: string;
 };
 
-function buildPlaceToUsersMap(
+export function buildPlaceToUsersMap(
   usersWhoLiked: UserPlaceLikesDoc[],
   excludeUserIds: Set<string>
 ): Map<string, Set<string>> {
@@ -416,6 +438,55 @@ function clamp01(x: number): number {
   return x;
 }
 
+function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 && b.size === 0) return 1;
+  if (a.size === 0 || b.size === 0) return 0;
+  let inter = 0;
+  for (const x of a) {
+    if (b.has(x)) inter += 1;
+  }
+  const union = a.size + b.size - inter;
+  return union === 0 ? 0 : inter / union;
+}
+
+export type DietaryPeerScoreParams = {
+  placeToUsers: Map<string, Set<string>>;
+  viewerUserId: string;
+  viewerDietaryIds: string[];
+  dietaryByUserId: Map<string, string[]>;
+};
+
+/**
+ * Mean Jaccard between the viewer and likers who have public dietary IDs.
+ * Omits place ids when no liker has usable dietary data.
+ */
+export function computeDietaryPeerScoresByPlaceId(
+  params: DietaryPeerScoreParams
+): Map<string, number> {
+  const viewerSet = new Set(
+    normalizeDietaryPreferenceIds(params.viewerDietaryIds)
+  );
+  if (viewerSet.size === 0) return new Map();
+
+  const out = new Map<string, number>();
+  for (const [placeId, userIds] of params.placeToUsers) {
+    const likers = [...userIds].filter((u) => u !== params.viewerUserId);
+    if (likers.length === 0) continue;
+
+    const scores: number[] = [];
+    for (const u of likers) {
+      const peerDiet = params.dietaryByUserId.get(u);
+      if (!peerDiet || peerDiet.length === 0) continue;
+      const peerSet = new Set(normalizeDietaryPreferenceIds(peerDiet));
+      scores.push(jaccardSimilarity(viewerSet, peerSet));
+    }
+    if (scores.length === 0) continue;
+    const mean = scores.reduce((acc, x) => acc + x, 0) / scores.length;
+    out.set(placeId, clamp01(mean));
+  }
+  return out;
+}
+
 /** Map [0,5] star scale to [0,1] for blending */
 function ratingToUnit(bayes: number): number {
   return clamp01(bayes / 5);
@@ -451,6 +522,17 @@ export type CompositeRankingContext = {
   userLocation: { latitude: number; longitude: number };
   contentScoreById: Map<string, number>;
   collabScoreById: Map<string, number>;
+  /** When true, viewer has dietary prefs — 4-factor or reweighted 3-factor per place. */
+  viewerDietaryActive?: boolean;
+  /** Per-place peer dietary affinity; missing key means exclude dietary term for that place. */
+  dietaryScoreById?: Map<string, number>;
+};
+
+export type CompositeWeightsBreakdown = {
+  quality: number;
+  distance: number;
+  personalization: number;
+  dietary?: number;
 };
 
 export type PlaceMatchBreakdown = {
@@ -464,12 +546,62 @@ export type PlaceMatchBreakdown = {
   collaborative: number | undefined;
   /** Blend used in composite (same as `personalizationScore`). */
   personalization: number;
+  /** Peer dietary affinity when in composite; null when excluded (show N/A). */
+  dietary: number | null;
   weightedQuality: number;
   weightedDistance: number;
   weightedPersonal: number;
+  weightedDietary: number | null;
   composite: number;
-  weights: typeof COMPOSITE_WEIGHTS;
+  weights: CompositeWeightsBreakdown;
+  dietaryIncludedInComposite: boolean;
 };
+
+type CompositeWeightsResolved = {
+  wq: number;
+  wd: number;
+  wp: number;
+  wdi?: number;
+  dietaryRaw: number | null;
+  dietaryInComposite: boolean;
+};
+
+function getCompositeWeightsForPlace(
+  placeId: string,
+  ctx: CompositeRankingContext
+): CompositeWeightsResolved {
+  const viewerActive = ctx.viewerDietaryActive === true;
+  const dietaryVal = ctx.dietaryScoreById?.get(placeId);
+
+  if (!viewerActive) {
+    return {
+      wq: W_LEGACY_QUALITY,
+      wd: W_LEGACY_DISTANCE,
+      wp: W_LEGACY_PERSONAL,
+      dietaryRaw: null,
+      dietaryInComposite: false,
+    };
+  }
+
+  if (dietaryVal !== undefined) {
+    return {
+      wq: W4_QUALITY,
+      wd: W4_DISTANCE,
+      wp: W4_PERSONAL,
+      wdi: W4_DIETARY,
+      dietaryRaw: dietaryVal,
+      dietaryInComposite: true,
+    };
+  }
+
+  return {
+    wq: W3_FROM4_QUALITY,
+    wd: W3_FROM4_DISTANCE,
+    wp: W3_FROM4_PERSONAL,
+    dietaryRaw: null,
+    dietaryInComposite: false,
+  };
+}
 
 /**
  * Scalar used to rank places in Explore; same formula as `getPlaceMatchBreakdown`.composite.
@@ -495,18 +627,48 @@ export function getPlaceMatchBreakdown(
   const collabRaw = ctx.collabScoreById.get(place.id);
   const contentRaw = ctx.contentScoreById.get(place.id);
   const p = personalizationScore(collabRaw, contentRaw);
-  const composite = W_QUALITY * q + W_DISTANCE * d + W_PERSONAL * p;
+  const w = getCompositeWeightsForPlace(place.id, ctx);
+
+  let composite: number;
+  let weightedDietary: number | null = null;
+  let dietary: number | null = null;
+
+  if (w.dietaryInComposite && w.wdi !== undefined && w.dietaryRaw !== null) {
+    dietary = w.dietaryRaw;
+    weightedDietary = w.wdi * w.dietaryRaw;
+    composite = w.wq * q + w.wd * d + w.wp * p + weightedDietary;
+  } else {
+    composite = w.wq * q + w.wd * d + w.wp * p;
+  }
+
+  const weights: CompositeWeightsBreakdown =
+    w.dietaryInComposite && w.wdi !== undefined
+      ? {
+          quality: w.wq,
+          distance: w.wd,
+          personalization: w.wp,
+          dietary: w.wdi,
+        }
+      : {
+          quality: w.wq,
+          distance: w.wd,
+          personalization: w.wp,
+        };
+
   return {
     quality: q,
     distance: d,
     content: contentRaw,
     collaborative: collabRaw,
     personalization: p,
-    weightedQuality: W_QUALITY * q,
-    weightedDistance: W_DISTANCE * d,
-    weightedPersonal: W_PERSONAL * p,
+    dietary,
+    weightedQuality: w.wq * q,
+    weightedDistance: w.wd * d,
+    weightedPersonal: w.wp * p,
+    weightedDietary,
     composite,
-    weights: COMPOSITE_WEIGHTS,
+    weights,
+    dietaryIncludedInComposite: w.dietaryInComposite,
   };
 }
 
@@ -535,7 +697,11 @@ function placeCompositeScore(
   const collab = ctx.collabScoreById.get(place.id);
   const content = ctx.contentScoreById.get(place.id);
   const p = personalizationScore(collab, content);
-  return W_QUALITY * q + W_DISTANCE * d + W_PERSONAL * p;
+  const w = getCompositeWeightsForPlace(place.id, ctx);
+  if (w.dietaryInComposite && w.wdi !== undefined && w.dietaryRaw !== null) {
+    return w.wq * q + w.wd * d + w.wp * p + w.wdi * w.dietaryRaw;
+  }
+  return w.wq * q + w.wd * d + w.wp * p;
 }
 
 /** Legacy helper: sort by raw star rating only */

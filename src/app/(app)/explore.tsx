@@ -20,6 +20,7 @@ import { useRecommendations } from '@/api/places/use-recommendations';
 import { colors, Input } from '@/components/ui';
 import { useAuth, useLikedPlaces, useRatedPlaceIds } from '@/lib';
 import { useUserLocation } from '@/lib/hooks/use-user-location';
+import { getDietaryPreferenceIds } from '@/lib/hooks/use-user-settings';
 
 import { ExploreContent } from './explore-content';
 import { ExploreEmptyMessage } from './explore-empty-message';
@@ -66,6 +67,10 @@ export default function Explore() {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
   const [sectionFilter, setSectionFilter] = useState<SectionFilter>('all');
   const userId = useAuth.use.userId();
+  const viewerDietaryPreferenceIds = useMemo(
+    () => getDietaryPreferenceIds(userId ?? null),
+    [userId]
+  );
   const { location: userLocation, status: locationStatus } = useUserLocation();
   const likedPlaces = useLikedPlaces();
   const ratedPlaceIds = useRatedPlaceIds();
@@ -125,17 +130,6 @@ export default function Explore() {
       sortedPlaceIdsKey(likedPlaces) &&
     !(recommendationLikesBasis.length === 0 && likedPlaces.length > 0);
 
-  useEffect(() => {
-    console.log(
-      '[Explore] location:',
-      userLocation ?? 'null',
-      '| status:',
-      locationStatus,
-      '| hasLocation:',
-      hasLocation
-    );
-  }, [userLocation, locationStatus, hasLocation]);
-
   const includedTypesForNearby =
     categoryFilter === 'all' ? undefined : [categoryFilter];
 
@@ -164,6 +158,7 @@ export default function Explore() {
     userLocation,
     ratedPlaceIds,
     userId,
+    viewerDietaryPreferenceIds,
     enabled: hasLikes && (sectionFilter === 'recommended' || !isSearching),
   });
 
@@ -327,7 +322,10 @@ export default function Explore() {
     : sections.some((s) => s.data.length > 0);
   const isLoading =
     (isSearching && searchViewLoading) ||
-    (!isSearching && hasLikes && recsPending) ||
+    (!isSearching &&
+      sectionFilter === 'recommended' &&
+      hasLikes &&
+      recsPending) ||
     (!isSearching && hasLocation && nearbyPending);
   const initialLoad = !isSearching && isLoading && !hasContent;
 

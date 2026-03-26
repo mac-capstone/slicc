@@ -8,6 +8,7 @@ import {
 } from '@/api/places/compute-match-for-subject';
 import { getPlaceLikesForUser } from '@/api/places/place-likes-api';
 import { getPlaceDetailsBatch, hasPlacesApiKey } from '@/api/places/places-api';
+import { normalizeDietaryPreferenceIds } from '@/lib/dietary-preference-options';
 import { DEFAULT_LOCATION } from '@/lib/geo';
 import { meanOfNumbers } from '@/lib/mean-group-score';
 import type { GroupIdT, UserIdT } from '@/types';
@@ -66,22 +67,29 @@ async function fetchFriendPlaceMatch(params: {
   const likedPlaces = details.filter((p): p is Place => p != null);
   if (likedPlaces.length === 0) return null;
 
+  let displayName = 'Unknown';
+  let subjectDietaryPreferenceIds: string[] = [];
+  try {
+    const user = await fetchUser(friendId, viewerUserId);
+    displayName = user.displayName?.trim() || 'Unknown';
+    const fromPrivate =
+      viewerUserId === friendId && user.dietaryPreferences?.length
+        ? user.dietaryPreferences
+        : (user.dietaryPreferenceIds ?? []);
+    subjectDietaryPreferenceIds = normalizeDietaryPreferenceIds(fromPrivate);
+  } catch {
+    // keep fallback
+  }
+
   const match = await computeMatchForSubject({
     place,
     subjectUserId: friendId,
     likedPlaces,
     userLocation,
     ratedPlaceIds: new Set(),
+    subjectDietaryPreferenceIds,
   });
   if (!match) return null;
-
-  let displayName = 'Unknown';
-  try {
-    const user = await fetchUser(friendId, viewerUserId);
-    displayName = user.displayName?.trim() || 'Unknown';
-  } catch {
-    // keep fallback
-  }
 
   return {
     id: friendId,

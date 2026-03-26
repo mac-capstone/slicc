@@ -3,6 +3,7 @@ import type { Place } from '@/api/places/places-api';
 import {
   bayesianAverageRating,
   collaborativeScoreForPlaceId,
+  computeDietaryPeerScoresByPlaceId,
   computePlaceCompositeScore,
   getPlaceMatchBreakdown,
   mergeWithRrf,
@@ -90,8 +91,81 @@ describe('getPlaceMatchBreakdown', () => {
     const bd = getPlaceMatchBreakdown(p, ctx);
     expect(bd.composite).toBe(computePlaceCompositeScore(p, ctx));
     expect(
-      bd.weightedQuality + bd.weightedDistance + bd.weightedPersonal
+      bd.weightedQuality +
+        bd.weightedDistance +
+        bd.weightedPersonal +
+        (bd.weightedDietary ?? 0)
     ).toBeCloseTo(bd.composite, 5);
+  });
+
+  it('reweights to three factors when viewer has dietary prefs but no peer score', () => {
+    const p = place('p1', { primaryType: 'cafe', types: ['cafe'] });
+    const ctx = {
+      userLocation: { latitude: 43.65, longitude: -79.38 },
+      contentScoreById: new Map([['p1', 0.4]]),
+      collabScoreById: new Map([['p1', 0.2]]),
+      viewerDietaryActive: true,
+      dietaryScoreById: new Map(),
+    };
+    const bd = getPlaceMatchBreakdown(p, ctx);
+    expect(bd.dietaryIncludedInComposite).toBe(false);
+    expect(bd.dietary).toBeNull();
+    const sum =
+      bd.weights.quality + bd.weights.distance + bd.weights.personalization;
+    expect(sum).toBeCloseTo(1, 5);
+    expect(bd.weights.dietary).toBeUndefined();
+  });
+
+  it('uses four factors when dietary peer score exists', () => {
+    const p = place('p1', { primaryType: 'cafe', types: ['cafe'] });
+    const ctx = {
+      userLocation: { latitude: 43.65, longitude: -79.38 },
+      contentScoreById: new Map([['p1', 0.4]]),
+      collabScoreById: new Map([['p1', 0.2]]),
+      viewerDietaryActive: true,
+      dietaryScoreById: new Map([['p1', 0.8]]),
+    };
+    const bd = getPlaceMatchBreakdown(p, ctx);
+    expect(bd.dietaryIncludedInComposite).toBe(true);
+    expect(bd.dietary).toBeCloseTo(0.8, 5);
+    const w = bd.weights;
+    expect(w.dietary).toBeDefined();
+    expect(
+      w.quality + w.distance + w.personalization + (w.dietary ?? 0)
+    ).toBeCloseTo(1, 5);
+  });
+});
+
+describe('computeDietaryPeerScoresByPlaceId', () => {
+  it('returns mean Jaccard over likers with public diets', () => {
+    const placeToUsers = new Map<string, Set<string>>([
+      ['placeA', new Set(['u1', 'u2'])],
+    ]);
+    const dietaryByUserId = new Map<string, string[]>([
+      ['u1', ['vegan']],
+      ['u2', ['vegan', 'gluten_free']],
+    ]);
+    const map = computeDietaryPeerScoresByPlaceId({
+      placeToUsers,
+      viewerUserId: 'self',
+      viewerDietaryIds: ['vegan'],
+      dietaryByUserId,
+    });
+    expect(map.get('placeA')).toBeCloseTo((1 + 0.5) / 2, 5);
+  });
+
+  it('omits places when no liker has dietary data', () => {
+    const placeToUsers = new Map<string, Set<string>>([
+      ['placeB', new Set(['u1'])],
+    ]);
+    const dietaryByUserId = new Map<string, string[]>([['u1', []]]);
+    const map = computeDietaryPeerScoresByPlaceId({
+      placeToUsers,
+      viewerUserId: 'self',
+      viewerDietaryIds: ['vegan'],
+      dietaryByUserId,
+    });
+    expect(map.has('placeB')).toBe(false);
   });
 });
 
