@@ -1,13 +1,22 @@
-import { useQueries } from '@tanstack/react-query';
+import { useMutation, useQueries } from '@tanstack/react-query';
 import { useCallback } from 'react';
 
+import {
+  applyCycleNetting,
+  type CycleNettingParams,
+} from '@/lib/expenses/apply-cycle-netting';
 import {
   buildDebtEdges,
   collectNodeIds,
   type DebtEdge,
 } from '@/lib/expenses/build-debt-edges';
+import {
+  type DetectedCycle,
+  findDirectedCycle,
+} from '@/lib/expenses/debt-graph-cycles';
 import type { ExpenseIdT, UserIdT } from '@/types';
 
+import { queryClient } from '../common/api-provider';
 import {
   type ExpenseResponse,
   fetchExpense,
@@ -17,6 +26,8 @@ import {
 export type UseDebtGraphResult = {
   edges: DebtEdge[];
   nodeIds: UserIdT[];
+  cycle: DetectedCycle | null;
+  expenses: ExpenseResponse[];
   isPending: boolean;
   isError: boolean;
 };
@@ -42,10 +53,13 @@ export function useDebtGraph(userId: UserIdT | null): UseDebtGraphResult {
 
       const edges = buildDebtEdges(expenses, userId);
       const nodeIds = collectNodeIds(edges);
+      const cycle = findDirectedCycle(edges);
 
       return {
         edges,
         nodeIds,
+        cycle,
+        expenses,
         isPending: pending,
         isError: hasError,
       };
@@ -59,5 +73,17 @@ export function useDebtGraph(userId: UserIdT | null): UseDebtGraphResult {
       queryFn: () => fetchExpense(id as ExpenseIdT),
     })),
     combine,
+  });
+}
+
+export function useCycleNetting() {
+  return useMutation({
+    mutationFn: async (params: CycleNettingParams) => {
+      await applyCycleNetting(params);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['people'] });
+    },
   });
 }

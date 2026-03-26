@@ -7,11 +7,14 @@ export type DebtEdge = {
   amount: number;
 };
 
-function getPayerId(expense: ExpenseResponse): string | null {
+export function getPayerId(expense: ExpenseResponse): string | null {
   return expense.payerUserId ?? expense.createdBy ?? null;
 }
 
-function isRealUser(person: { id: string; guestName?: string }): boolean {
+export function isRealUser(person: {
+  id: string;
+  guestName?: string;
+}): boolean {
   return !person.guestName;
 }
 

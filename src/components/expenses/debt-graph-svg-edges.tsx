@@ -26,6 +26,8 @@ const CYCLE = DASH_LEN + GAP_LEN;
 const MIN_STROKE = 2;
 const MAX_STROKE = 8;
 
+const CYCLE_HIGHLIGHT_COLOR = '#F59E0B';
+
 function strokeForAmount(amount: number, maxAmount: number): number {
   if (maxAmount <= 0) return MIN_STROKE;
   const t = amount / maxAmount;
@@ -72,6 +74,7 @@ type Props = {
   positions: Map<UserIdT, Point>;
   nodeRadius: number;
   maxAmount: number;
+  cycleEdgeKeys: Set<string>;
   onEdgeLayouts: (layouts: EdgeLayout[]) => void;
 };
 
@@ -80,6 +83,7 @@ export function DebtGraphSvgEdges({
   positions,
   nodeRadius,
   maxAmount,
+  cycleEdgeKeys,
   onEdgeLayouts,
 }: Props) {
   const allIds = React.useMemo(
@@ -89,7 +93,12 @@ export function DebtGraphSvgEdges({
 
   const computed = React.useMemo(() => {
     const layouts: EdgeLayout[] = [];
-    const geoPairs: { geo: EdgeGeometry; color: string; sw: number }[] = [];
+    const geoPairs: {
+      geo: EdgeGeometry;
+      color: string;
+      sw: number;
+      isCycle: boolean;
+    }[] = [];
 
     edges.forEach((edge, index) => {
       const from = positions.get(edge.from);
@@ -101,13 +110,15 @@ export function DebtGraphSvgEdges({
       layouts.push({ ...geo, index });
 
       const fromIdx = allIds.indexOf(edge.from);
-      const color = getNodeColor(fromIdx);
+      const baseColor = getNodeColor(fromIdx);
+      const isCycle = cycleEdgeKeys.has(`${edge.from}\0${edge.to}`);
+      const color = isCycle ? CYCLE_HIGHLIGHT_COLOR : baseColor;
       const sw = strokeForAmount(edge.amount, maxAmount);
-      geoPairs.push({ geo, color, sw });
+      geoPairs.push({ geo, color, sw, isCycle });
     });
 
     return { layouts, geoPairs };
-  }, [edges, positions, nodeRadius, maxAmount, allIds]);
+  }, [edges, positions, nodeRadius, maxAmount, allIds, cycleEdgeKeys]);
 
   React.useEffect(() => {
     onEdgeLayouts(computed.layouts);
@@ -115,14 +126,14 @@ export function DebtGraphSvgEdges({
 
   return (
     <G>
-      {computed.geoPairs.map(({ geo, color, sw }, i) => (
+      {computed.geoPairs.map(({ geo, color, sw, isCycle }, i) => (
         <G key={`edge-${i}`}>
           <Path
             d={geo.d}
             stroke={color}
             strokeWidth={sw}
             fill="none"
-            opacity={0.15}
+            opacity={isCycle ? 0.25 : 0.15}
           />
           <FlowingEdge d={geo.d} color={color} strokeWidth={sw} />
         </G>

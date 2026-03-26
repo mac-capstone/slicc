@@ -3,12 +3,16 @@ import * as React from 'react';
 import { useMemo } from 'react';
 import { Dimensions } from 'react-native';
 
+import type { ExpenseResponse } from '@/api/expenses/use-expenses';
 import { ScrollView, View } from '@/components/ui';
 import type { DebtEdge } from '@/lib/expenses/build-debt-edges';
+import type { DetectedCycle } from '@/lib/expenses/debt-graph-cycles';
+import { cycleEdgeKeySet } from '@/lib/expenses/debt-graph-cycles';
 import { computeCirclePositions } from '@/lib/expenses/debt-graph-layout';
 import { fetchDebtGraphLabels } from '@/lib/expenses/fetch-debt-graph-labels';
 import type { UserIdT } from '@/types';
 
+import { CycleBanner } from './cycle-banner';
 import { DebtGraphBalanceList } from './debt-graph-a11y-list';
 import { DebtGraphCanvas } from './debt-graph-canvas';
 
@@ -19,9 +23,17 @@ type ContentProps = {
   edges: DebtEdge[];
   nodeIds: UserIdT[];
   userId: string | null;
+  cycle: DetectedCycle | null;
+  expenses: ExpenseResponse[];
 };
 
-export function DebtGraphContent({ edges, nodeIds, userId }: ContentProps) {
+export function DebtGraphContent({
+  edges,
+  nodeIds,
+  userId,
+  cycle,
+  expenses,
+}: ContentProps) {
   const { data: labelById = {} } = useQuery({
     queryKey: ['debt-graph-labels', nodeIds, userId],
     queryFn: () => fetchDebtGraphLabels(nodeIds, userId),
@@ -42,6 +54,11 @@ export function DebtGraphContent({ edges, nodeIds, userId }: ContentProps) {
     return { size, positions };
   }, [nodeIds]);
 
+  const cycleKeys = useMemo(
+    () => (cycle ? cycleEdgeKeySet(cycle) : new Set<string>()),
+    [cycle]
+  );
+
   return (
     <ScrollView
       className="flex-1"
@@ -56,8 +73,17 @@ export function DebtGraphContent({ edges, nodeIds, userId }: ContentProps) {
           positions={layout.positions}
           labelById={labelById}
           nodeRadius={NODE_RADIUS}
+          cycleEdgeKeys={cycleKeys}
         />
       </View>
+      {cycle && userId ? (
+        <CycleBanner
+          cycle={cycle}
+          expenses={expenses}
+          viewerUserId={userId as UserIdT}
+          labelById={labelById}
+        />
+      ) : null}
       <DebtGraphBalanceList edges={edges} labelById={labelById} />
     </ScrollView>
   );

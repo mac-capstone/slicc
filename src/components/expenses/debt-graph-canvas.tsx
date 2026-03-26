@@ -19,6 +19,7 @@ type Props = {
   positions: Map<UserIdT, Point>;
   labelById: Record<string, NodeLabel>;
   nodeRadius: number;
+  cycleEdgeKeys: Set<string>;
 };
 
 function formatAmount(amount: number): string {
@@ -35,6 +36,7 @@ export function DebtGraphCanvas({
   positions,
   labelById,
   nodeRadius,
+  cycleEdgeKeys,
 }: Props) {
   const [selectedEdge, setSelectedEdge] = useState<number | null>(null);
   const [edgeLayouts, setEdgeLayouts] = useState<EdgeLayout[]>([]);
@@ -57,6 +59,7 @@ export function DebtGraphCanvas({
             positions={positions}
             nodeRadius={nodeRadius}
             maxAmount={maxAmount}
+            cycleEdgeKeys={cycleEdgeKeys}
             onEdgeLayouts={handleEdgeLayouts}
           />
         </Svg>

@@ -12,11 +12,20 @@ import {
 
 export function DebtGraphView() {
   const userId = useAuth.use.userId() ?? null;
-  const { edges, nodeIds, isPending, isError } = useDebtGraph(userId);
+  const { edges, nodeIds, cycle, expenses, isPending, isError } =
+    useDebtGraph(userId);
 
   if (isPending) return <DebtGraphLoading />;
   if (isError) return <DebtGraphError />;
   if (edges.length === 0) return <DebtGraphEmpty />;
 
-  return <DebtGraphContent edges={edges} nodeIds={nodeIds} userId={userId} />;
+  return (
+    <DebtGraphContent
+      edges={edges}
+      nodeIds={nodeIds}
+      userId={userId}
+      cycle={cycle}
+      expenses={expenses}
+    />
+  );
 }
