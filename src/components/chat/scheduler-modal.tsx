@@ -35,25 +35,40 @@ export function SchedulerModal({
   const [weekOffset, setWeekOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [localSlots, setLocalSlots] = useState<Set<string>>(new Set());
+  const [hasLocalEdits, setHasLocalEdits] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const weekStart = useMemo(() => startOfWeek(weekOffset), [weekOffset]);
   const availability = useGroupAvailability(groupId);
 
-  // Sync from Firestore whenever server updates arrive, but not mid-drag
-  useEffect(() => {
-    if (!isDragging) {
-      setLocalSlots(new Set(availability[currentUserId] ?? []));
-    }
-  }, [availability, currentUserId, isDragging]);
-
-  // Single write to Firestore — called for both taps and completed drags
-  const handleBatchUpdate = useCallback(
-    async (slots: Set<string>) => {
-      setLocalSlots(new Set(slots));
-      await setMyAvailability(groupId, currentUserId, Array.from(slots));
-    },
-    [groupId, currentUserId]
+  const serverSlots = useMemo(
+    () => availability[currentUserId] ?? [],
+    [availability, currentUserId]
   );
+
+  // Sync from server whenever updates arrive, but not while dragging
+  // and not after the user has made local edits (until they Save).
+  useEffect(() => {
+    if (!isDragging && !hasLocalEdits) {
+      setLocalSlots(new Set(serverSlots));
+    }
+  }, [serverSlots, isDragging, hasLocalEdits]);
+
+  const handleBatchUpdate = useCallback((slots: Set<string>) => {
+    setLocalSlots(new Set(slots));
+    setHasLocalEdits(true);
+  }, []);
+
+  const handleSave = useCallback(async () => {
+    if (isSaving || !hasLocalEdits) return;
+    setIsSaving(true);
+    try {
+      await setMyAvailability(groupId, currentUserId, Array.from(localSlots));
+      setHasLocalEdits(false);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [groupId, currentUserId, localSlots, hasLocalEdits, isSaving]);
 
   const weekLabel = weekStart.toLocaleDateString([], {
     month: 'short',
@@ -72,13 +87,27 @@ export function SchedulerModal({
               <Text className="text-lg font-bold text-text-50">
                 Availability
               </Text>
-              <TouchableOpacity
-                onPress={onClose}
-                accessibilityRole="button"
-                accessibilityLabel="Close scheduler"
-              >
-                <Octicons name="x" size={20} color={colors.text[800]} />
-              </TouchableOpacity>
+              <View className="flex-row items-center gap-3">
+                <TouchableOpacity
+                  onPress={handleSave}
+                  disabled={!hasLocalEdits || isSaving}
+                  accessibilityRole="button"
+                  accessibilityLabel="Save availability"
+                  style={{ opacity: !hasLocalEdits || isSaving ? 0.4 : 1 }}
+                >
+                  <Text className="text-sm font-semibold text-text-50">
+                    {isSaving ? 'Saving…' : 'Save'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={onClose}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close scheduler"
+                >
+                  <Octicons name="x" size={20} color={colors.text[800]} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View className="mb-3 flex-row items-center justify-center gap-4">
@@ -106,7 +135,7 @@ export function SchedulerModal({
             </View>
 
             <Text className="mb-2 text-center text-xs text-text-800">
-              Tap or hold & drag to mark availability
+              Tap or hold & drag to mark availability, then press Save
             </Text>
 
             {/* scrollEnabled={false} while dragging prevents gesture conflicts */}

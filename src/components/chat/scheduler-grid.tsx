@@ -386,14 +386,14 @@ export function SchedulerGrid({
   }
 
   const tap = Gesture.Tap()
-    .maxDeltaX(10)
-    .maxDeltaY(10)
+    .maxDeltaX(16)
+    .maxDeltaY(16)
     .onEnd((e, success) => {
       if (success) runOnJS(handleTap)(e.x, e.y);
     });
 
   const drag = Gesture.Pan()
-    .activateAfterLongPress(80)
+    .activateAfterLongPress(100)
     .onStart((e) => runOnJS(handleDragStart)(e.x, e.y))
     .onUpdate((e) => runOnJS(handleDragMove)(e.x, e.y))
     .onFinalize(() => runOnJS(handleDragEnd)());
