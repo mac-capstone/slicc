@@ -12,6 +12,7 @@ import {
 } from '@/api/chat/scheduler';
 import { PersonAvatar } from '@/components/person-avatar';
 import { colors, Text } from '@/components/ui';
+import { perfLog } from '@/lib/perf-log';
 import type { UserIdT } from '@/types';
 
 import { SchedulerCell } from './scheduler-cell';
@@ -369,6 +370,7 @@ export function SchedulerGrid({
     pending.current = new Set(mySlots);
     visited.current = new Set();
     dragAction.current = mySlots.has(slot) ? 'remove' : 'add';
+    perfLog('scheduler_drag_start', { mode: dragAction.current });
     onDragStateChange(true);
     applySlot(slot);
   }
@@ -379,6 +381,10 @@ export function SchedulerGrid({
   }
 
   function handleDragEnd() {
+    perfLog('scheduler_drag_end', {
+      pendingSlots: pending.current.size,
+      visited: visited.current.size,
+    });
     onBatchUpdate(new Set(pending.current));
     dragAction.current = null;
     visited.current = new Set();

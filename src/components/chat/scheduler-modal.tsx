@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { setMyAvailability, useGroupAvailability } from '@/api/chat/scheduler';
 import { colors, Text } from '@/components/ui';
+import { perfLog } from '@/lib/perf-log';
 import type { UserIdT } from '@/types';
 
 import { SchedulerGrid } from './scheduler-grid';
@@ -62,9 +63,20 @@ export function SchedulerModal({
   const handleSave = useCallback(async () => {
     if (isSaving || !hasLocalEdits) return;
     setIsSaving(true);
+    const t0 = Date.now();
+    const slotCount = localSlots.size;
     try {
       await setMyAvailability(groupId, currentUserId, Array.from(localSlots));
+      perfLog('scheduler_save_ok', {
+        ms: Date.now() - t0,
+        slots: slotCount,
+      });
       setHasLocalEdits(false);
+    } catch (e) {
+      perfLog('scheduler_save_err', {
+        ms: Date.now() - t0,
+        message: e instanceof Error ? e.message : String(e),
+      });
     } finally {
       setIsSaving(false);
     }

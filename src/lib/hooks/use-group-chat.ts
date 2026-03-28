@@ -11,6 +11,7 @@ import type { UseMessagesResult } from '@/api/chat/messages';
 import { sendTextMessage, useMessages } from '@/api/chat/messages';
 import { rtdb } from '@/api/common/firebase';
 import { decryptMessage } from '@/lib/crypto/e2e-crypto';
+import { perfLog } from '@/lib/perf-log';
 import type { ChatMessageWithId, GroupIdT, UserIdT } from '@/types';
 
 type UseChatResult = {
@@ -143,6 +144,10 @@ export function useGroupChat(
       return;
     }
 
+    const t0 =
+      typeof globalThis.performance?.now === 'function'
+        ? globalThis.performance.now()
+        : Date.now();
     const decrypted = rawMessages.map((msg) => {
       if (msg.type !== 'text' || !msg.encryptedContent || !msg.nonce) {
         return { ...msg, decryptedContent: msg.systemText ?? null };
@@ -154,6 +159,15 @@ export function useGroupChat(
         content = null;
       }
       return { ...msg, decryptedContent: content };
+    });
+    const dt =
+      (typeof globalThis.performance?.now === 'function'
+        ? globalThis.performance.now()
+        : Date.now()) - t0;
+
+    perfLog('chat_decrypt_batch', {
+      count: rawMessages.length,
+      ms: Math.round(dt * 100) / 100,
     });
 
     setMessages(decrypted);

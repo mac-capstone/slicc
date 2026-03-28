@@ -21,7 +21,7 @@ type Props = {
 function EmptyChat() {
   return (
     <View className="flex-1 items-center justify-center px-4 pb-16">
-      <Text className="text-center text-sm text-text-800">
+      <Text className="text-center text-sm text-charcoal-300">
         No messages yet. Say hello!
       </Text>
     </View>
@@ -48,18 +48,23 @@ export function MessageList({
 }: Props) {
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center">
+      <View className="flex-1 items-center justify-center bg-charcoal-950">
         <ActivityIndicator color={colors.accent[100]} />
       </View>
     );
   }
 
   if (messages.length === 0) {
-    return <EmptyChat />;
+    return (
+      <View className="flex-1 bg-charcoal-950">
+        <EmptyChat />
+      </View>
+    );
   }
 
   return (
     <FlatList
+      style={{ flex: 1 }}
       data={messages}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => {
@@ -102,6 +107,7 @@ export function MessageList({
         paddingHorizontal: 12,
         paddingTop: 8,
         paddingBottom: 12,
+        flexGrow: 1,
       }}
     />
   );

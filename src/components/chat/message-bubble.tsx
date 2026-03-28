@@ -25,7 +25,7 @@ function formatTime(date: Date): string {
 function SystemMessage({ text }: { text: string }) {
   return (
     <View className="my-1 items-center">
-      <Text className="rounded-full bg-background-900 px-3 py-1 text-[11px] text-text-800">
+      <Text className="rounded-full bg-charcoal-850 px-3 py-1 text-[11px] text-charcoal-300">
         {text}
       </Text>
     </View>
@@ -55,7 +55,8 @@ export function MessageBubble({
     }).catch(console.error);
   }
 
-  const bubbleBg = isMine ? colors.accent[800] : colors.accent[900];
+  const bubbleBg = isMine ? colors.accent[100] : colors.charcoal[850];
+  const bubbleTextColor = isMine ? colors.charcoal[950] : colors.white;
 
   return (
     // maxWidth caps the bubble at 80 % of screen width so long messages wrap.
@@ -64,7 +65,7 @@ export function MessageBubble({
       {!isMine && (
         <Text
           className="mb-0.5 ml-1 text-xs font-semibold"
-          style={{ color: colors.accent[100] }}
+          style={{ color: colors.charcoal[300] }}
         >
           {senderName}
         </Text>
@@ -91,7 +92,7 @@ export function MessageBubble({
           ) : (
             <Text
               className="text-sm leading-5"
-              style={{ color: colors.text[50] }}
+              style={{ color: bubbleTextColor }}
             >
               {message.decryptedContent ?? '🔒'}
             </Text>
@@ -109,7 +110,7 @@ export function MessageBubble({
         style={{
           fontSize: 10,
           marginTop: 2,
-          color: colors.text[800],
+          color: colors.charcoal[400],
           marginLeft: isMine ? 0 : 4,
           marginRight: isMine ? 4 : 0,
         }}

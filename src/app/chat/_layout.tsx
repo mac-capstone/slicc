@@ -7,11 +7,11 @@ export default function ChatLayout() {
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: colors.background[950] },
-        headerTintColor: '#ffffff',
-        headerTitleStyle: { color: '#ffffff' },
+        headerStyle: { backgroundColor: colors.charcoal[950] },
+        headerTintColor: colors.white,
+        headerTitleStyle: { color: colors.white },
         headerShadowVisible: false,
-        contentStyle: { backgroundColor: colors.background[950] },
+        contentStyle: { backgroundColor: colors.charcoal[950] },
       }}
     />
   );
