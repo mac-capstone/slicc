@@ -1,8 +1,9 @@
 import Feather from '@expo/vector-icons/Feather';
+import Octicons from '@expo/vector-icons/Octicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, TouchableOpacity, View } from 'react-native';
 
 import { useEventsByGroupId } from '@/api/events/use-events';
 import { useGroup } from '@/api/groups/use-groups';
@@ -82,7 +83,7 @@ export default function GroupDetailScreen() {
   }
 
   return (
-    <>
+    <View className="flex-1">
       <Stack.Screen
         options={{
           title: group.name,
@@ -154,7 +155,17 @@ export default function GroupDetailScreen() {
             heightClassName="h-14"
           />
         </ScrollView>
+
+        <TouchableOpacity
+          onPress={() => router.push(`/chat/${groupId}` as const)}
+          className="absolute bottom-6 right-5 size-14 items-center justify-center rounded-full bg-accent-800"
+          style={{ elevation: 6 }}
+          accessibilityLabel="Open group chat"
+          accessibilityRole="button"
+        >
+          <Octicons name="comment-discussion" size={24} color="#ffffff" />
+        </TouchableOpacity>
       </View>
-    </>
+    </View>
   );
 }

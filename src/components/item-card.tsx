@@ -5,7 +5,7 @@ import { useExpense } from '@/api/expenses/use-expenses';
 import { useItem } from '@/api/items/use-items';
 import { usePeopleIdsForItem } from '@/api/people/use-people';
 import { ActivityIndicator } from '@/components/ui';
-import { type ExpenseIdT, type ItemIdT } from '@/types';
+import { type ExpenseIdT, type ItemIdT, type UserIdT } from '@/types';
 
 import { PersonAvatar } from './person-avatar';
 
@@ -88,7 +88,11 @@ export const ItemCard = ({
             <View className="flex-row items-center">
               {assignedPeople.slice(0, 4).map((person, index: number) => (
                 <View key={person.id} className={index > 0 ? '-ml-3' : ''}>
-                  <PersonAvatar size="md" />
+                  <PersonAvatar
+                    userId={person.id as UserIdT}
+                    fallbackLabel={person.name}
+                    size="md"
+                  />
                 </View>
               ))}
               {assignedPeople.length > 4 && (
@@ -122,7 +126,7 @@ export const ItemCard = ({
       </View>
       <View className="flex flex-row items-center justify-start gap-2 pt-2">
         {item.assignedPersonIds.map((personId) => (
-          <PersonAvatar key={personId} />
+          <PersonAvatar key={personId} userId={personId as UserIdT} size="md" />
         ))}
       </View>
     </View>
