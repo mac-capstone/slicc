@@ -21,7 +21,6 @@ import {
 } from '@/components/chat/scheduler-grid';
 import { colors, Text } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
-import { perfLog } from '@/lib/perf-log';
 import type { GroupIdT, UserIdT } from '@/types';
 
 function startOfWeek(offset: number): Date {
@@ -153,7 +152,6 @@ export default function GroupAvailabilityScreen() {
   const handleSave = useCallback(async () => {
     if (!groupId || isSaving || !hasLocalEdits) return;
     setIsSaving(true);
-    const t0 = Date.now();
     try {
       // Apply drafts (by week) onto the full server slot set, so saving one week
       // never erases availability for other weeks.
@@ -172,16 +170,9 @@ export default function GroupAvailabilityScreen() {
       }
 
       await setMyAvailability(groupId, userId, Array.from(nextAll));
-      perfLog('scheduler_save_ok', {
-        ms: Date.now() - t0,
-        slots: nextAll.size,
-      });
       setHasLocalEdits(false);
     } catch (e) {
-      perfLog('scheduler_save_err', {
-        ms: Date.now() - t0,
-        message: e instanceof Error ? e.message : String(e),
-      });
+      console.error('availability save failed', e);
     } finally {
       setIsSaving(false);
     }

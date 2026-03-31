@@ -1,7 +1,7 @@
 import { useQueries } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
 import * as React from 'react';
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,7 +15,6 @@ import { ChatScreenHeader } from '@/components/chat/chat-screen-header';
 import { MessageList } from '@/components/chat/message-list';
 import { useAuth } from '@/lib/auth';
 import { useGroupChat } from '@/lib/hooks/use-group-chat';
-import { getPerfLogFileUri, perfLog } from '@/lib/perf-log';
 import type { GroupIdT, UserIdT } from '@/types';
 
 /** Keyboard offset below custom header + status (header handles safe top). */
@@ -73,12 +72,6 @@ export default function GroupChatScreen() {
     });
     return map;
   }, [memberQueries]);
-
-  useEffect(() => {
-    if (!groupId) return;
-    perfLog('chat_mount', { groupId });
-    perfLog('chat_perf_log_path', { uri: getPerfLogFileUri() });
-  }, [groupId]);
 
   if (!groupId) {
     return (
