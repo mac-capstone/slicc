@@ -17,6 +17,7 @@
 - [January 7th, 2026 - Thirteenth Meeting](#january-7th-2026---thirteenth-meeting)
 - [January 14th, 2026 - Fourteenth Meeting](#january-14th-2026---fourteenth-meeting)
 - [March 4th, 2026 - Fifteenth Meeting](#march-4th-2026---fifteenth-meeting)
+- [March 29th, 2026 - Design Review](#march-29th-2026---design-review)
 
 ---
 
@@ -490,3 +491,54 @@ Now using react native reusable component library. All components should use exi
 - Expenses firebase integration - FRIDAY 03/06.
 
 ---
+
+# March 29th, 2026 - Design Review
+
+Chat
+
+- Fix auto-generated key, locked messages should never show.
+- Change send message button to fit color theme.
+- Add images to chat.
+- Change colors to fit current theme.
+- Openable dropdown menu for group's current events pinned at top.
+
+Groups
+
+- Change groups to show chat by default.
+- Clicking name shows group info, with users + events + admin controls.
+  - Events
+    - Shows past and upcoming events in info page.
+  - Users
+    - Button to remove user (admin).
+    - Button to delete group (admin).
+
+Expenses
+
+- Need to handle cases for the "manage people" button (too many ppl, non-friends, etc).
+- Change manage people to show:
+  - No one at first.
+  - Search bar.
+    - Shows matching users.
+    - And default pseudo people.
+  - Once a user is added to an item, they show up in the list for other items.
+  - Change page to be scrollable to handle too many people.
+- Update receipt for tip + tax.
+
+Recommendations
+
+- Change map to be openable instead of nearby.
+- Remove view bar.
+- Add saved instead of favourites.
+- Redesign how locations are shown, based on lovable design.
+- Detailed location page.
+  - Add saved button top right.
+  - Add phone number.
+  - Add way to change rating.
+
+Eduardo
+
+- Testing.
+
+Hadi
+
+- Deployment.
