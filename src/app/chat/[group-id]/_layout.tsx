@@ -3,16 +3,13 @@ import * as React from 'react';
 
 import { colors } from '@/components/ui';
 
-export default function ChatLayout() {
+export default function GroupChatStackLayout() {
   return (
     <Stack
       screenOptions={{
         headerShown: false,
-        headerStyle: { backgroundColor: colors.charcoal[950] },
-        headerTintColor: colors.white,
-        headerTitleStyle: { color: colors.white },
-        headerShadowVisible: false,
         contentStyle: { backgroundColor: colors.charcoal[950] },
+        animation: 'slide_from_right',
       }}
     />
   );

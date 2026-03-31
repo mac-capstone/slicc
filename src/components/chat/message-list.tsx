@@ -1,10 +1,10 @@
 import * as React from 'react';
 import { ActivityIndicator, FlatList, View } from 'react-native';
 
+import { MessageBubble } from '@/components/chat/message-bubble';
+import { PersonAvatar } from '@/components/person-avatar';
 import { colors, Text } from '@/components/ui';
 import type { ChatMessageWithId, UserIdT } from '@/types';
-
-import { MessageBubble } from './message-bubble';
 
 type Props = {
   messages: ChatMessageWithId[];
@@ -69,10 +69,9 @@ export function MessageList({
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => {
         const isMine = item.senderId === currentUserId;
+        const showPeerAvatar = !isMine && item.type !== 'system';
+
         return (
-          // Row container: forces the bubble to collapse to content height.
-          // justifyContent positions it left/right; the bubble never stretches
-          // vertically because the main axis (horizontal) constrains width only.
           <View
             style={{
               flexDirection: 'row',
@@ -82,8 +81,18 @@ export function MessageList({
                   : isMine
                     ? 'flex-end'
                     : 'flex-start',
+              marginBottom: 4,
             }}
           >
+            {showPeerAvatar ? (
+              <View className="mr-1.5 self-end pb-6">
+                <PersonAvatar
+                  userId={item.senderId as UserIdT}
+                  fallbackLabel={senderNames[item.senderId] ?? '?'}
+                  size={28}
+                />
+              </View>
+            ) : null}
             <MessageBubble
               message={item}
               isMine={isMine}

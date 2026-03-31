@@ -1,40 +1,50 @@
-import Octicons from '@expo/vector-icons/Octicons';
 import { useQueries } from '@tanstack/react-query';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import * as React from 'react';
-import { useEffect, useMemo, useState } from 'react';
-import { TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo } from 'react';
+import { View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useEventsByGroupId } from '@/api/events/use-events';
 import { useGroup } from '@/api/groups/use-groups';
 import { fetchUser } from '@/api/people/use-users';
+import { ChatEventsCollapsible } from '@/components/chat/chat-events-collapsible';
 import { ChatInput } from '@/components/chat/chat-input';
+import { ChatScreenHeader } from '@/components/chat/chat-screen-header';
 import { MessageList } from '@/components/chat/message-list';
-import { SchedulerModal } from '@/components/chat/scheduler-modal';
-import { colors } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { useGroupChat } from '@/lib/hooks/use-group-chat';
 import { getPerfLogFileUri, perfLog } from '@/lib/perf-log';
 import type { GroupIdT, UserIdT } from '@/types';
 
-/** Approximate stack header bar height below the status bar (Material ≈ 56). */
-const HEADER_BAR = 56;
+/** Keyboard offset below custom header + status (header handles safe top). */
+const HEADER_BODY = 52;
 
 export default function GroupChatScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ 'group-id'?: string | string[] }>();
-  const groupId = Array.isArray(params['group-id'])
-    ? params['group-id'][0]
-    : params['group-id'];
+  const groupId = (
+    Array.isArray(params['group-id'])
+      ? params['group-id'][0]
+      : params['group-id']
+  ) as GroupIdT | undefined;
   const userId = useAuth.use.userId() as UserIdT;
-  const [schedulerOpen, setSchedulerOpen] = useState(false);
 
-  const { data: group } = useGroup({
+  const {
+    data: group,
+    isPending: groupPending,
+    isError: groupError,
+  } = useGroup({
     variables: groupId as GroupIdT,
     enabled: Boolean(groupId),
   });
   const memberIds: string[] = useMemo(() => group?.members ?? [], [group]);
+
+  const { data: events = [], isPending: eventsPending } = useEventsByGroupId({
+    variables: groupId as GroupIdT,
+    enabled: Boolean(groupId),
+  });
 
   const {
     messages,
@@ -68,33 +78,41 @@ export default function GroupChatScreen() {
     perfLog('chat_perf_log_path', { uri: getPerfLogFileUri() });
   }, [groupId]);
 
+  if (!groupId) {
+    return (
+      <View className="flex-1 items-center justify-center bg-charcoal-950" />
+    );
+  }
+
+  if (groupPending || groupError || !group) {
+    return (
+      <View className="flex-1 items-center justify-center bg-charcoal-950" />
+    );
+  }
+
   return (
     <View className="flex-1 bg-charcoal-950">
-      <Stack.Screen
-        options={{
-          title: group?.name ?? 'Chat',
-          headerRight: () => (
-            <TouchableOpacity
-              onPress={() => setSchedulerOpen(true)}
-              className="mr-4"
-              accessibilityLabel="Open availability scheduler"
-              accessibilityRole="button"
-            >
-              <Octicons name="calendar" size={22} color={colors.accent[100]} />
-            </TouchableOpacity>
-          ),
-        }}
+      <ChatScreenHeader
+        groupId={groupId}
+        groupName={group.name}
+        memberCount={memberIds.length}
+      />
+
+      <ChatEventsCollapsible
+        groupId={groupId}
+        events={events}
+        isPending={eventsPending}
       />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior="padding"
-        keyboardVerticalOffset={insets.top + HEADER_BAR}
+        keyboardVerticalOffset={insets.top + HEADER_BODY}
       >
         <MessageList
           messages={messages}
           currentUserId={userId}
-          groupId={groupId as GroupIdT}
+          groupId={groupId}
           senderNames={senderNames}
           isLoading={isLoading}
           isLoadingMore={isLoadingMore}
@@ -108,16 +126,6 @@ export default function GroupChatScreen() {
           disabled={!encryptionReady}
         />
       </KeyboardAvoidingView>
-
-      {schedulerOpen && group && (
-        <SchedulerModal
-          groupId={groupId as GroupIdT}
-          memberIds={memberIds}
-          memberNames={senderNames}
-          currentUserId={userId}
-          onClose={() => setSchedulerOpen(false)}
-        />
-      )}
     </View>
   );
 }

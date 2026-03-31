@@ -1,8 +1,19 @@
 /**
  * E2E keys: identity public keys stay in Firestore (`users/{userId}/e2eKeys/identity`).
  * Per-group encrypted key bundles live in Realtime Database: `groups/{groupId}/keyBundles/{userId}`.
+ *
+ * Stale-bundle recovery removes the current user's bundle when unwrap fails or when
+ * `recipientPublicKey` no longer matches the local identity key. RTDB rules must allow
+ * `remove` on `keyBundles/{request.auth.uid}` (and members with the group key must be
+ * able to `set` other members' bundles for re-wrap).
  */
-import { type DataSnapshot, get, ref as dbRef, set } from 'firebase/database';
+import {
+  type DataSnapshot,
+  get,
+  ref as dbRef,
+  remove,
+  set,
+} from 'firebase/database';
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 
 import { db, rtdb } from '@/api/common/firebase';
@@ -23,16 +34,25 @@ import {
 
 const pubKeyCache = new Map<string, string>();
 
+/** Bypass cache so bundle wrap/rewrap uses the latest registered identity key. */
+export function invalidateUserPublicKeyCache(userId: string): void {
+  pubKeyCache.delete(userId);
+}
+
 function keyBundlesPath(groupId: string): string {
   return `groups/${groupId}/keyBundles`;
 }
 
-function parseKeyBundle(snap: DataSnapshot): {
+export type ParsedKeyBundle = {
   encryptedGroupKey: string;
   senderPublicKey: string;
   nonce: string;
   keyVersion: number;
-} | null {
+  /** X25519 public key (base64) this ciphertext was wrapped for; absent on legacy bundles. */
+  recipientPublicKey?: string;
+};
+
+function parseKeyBundle(snap: DataSnapshot): ParsedKeyBundle | null {
   if (!snap.exists()) return null;
   const v = snap.val() as Record<string, unknown>;
   if (
@@ -42,12 +62,48 @@ function parseKeyBundle(snap: DataSnapshot): {
     typeof v.keyVersion !== 'number'
   )
     return null;
+  const recipientPublicKey =
+    typeof v.recipientPublicKey === 'string' ? v.recipientPublicKey : undefined;
   return {
     encryptedGroupKey: v.encryptedGroupKey,
     senderPublicKey: v.senderPublicKey,
     nonce: v.nonce,
     keyVersion: v.keyVersion,
+    recipientPublicKey,
   };
+}
+
+async function writeKeyBundle(
+  groupId: string,
+  memberId: string,
+  payload: {
+    encryptedGroupKey: string;
+    senderPublicKey: string;
+    nonce: string;
+    keyVersion: number;
+    recipientPublicKey: string;
+  }
+): Promise<void> {
+  await set(dbRef(rtdb, `${keyBundlesPath(groupId)}/${memberId}`), {
+    encryptedGroupKey: payload.encryptedGroupKey,
+    senderPublicKey: payload.senderPublicKey,
+    nonce: payload.nonce,
+    keyVersion: payload.keyVersion,
+    recipientPublicKey: payload.recipientPublicKey,
+    updatedAt: Date.now(),
+  });
+}
+
+/** Remove stale/corrupt bundle for the current user (RTDB rules must allow writes on own uid). */
+async function removeKeyBundleSafe(
+  groupId: string,
+  userId: string
+): Promise<void> {
+  try {
+    await remove(dbRef(rtdb, `${keyBundlesPath(groupId)}/${userId}`));
+  } catch (e) {
+    console.warn('removeKeyBundleSafe failed:', e);
+  }
 }
 
 /** Ensure identity key pair exists locally and is registered in Firestore. */
@@ -109,15 +165,13 @@ export async function ensureKeyBundlesForMissingMembers({
 
   await Promise.all(
     memberIds.map(async (memberId) => {
-      const existing = await get(
-        dbRef(rtdb, `${keyBundlesPath(groupId)}/${memberId}`)
-      );
-      if (existing.exists()) return;
-
-      const recipPub =
-        memberId === initiatorUserId
-          ? senderPub
-          : await fetchUserPublicKey(memberId);
+      let recipPub: string | null;
+      if (memberId === initiatorUserId) {
+        recipPub = senderPub;
+      } else {
+        invalidateUserPublicKeyCache(memberId);
+        recipPub = await fetchUserPublicKey(memberId);
+      }
       if (!recipPub) {
         console.warn(
           `ensureKeyBundlesForMissingMembers: skip ${memberId} (no public key)`
@@ -125,17 +179,33 @@ export async function ensureKeyBundlesForMissingMembers({
         return;
       }
 
+      const existing = await get(
+        dbRef(rtdb, `${keyBundlesPath(groupId)}/${memberId}`)
+      );
+      if (existing.exists()) {
+        const parsed = parseKeyBundle(existing);
+        if (
+          parsed?.recipientPublicKey &&
+          parsed.recipientPublicKey === recipPub
+        ) {
+          return;
+        }
+        if (parsed && !parsed.recipientPublicKey) {
+          return;
+        }
+      }
+
       const { ciphertext, nonce } = wrapGroupKey(
         groupKeyPlaintext,
         recipPub,
         senderPriv
       );
-      await set(dbRef(rtdb, `${keyBundlesPath(groupId)}/${memberId}`), {
+      await writeKeyBundle(groupId, memberId, {
         encryptedGroupKey: ciphertext,
         senderPublicKey: senderPub,
         nonce,
         keyVersion,
-        updatedAt: Date.now(),
+        recipientPublicKey: recipPub,
       });
     })
   );
@@ -190,12 +260,12 @@ export async function initGroupKey(
         recipPub,
         senderPriv
       );
-      await set(dbRef(rtdb, `${keyBundlesPath(groupId)}/${memberId}`), {
+      await writeKeyBundle(groupId, memberId, {
         encryptedGroupKey: ciphertext,
         senderPublicKey: senderPub,
         nonce,
         keyVersion: version,
-        updatedAt: Date.now(),
+        recipientPublicKey: recipPub,
       });
     })
   );
@@ -219,7 +289,19 @@ export async function resolveGroupKey(
   const data = parseKeyBundle(snap);
   if (!data) return null;
 
-  const { encryptedGroupKey, senderPublicKey, nonce, keyVersion } = data;
+  const {
+    encryptedGroupKey,
+    senderPublicKey,
+    nonce,
+    keyVersion,
+    recipientPublicKey,
+  } = data;
+
+  const myPub = getIdentityPublicKey();
+  if (recipientPublicKey && myPub && recipientPublicKey !== myPub) {
+    await removeKeyBundleSafe(groupId, userId);
+    return null;
+  }
 
   const cached = getGroupKey(groupId, keyVersion);
   if (cached) return cached;
@@ -227,14 +309,19 @@ export async function resolveGroupKey(
   const privKey = getIdentityPrivateKey();
   if (!privKey) return null;
 
-  const groupKey = unwrapGroupKey({
-    ciphertextB64: encryptedGroupKey,
-    nonceB64: nonce,
-    senderPublicKeyB64: senderPublicKey,
-    recipientPrivateKeyB64: privKey,
-  });
-  storeGroupKey(groupId, keyVersion, groupKey);
-  return groupKey;
+  try {
+    const groupKey = unwrapGroupKey({
+      ciphertextB64: encryptedGroupKey,
+      nonceB64: nonce,
+      senderPublicKeyB64: senderPublicKey,
+      recipientPrivateKeyB64: privKey,
+    });
+    storeGroupKey(groupId, keyVersion, groupKey);
+    return groupKey;
+  } catch {
+    await removeKeyBundleSafe(groupId, userId);
+    return null;
+  }
 }
 
 /** Check whether ALL members in a group have a key bundle entry. */

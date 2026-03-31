@@ -11,7 +11,6 @@ import type { EventPerson, UserIdT, UserWithId } from '@/types';
 
 type Props = {
   participants: (EventPerson & { id: UserIdT })[];
-  isEditMode: boolean;
   showPicker: boolean;
   groupMembers: UserWithId[];
   selectedParticipantIds: UserIdT[];
@@ -22,7 +21,6 @@ type Props = {
 
 export function EventParticipantsSection({
   participants,
-  isEditMode,
   showPicker,
   groupMembers,
   selectedParticipantIds,
@@ -53,27 +51,14 @@ export function EventParticipantsSection({
       <View>
         {participants.map((participant, index) => (
           <View key={participant.id} className="mb-3 flex-row items-center">
-            {isEditMode ? (
-              <View className="mr-3">
-                <PersonAvatar
-                  userId={participant.id}
-                  color={personAvatarColorForIndex(index)}
-                  size="md"
-                />
-              </View>
-            ) : (
-              <View
-                className="mr-3 size-8 items-center justify-center rounded-full"
-                style={{ backgroundColor: participant.color }}
-              >
-                <Text className="text-base font-bold text-white">
-                  {participant.name
-                    .split(' ')
-                    .map((n) => n[0])
-                    .join('')}
-                </Text>
-              </View>
-            )}
+            <View className="mr-3">
+              <PersonAvatar
+                userId={participant.id}
+                fallbackLabel={participant.name}
+                color={personAvatarColorForIndex(index)}
+                size="md"
+              />
+            </View>
             <Text className="text-base text-white">{participant.name}</Text>
           </View>
         ))}

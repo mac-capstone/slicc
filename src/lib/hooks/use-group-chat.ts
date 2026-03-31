@@ -1,5 +1,5 @@
 import { onValue, ref as dbRef } from 'firebase/database';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   ensureIdentityKeyPair,
@@ -46,6 +46,7 @@ export function useGroupChat(
   const [_encryptionError, setEncryptionError] = useState<Error | null>(null);
   const [messages, setMessages] = useState<ChatMessageWithId[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const lastKeyBundleRepairMs = useRef(0);
 
   // Drop key/messages when switching chat or user so we never decrypt with the wrong key.
   useEffect(() => {
@@ -177,14 +178,28 @@ export function useGroupChat(
     async (text: string) => {
       if (!groupId || !userId || !groupKey) return;
       setIsSending(true);
-      await sendTextMessage({
-        groupId,
-        senderId: userId,
-        plaintext: text,
-        groupKey,
-      }).finally(() => setIsSending(false));
+      try {
+        const now = Date.now();
+        if (now - lastKeyBundleRepairMs.current > 12_000) {
+          lastKeyBundleRepairMs.current = now;
+          await ensureKeyBundlesForMissingMembers({
+            groupId,
+            memberIds,
+            initiatorUserId: userId,
+            groupKeyPlaintext: groupKey,
+          });
+        }
+        await sendTextMessage({
+          groupId,
+          senderId: userId,
+          plaintext: text,
+          groupKey,
+        });
+      } finally {
+        setIsSending(false);
+      }
     },
-    [groupId, userId, groupKey]
+    [groupId, userId, groupKey, memberIds]
   );
 
   return {

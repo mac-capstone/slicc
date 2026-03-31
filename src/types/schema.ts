@@ -240,6 +240,7 @@ export const chatKeyBundleSchema = z.object({
   senderPublicKey: z.string(),
   nonce: z.string(),
   keyVersion: z.number(),
+  recipientPublicKey: z.string().optional(),
   updatedAt: firestoreTimestamp,
 });
 

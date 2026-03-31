@@ -24,13 +24,25 @@ const CW = 40; // day column width
 const CH = 24; // cell height (22px content + 1px margin × 2)
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 9); // 9 am – 10 pm
 const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-const LEGEND = [
-  colors.background[900],
-  colors.primary[900],
-  colors.primary[700],
-  colors.primary[500],
-  colors.primary[400],
-];
+function withAlpha(hex: string, opacity: number): string {
+  // RN supports 8-digit hex (#RRGGBBAA). Avoid rgba() per design request.
+  const a = Math.round(Math.min(1, Math.max(0, opacity)) * 255);
+  return `${hex}${a.toString(16).padStart(2, '0')}`;
+}
+
+export const SCHEDULER_LEGEND_COLORS = [
+  // None: #333333 at 30% opacity
+  withAlpha(colors.scheduler.noneBase, 0.3),
+  // Extra step (between none and low)
+  withAlpha(colors.scheduler.primary, 0.25),
+  // Low / Medium / High / All
+  withAlpha(colors.scheduler.primary, 0.4),
+  withAlpha(colors.scheduler.primary, 0.65),
+  withAlpha(colors.scheduler.primary, 0.85),
+  colors.scheduler.primary,
+] as const;
+
+const LEGEND = SCHEDULER_LEGEND_COLORS;
 
 const AVATAR_COLOR_KEYS = [
   'red',
@@ -56,24 +68,6 @@ function formatTimeKey(timeKey: string, addMinute: 0 | 30 = 0): string {
   return `${newH % 12 || 12}:${String(newM).padStart(2, '0')} ${period}`;
 }
 
-function slotAt({
-  x,
-  y,
-  hdrH,
-  slotKeysByDayAndSlotIndex,
-}: {
-  x: number;
-  y: number;
-  hdrH: number;
-  slotKeysByDayAndSlotIndex: string[][];
-}): string | null {
-  const di = Math.floor((x - LW) / CW);
-  if (di < 0 || di >= slotKeysByDayAndSlotIndex.length) return null;
-  const si = Math.floor((y - hdrH) / CH);
-  if (si < 0 || si >= HOURS.length * 2) return null;
-  return slotKeysByDayAndSlotIndex[di]?.[si] ?? null;
-}
-
 // ── Member avatar (overlap panel) ────────────────────────────────────────────
 
 type SchedulerMemberChipProps = {
@@ -92,7 +86,7 @@ function SchedulerMemberChip({
       <PersonAvatar
         userId={userId as UserIdT}
         fallbackLabel={name}
-        size={16}
+        size={20}
         color={avatarColorKeyForUid(userId)}
       />
     </TouchableOpacity>
@@ -114,8 +108,8 @@ type OverlapPanelProps = {
   onAvatarPress: (info: TooltipInfo) => void;
 };
 
-// Shows 3 avatars (16 px each + 2 px gap) before horizontal scroll kicks in
-const PANEL_W = 52;
+/** Wide enough for 2–3 avatars side by side without overlap before scroll. */
+const PANEL_W = 76;
 
 function OverlapPanel({
   hdrH,
@@ -129,7 +123,7 @@ function OverlapPanel({
         width: PANEL_W,
         paddingLeft: 6,
         borderLeftWidth: 1,
-        borderLeftColor: colors.background[900],
+        borderLeftColor: colors.charcoal[800],
       }}
     >
       {/* Header spacer — aligns with grid day-label row */}
@@ -158,7 +152,7 @@ function OverlapPanel({
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ alignItems: 'center', gap: 2 }}
+                  contentContainerStyle={{ alignItems: 'center', gap: 6 }}
                 >
                   {entries.map((entry) => {
                     const name = memberNames[entry.uid] ?? '?';
@@ -213,10 +207,7 @@ function DetailCard({
         const name = memberNames[entry.uid] ?? '?';
         const isSelected = entry.uid === info.entry.uid;
         return (
-          <View
-            key={entry.uid}
-            className="mb-0.5 flex-row items-center gap-1.5"
-          >
+          <View key={entry.uid} className="mb-0.5 flex-row items-center gap-1">
             <PersonAvatar
               userId={entry.uid as UserIdT}
               fallbackLabel={name}
@@ -251,9 +242,11 @@ type Props = {
   isDragging: boolean;
   memberCount: number;
   memberNames: Record<string, string>;
-  mySlots: Set<string>;
-  onBatchUpdate: (slots: Set<string>) => void;
+  mySlots: Set<number>;
+  onBatchUpdate: (slots: Set<number>) => void;
   onDragStateChange: (isDragging: boolean) => void;
+  /** When false, legend is omitted (e.g. show centered below the grid on a full page). */
+  showInlineLegend?: boolean;
 };
 
 export function SchedulerGrid({
@@ -266,13 +259,14 @@ export function SchedulerGrid({
   mySlots,
   onBatchUpdate,
   onDragStateChange,
+  showInlineLegend = true,
 }: Props) {
   const [hdrH, setHdrH] = useState(32);
   const [renderSlots, setRenderSlots] = useState(mySlots);
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null);
 
-  const pending = useRef(new Set<string>());
-  const visited = useRef(new Set<string>());
+  const pending = useRef(new Set<number>());
+  const visited = useRef(new Set<number>());
   const dragAction = useRef<'add' | 'remove' | null>(null);
 
   useEffect(() => {
@@ -304,6 +298,18 @@ export function SchedulerGrid({
     );
   }, [days]);
 
+  // Grid stops at 10:00 PM (no 10:30 PM row)
+  const slotsPerDay = HOURS.length * 2 - 1;
+  const slotKeysFlat = useMemo(() => {
+    const flat: string[] = [];
+    for (let di = 0; di < 7; di++) {
+      for (let si = 0; si < slotsPerDay; si++) {
+        flat.push(slotKeysByDayAndSlotIndex[di][si]);
+      }
+    }
+    return flat;
+  }, [slotKeysByDayAndSlotIndex, slotsPerDay]);
+
   // Base derived data is computed once from server state *excluding* the current
   // user. While dragging/tapping, we only adjust it with `renderSlots`
   // (optimistic selection), which is much cheaper than recomputing for all users.
@@ -327,10 +333,10 @@ export function SchedulerGrid({
     // per-time-row breakdown for the overlap panel.
     if (isDragging) return {};
     return computeTimeRowUsers(
-      { [currentUserId]: Array.from(renderSlots) },
+      { [currentUserId]: Array.from(renderSlots).map((i) => slotKeysFlat[i]!) },
       weekStart
     );
-  }, [renderSlots, weekStart, currentUserId, isDragging]);
+  }, [renderSlots, weekStart, currentUserId, isDragging, slotKeysFlat]);
 
   const timeRowUsers = useMemo(() => {
     const result: Record<string, TimeRowUserEntry[]> = {
@@ -345,39 +351,55 @@ export function SchedulerGrid({
 
   // ── Gesture helpers ───────────────────────────────────────────────────────
 
-  function applySlot(slot: string) {
-    if (visited.current.has(slot)) return;
-    visited.current.add(slot);
+  function applySlot(slotIndex: number) {
+    if (visited.current.has(slotIndex)) return;
+    visited.current.add(slotIndex);
     const next = new Set(pending.current);
-    if (dragAction.current === 'add') next.add(slot);
-    else next.delete(slot);
+    if (dragAction.current === 'add') next.add(slotIndex);
+    else next.delete(slotIndex);
     pending.current = next;
     setRenderSlots(new Set(next));
   }
 
   function handleTap(x: number, y: number) {
-    const slot = slotAt({ x, y, hdrH, slotKeysByDayAndSlotIndex });
-    if (!slot) return;
-    const next = new Set(mySlots);
-    if (next.has(slot)) next.delete(slot);
-    else next.add(slot);
+    const di = Math.floor((x - LW) / CW);
+    if (di < 0 || di >= 7) return;
+    const si = Math.floor((y - hdrH) / CH);
+    if (si < 0 || si >= slotsPerDay) return;
+    const idx = di * slotsPerDay + si;
+
+    // Use a ref-based source of truth so two taps before a React re-render
+    // never clobber each other.
+    const next = new Set(pending.current.size ? pending.current : renderSlots);
+    if (next.has(idx)) next.delete(idx);
+    else next.add(idx);
+    pending.current = new Set(next);
+    setRenderSlots(new Set(next));
     onBatchUpdate(next);
   }
 
   function handleDragStart(x: number, y: number) {
-    const slot = slotAt({ x, y, hdrH, slotKeysByDayAndSlotIndex });
-    if (!slot) return;
+    const di = Math.floor((x - LW) / CW);
+    if (di < 0 || di >= 7) return;
+    const si = Math.floor((y - hdrH) / CH);
+    if (si < 0 || si >= slotsPerDay) return;
+    const idx = di * slotsPerDay + si;
+
     pending.current = new Set(mySlots);
     visited.current = new Set();
-    dragAction.current = mySlots.has(slot) ? 'remove' : 'add';
+    dragAction.current = mySlots.has(idx) ? 'remove' : 'add';
     perfLog('scheduler_drag_start', { mode: dragAction.current });
     onDragStateChange(true);
-    applySlot(slot);
+    applySlot(idx);
   }
 
   function handleDragMove(x: number, y: number) {
-    const slot = slotAt({ x, y, hdrH, slotKeysByDayAndSlotIndex });
-    if (slot) applySlot(slot);
+    const di = Math.floor((x - LW) / CW);
+    if (di < 0 || di >= 7) return;
+    const si = Math.floor((y - hdrH) / CH);
+    if (si < 0 || si >= slotsPerDay) return;
+    const idx = di * slotsPerDay + si;
+    applySlot(idx);
   }
 
   function handleDragEnd() {
@@ -392,14 +414,14 @@ export function SchedulerGrid({
   }
 
   const tap = Gesture.Tap()
-    .maxDeltaX(16)
-    .maxDeltaY(16)
+    .maxDeltaX(32)
+    .maxDeltaY(32)
     .onEnd((e, success) => {
       if (success) runOnJS(handleTap)(e.x, e.y);
     });
 
   const drag = Gesture.Pan()
-    .activateAfterLongPress(100)
+    .activateAfterLongPress(180)
     .onStart((e) => runOnJS(handleDragStart)(e.x, e.y))
     .onUpdate((e) => runOnJS(handleDragMove)(e.x, e.y))
     .onFinalize(() => runOnJS(handleDragEnd)());
@@ -457,7 +479,8 @@ export function SchedulerGrid({
                       </View>
                       {days.map((_, di) => {
                         const k = slotKeysByDayAndSlotIndex[di][slotIndex];
-                        const isMine = renderSlots.has(k);
+                        const idx = di * slotsPerDay + slotIndex;
+                        const isMine = renderSlots.has(idx);
                         const count =
                           (baseSlotCounts[k] ?? 0) + (isMine ? 1 : 0);
                         return (
@@ -475,17 +498,28 @@ export function SchedulerGrid({
                 })
             )}
 
-            {/* Legend */}
-            <View className="mt-3 flex-row items-center gap-1.5 px-1">
-              {LEGEND.map((c, i) => (
+            {showInlineLegend ? (
+              <View className="mt-3 flex-row items-center gap-1.5 px-1">
+                {LEGEND.map((c, i) => (
+                  <View
+                    key={i}
+                    className="size-3 rounded-sm"
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
                 <View
-                  key={i}
                   className="size-3 rounded-sm"
-                  style={{ backgroundColor: c }}
+                  style={{
+                    backgroundColor: 'transparent',
+                    borderWidth: 1.5,
+                    borderColor: colors.scheduler.mine,
+                  }}
                 />
-              ))}
-              <Text className="text-[9px] text-text-800">None → All</Text>
-            </View>
+                <Text className="text-[9px] text-text-800">
+                  None → All · Me
+                </Text>
+              </View>
+            ) : null}
           </View>
         </GestureDetector>
 
@@ -507,6 +541,34 @@ export function SchedulerGrid({
           onDismiss={() => setTooltip(null)}
         />
       )}
+    </View>
+  );
+}
+
+/** Centered “None → All” scale for full-screen availability. */
+export function SchedulerLegendFooter() {
+  return (
+    <View className="flex-row items-center justify-center gap-2 py-5">
+      {SCHEDULER_LEGEND_COLORS.map((c, i) => (
+        <View
+          key={i}
+          className="rounded-full"
+          style={{ width: 14, height: 14, backgroundColor: c }}
+        />
+      ))}
+      <View
+        className="rounded-full"
+        style={{
+          width: 14,
+          height: 14,
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          borderColor: colors.scheduler.mine,
+        }}
+      />
+      <Text className="text-xs" style={{ color: colors.charcoal[400] }}>
+        None → All · Me
+      </Text>
     </View>
   );
 }
