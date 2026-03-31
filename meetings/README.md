@@ -6,7 +6,7 @@
 - [September 15, 2025 - Second Meeting](#september-15-2025---second-meeting)
 - [September 19, 2025 - Third Meeting](#september-19-2025---third-meeting)
 - [October 4, 2025 - Fourth Meeting](#october-4-2025---fourth-meeting)
-- [October 9, 2025 - Fifth Meeting](#october-10-2025---fifth-meeting)
+- [October 10, 2025 - Fifth Meeting](#october-10-2025---fifth-meeting)
 - [October 23, 2025 - Sixth Meeting](#october-23-2025---sixth-meeting)
 - [October 30, 2025 - Seventh Meeting](#october-30-2025---seventh-meeting)
 - [November 4, 2025 - Eighth Meeting](#november-4-2025---eighth-meeting)
@@ -122,7 +122,7 @@
 
 ---
 
-# October 23, 2025 - Sixth Meeting
+## October 23, 2025 - Sixth Meeting
 
 **Attendees:**
 
@@ -140,7 +140,7 @@
 
 ---
 
-# October 30, 2025 - Seventh Meeting
+## October 30, 2025 - Seventh Meeting
 
 **Attendees:**
 
@@ -160,7 +160,7 @@
 
 ---
 
-# November 4, 2025 - Eighth Meeting
+## November 4, 2025 - Eighth Meeting
 
 **Attendees:**
 
@@ -182,7 +182,7 @@
 
 ---
 
-# November 6, 2025 - Ninth Meeting
+## November 6, 2025 - Ninth Meeting
 
 **Attendees:**
 
@@ -201,7 +201,7 @@
 
 ---
 
-# November 13, 2025 - Tenth Meeting
+## November 13, 2025 - Tenth Meeting
 
 **Attendees:**
 
@@ -214,11 +214,11 @@
 
 - Review progress on assigned modules according to PoC Figma and Linear tasks.
 - Discuss any challenges faced during development.
-- Plan next steps and set deadlines for UImodule completion.
+- Plan next steps and set deadlines for UI module completion.
 
 ---
 
-# November 19, 2025 - Eleventh Meeting
+## November 19, 2025 - Eleventh Meeting
 
 **Attendees:**
 
@@ -238,7 +238,7 @@
 
 ---
 
-# November 20, 2025 - Twelfth Meeting
+## November 20, 2025 - Twelfth Meeting
 
 **Attendees:**
 
@@ -257,7 +257,7 @@
 
 ---
 
-# January 7th, 2026 - Thirteenth Meeting
+## January 7th, 2026 - Thirteenth Meeting
 
 **Attendees:**
 
@@ -359,7 +359,7 @@ Meeting to be held with everyone for design doc/v&v ASAP
 
 ---
 
-# January 14th, 2026 - Fourteenth Meeting
+## January 14th, 2026 - Fourteenth Meeting
 
 **Attendees:**
 
@@ -405,7 +405,7 @@ Hadi and Eduardo will be working on the V&V.
 
 ---
 
-# March 4th, 2026 - Fifteenth Meeting
+## March 4th, 2026 - Fifteenth Meeting
 
 **Attendees:**
 
@@ -492,7 +492,7 @@ Now using react native reusable component library. All components should use exi
 
 ---
 
-# March 29th, 2026 - Design Review
+## March 29th, 2026 - Design Review
 
 Chat
 
