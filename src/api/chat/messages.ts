@@ -1,3 +1,5 @@
+import { fetch as expoFetch } from 'expo/fetch';
+import { File } from 'expo-file-system';
 import {
   type DataSnapshot,
   endBefore,
@@ -12,16 +14,53 @@ import {
   serverTimestamp,
   set,
 } from 'firebase/database';
+import { getBytes, ref as storageRef } from 'firebase/storage';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { rtdb } from '@/api/common/firebase';
-import { encryptMessage } from '@/lib/crypto/e2e-crypto';
+import { auth, rtdb, storage } from '@/api/common/firebase';
+import {
+  b64ToBytes,
+  encryptBytes,
+  encryptMessage,
+} from '@/lib/crypto/e2e-crypto';
 import type { ChatMessageIdT, ChatMessageWithId, LocationShare } from '@/types';
 
 const PAGE_SIZE = 30;
 
 function messagesPath(groupId: string): string {
   return `groups/${groupId}/messages`;
+}
+
+async function uploadEncryptedBytesToFirebaseStorage({
+  objectPath,
+  ciphertextB64,
+}: {
+  objectPath: string;
+  ciphertextB64: string;
+}): Promise<void> {
+  const rawBucket = storage.app.options.storageBucket;
+  if (!rawBucket) throw new Error('Missing Firebase storageBucket config');
+  // Accept both "bucket-name" and "gs://bucket-name" formats.
+  const bucket = rawBucket.startsWith('gs://')
+    ? rawBucket.slice('gs://'.length)
+    : rawBucket;
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error('Not authenticated');
+
+  const url = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o?uploadType=media&name=${encodeURIComponent(objectPath)}`;
+  // Use Expo's fetch so RN can send Uint8Array bodies reliably.
+  const res = await expoFetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/octet-stream',
+    },
+    body: b64ToBytes(ciphertextB64) as unknown as BodyInit,
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Storage upload failed (${res.status}): ${text}`);
+  }
 }
 
 /** Normalize RTDB JSON into the same `ChatMessage` shape the UI already expects. */
@@ -34,7 +73,13 @@ function parseChatMessageRtdb(
   const senderId = r.senderId;
   const type = r.type;
   if (typeof senderId !== 'string') return null;
-  if (type !== 'text' && type !== 'location' && type !== 'system') return null;
+  if (
+    type !== 'text' &&
+    type !== 'image' &&
+    type !== 'location' &&
+    type !== 'system'
+  )
+    return null;
 
   let sentAt: Date;
   const st = r.sentAt;
@@ -69,6 +114,9 @@ function parseChatMessageRtdb(
       typeof r.encryptedContent === 'string' ? r.encryptedContent : undefined,
     nonce: typeof r.nonce === 'string' ? r.nonce : undefined,
     keyVersion: typeof r.keyVersion === 'number' ? r.keyVersion : 0,
+    imagePath: typeof r.imagePath === 'string' ? r.imagePath : undefined,
+    mimeType: typeof r.mimeType === 'string' ? r.mimeType : undefined,
+    fileName: typeof r.fileName === 'string' ? r.fileName : undefined,
     locationPayload:
       r.locationPayload && typeof r.locationPayload === 'object'
         ? (r.locationPayload as LocationShare)
@@ -254,6 +302,58 @@ export async function sendTextMessage({
     sentAt: serverTimestamp(),
     readBy: [],
   });
+}
+
+export async function sendImageMessage({
+  groupId,
+  senderId,
+  localUri,
+  mimeType,
+  fileName,
+  groupKey,
+}: {
+  groupId: string;
+  senderId: string;
+  localUri: string;
+  mimeType: string;
+  fileName: string;
+  groupKey: string;
+}): Promise<void> {
+  // Read local image bytes using the non-deprecated Expo File API.
+  const file = new File(localUri);
+  const bytes = await file.bytes();
+
+  // Encrypt bytes with group key
+  const { ciphertext, nonce } = encryptBytes(bytes, groupKey);
+
+  const safeName = fileName.replace(/[^\w.\-]/g, '_');
+  const storagePath = `groups/${groupId}/${Date.now()}_${safeName}.enc`;
+  // Firebase Storage web SDK upload path uses Blobs internally and breaks on RN.
+  // Use the Storage REST endpoint instead (authorized with the Firebase ID token).
+  await uploadEncryptedBytesToFirebaseStorage({
+    objectPath: storagePath,
+    ciphertextB64: ciphertext,
+  });
+
+  const msgRef = push(dbRef(rtdb, messagesPath(groupId)));
+  await set(msgRef, {
+    senderId,
+    type: 'image',
+    imagePath: storagePath,
+    mimeType,
+    fileName,
+    nonce,
+    keyVersion: 0,
+    sentAt: serverTimestamp(),
+    readBy: [],
+  });
+}
+
+export async function fetchEncryptedImageBytes(
+  storagePath: string
+): Promise<Uint8Array> {
+  const buf = await getBytes(storageRef(storage, storagePath));
+  return new Uint8Array(buf);
 }
 
 /** Send a location share (plaintext -- public place data) to a group chat. */

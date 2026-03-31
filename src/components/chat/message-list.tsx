@@ -10,6 +10,7 @@ type Props = {
   messages: ChatMessageWithId[];
   currentUserId: UserIdT | null;
   groupId: string;
+  groupKey: string | null;
   senderNames: Record<string, string>;
   isLoading: boolean;
   isLoadingMore: boolean;
@@ -40,6 +41,7 @@ export function MessageList({
   messages,
   currentUserId,
   groupId,
+  groupKey,
   senderNames,
   isLoading,
   isLoadingMore,
@@ -99,6 +101,7 @@ export function MessageList({
               senderName={senderNames[item.senderId] ?? 'Member'}
               currentUserId={currentUserId ?? ''}
               groupId={groupId}
+              groupKey={groupKey}
             />
           </View>
         );

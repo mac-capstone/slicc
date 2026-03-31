@@ -8,7 +8,11 @@ import {
   resolveGroupKey,
 } from '@/api/chat/key-api';
 import type { UseMessagesResult } from '@/api/chat/messages';
-import { sendTextMessage, useMessages } from '@/api/chat/messages';
+import {
+  sendImageMessage,
+  sendTextMessage,
+  useMessages,
+} from '@/api/chat/messages';
 import { rtdb } from '@/api/common/firebase';
 import { decryptMessage } from '@/lib/crypto/e2e-crypto';
 import { perfLog } from '@/lib/perf-log';
@@ -22,7 +26,13 @@ type UseChatResult = {
   loadMore: UseMessagesResult['loadMore'];
   isSending: boolean;
   encryptionReady: boolean;
+  groupKey: string | null;
   send: (text: string) => Promise<void>;
+  sendImage: (args: {
+    uri: string;
+    mimeType: string;
+    fileName: string;
+  }) => Promise<void>;
 };
 
 /**
@@ -202,6 +212,44 @@ export function useGroupChat(
     [groupId, userId, groupKey, memberIds]
   );
 
+  const sendImage = useCallback(
+    async ({
+      uri,
+      mimeType,
+      fileName,
+    }: {
+      uri: string;
+      mimeType: string;
+      fileName: string;
+    }) => {
+      if (!groupId || !userId || !groupKey) return;
+      setIsSending(true);
+      try {
+        const now = Date.now();
+        if (now - lastKeyBundleRepairMs.current > 12_000) {
+          lastKeyBundleRepairMs.current = now;
+          await ensureKeyBundlesForMissingMembers({
+            groupId,
+            memberIds,
+            initiatorUserId: userId,
+            groupKeyPlaintext: groupKey,
+          });
+        }
+        await sendImageMessage({
+          groupId,
+          senderId: userId,
+          localUri: uri,
+          mimeType,
+          fileName,
+          groupKey,
+        });
+      } finally {
+        setIsSending(false);
+      }
+    },
+    [groupId, userId, groupKey, memberIds]
+  );
+
   return {
     messages,
     isLoading,
@@ -210,6 +258,8 @@ export function useGroupChat(
     loadMore,
     isSending,
     encryptionReady,
+    groupKey,
     send,
+    sendImage,
   };
 }

@@ -214,10 +214,14 @@ export const locationPayloadSchema = z.object({
 
 export const chatMessageSchema = z.object({
   senderId: z.string(),
-  type: z.enum(['text', 'location', 'system']),
+  type: z.enum(['text', 'image', 'location', 'system']),
   encryptedContent: z.string().optional(),
   nonce: z.string().optional(),
   keyVersion: z.number().default(0),
+  // For `type: "image"`: encrypted bytes are stored in Firebase Storage at `imagePath`.
+  imagePath: z.string().optional(),
+  mimeType: z.string().optional(),
+  fileName: z.string().optional(),
   locationPayload: locationPayloadSchema.optional(),
   systemText: z.string().optional(),
   // serverTimestamp() resolves to null on the first local snapshot (pending write),

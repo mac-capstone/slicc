@@ -32,6 +32,14 @@ function fromB64(b64: string): Uint8Array {
   return bytes;
 }
 
+export function bytesToB64(bytes: Uint8Array): string {
+  return toB64(bytes);
+}
+
+export function b64ToBytes(b64: string): Uint8Array {
+  return fromB64(b64);
+}
+
 // ── Identity key pair (X25519) ─────────────────────────────────────────────
 
 export type KeyPairB64 = { publicKeyB64: string; privateKeyB64: string };
@@ -127,6 +135,29 @@ export function decryptMessage(
   );
   if (!plain) throw new Error('decryptMessage: decryption failed');
   return new TextDecoder().decode(plain);
+}
+
+export function encryptBytes(
+  plaintextBytes: Uint8Array,
+  groupKeyB64: string
+): { ciphertext: string; nonce: string } {
+  const nonce = nacl.randomBytes(nacl.secretbox.nonceLength); // 24 bytes
+  const box = nacl.secretbox(plaintextBytes, nonce, fromB64(groupKeyB64));
+  return { ciphertext: toB64(box), nonce: toB64(nonce) };
+}
+
+export function decryptBytes(
+  ciphertextB64: string,
+  nonceB64: string,
+  groupKeyB64: string
+): Uint8Array {
+  const plain = nacl.secretbox.open(
+    fromB64(ciphertextB64),
+    fromB64(nonceB64),
+    fromB64(groupKeyB64)
+  );
+  if (!plain) throw new Error('decryptBytes: decryption failed');
+  return plain;
 }
 
 // ── KDF ratchet (forward secrecy) ─────────────────────────────────────────

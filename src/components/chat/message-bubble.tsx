@@ -1,9 +1,10 @@
 import * as React from 'react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { TouchableOpacity, View } from 'react-native';
 
-import { toggleReaction } from '@/api/chat/messages';
-import { colors, Text } from '@/components/ui';
+import { fetchEncryptedImageBytes, toggleReaction } from '@/api/chat/messages';
+import { colors, Image, Text } from '@/components/ui';
+import { bytesToB64, decryptBytes } from '@/lib/crypto/e2e-crypto';
 import type { ChatMessageWithId } from '@/types';
 
 import { LocationCard } from './location-card';
@@ -16,6 +17,7 @@ type Props = {
   senderName: string;
   currentUserId: string;
   groupId: string;
+  groupKey: string | null;
 };
 
 function formatTime(date: Date): string {
@@ -38,12 +40,41 @@ export function MessageBubble({
   senderName,
   currentUserId,
   groupId,
+  groupKey,
 }: Props) {
   const [pickerVisible, setPickerVisible] = useState(false);
 
-  if (message.type === 'system') {
-    return <SystemMessage text={message.systemText ?? ''} />;
-  }
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageLoadFailed, setImageLoadFailed] = useState(false);
+  const isSystem = message.type === 'system';
+
+  const isLockedText =
+    message.type === 'text' &&
+    (message.decryptedContent == null || message.decryptedContent === '');
+
+  useEffect(() => {
+    let cancelled = false;
+    if (message.type !== 'image') return () => {};
+    if (!groupKey || !message.imagePath || !message.nonce) return () => {};
+    if (imageUri || imageLoadFailed) return () => {};
+
+    async function run() {
+      try {
+        const cipherBytes = await fetchEncryptedImageBytes(message.imagePath!);
+        const cipherB64 = bytesToB64(cipherBytes);
+        const plainBytes = decryptBytes(cipherB64, message.nonce!, groupKey!);
+        const mime = message.mimeType ?? 'image/jpeg';
+        const uri = `data:${mime};base64,${bytesToB64(plainBytes)}`;
+        if (!cancelled) setImageUri(uri);
+      } catch {
+        if (!cancelled) setImageLoadFailed(true);
+      }
+    }
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [message, groupKey, imageUri, imageLoadFailed]);
 
   function handleReactionToggle(emoji: string) {
     toggleReaction({
@@ -57,6 +88,61 @@ export function MessageBubble({
 
   const bubbleBg = isMine ? colors.accent[100] : colors.charcoal[850];
   const bubbleTextColor = isMine ? colors.charcoal[950] : colors.white;
+  const bubbleInner = useMemo(() => {
+    if (isSystem) return null;
+    if (message.type === 'location' && message.locationPayload) {
+      return <LocationCard location={message.locationPayload} />;
+    }
+    if (message.type === 'image') {
+      if (imageUri) {
+        return (
+          <Image
+            source={{ uri: imageUri }}
+            style={{ width: 220, height: 220, borderRadius: 14 }}
+            contentFit="cover"
+          />
+        );
+      }
+      if (imageLoadFailed) {
+        return (
+          <Text
+            className="text-sm leading-5"
+            style={{ color: bubbleTextColor }}
+          >
+            Image unavailable
+          </Text>
+        );
+      }
+      return (
+        <View
+          style={{
+            width: 220,
+            height: 220,
+            borderRadius: 14,
+            backgroundColor: isMine ? colors.accent[200] : colors.charcoal[800],
+          }}
+        />
+      );
+    }
+    if (isLockedText) return null; // locked messages should never show
+    return (
+      <Text className="text-sm leading-5" style={{ color: bubbleTextColor }}>
+        {message.decryptedContent}
+      </Text>
+    );
+  }, [
+    isSystem,
+    message,
+    imageUri,
+    imageLoadFailed,
+    bubbleTextColor,
+    isMine,
+    isLockedText,
+  ]);
+
+  // If it's a locked text message, render nothing.
+  if (message.type === 'text' && isLockedText) return null;
+  if (isSystem) return <SystemMessage text={message.systemText ?? ''} />;
 
   return (
     // maxWidth caps the bubble at 80 % of screen width so long messages wrap.
@@ -87,16 +173,7 @@ export function MessageBubble({
             paddingVertical: 8,
           }}
         >
-          {message.type === 'location' && message.locationPayload ? (
-            <LocationCard location={message.locationPayload} />
-          ) : (
-            <Text
-              className="text-sm leading-5"
-              style={{ color: bubbleTextColor }}
-            >
-              {message.decryptedContent ?? '🔒'}
-            </Text>
-          )}
+          {bubbleInner}
         </View>
       </TouchableOpacity>
 

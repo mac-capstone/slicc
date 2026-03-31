@@ -54,7 +54,9 @@ export default function GroupChatScreen() {
     loadMore,
     isSending,
     encryptionReady,
+    groupKey,
     send,
+    sendImage,
   } = useGroupChat((groupId as GroupIdT) ?? null, userId, memberIds);
 
   const memberQueries = useQueries({
@@ -98,11 +100,7 @@ export default function GroupChatScreen() {
         memberCount={memberIds.length}
       />
 
-      <ChatEventsCollapsible
-        groupId={groupId}
-        events={events}
-        isPending={eventsPending}
-      />
+      <ChatEventsCollapsible events={events} isPending={eventsPending} />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -118,10 +116,12 @@ export default function GroupChatScreen() {
           isLoadingMore={isLoadingMore}
           hasMore={hasMore}
           loadMore={loadMore}
+          groupKey={groupKey}
         />
 
         <ChatInput
           onSend={send}
+          onSendImage={sendImage}
           isSending={isSending}
           disabled={!encryptionReady}
         />

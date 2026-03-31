@@ -1,18 +1,24 @@
 import Feather from '@expo/vector-icons/Feather';
 import Octicons from '@expo/vector-icons/Octicons';
+import * as ImagePicker from 'expo-image-picker';
 import * as React from 'react';
 import { useState } from 'react';
-import { TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { colors } from '@/components/ui';
 
 type Props = {
   onSend: (text: string) => void;
+  onSendImage: (args: {
+    uri: string;
+    mimeType: string;
+    fileName: string;
+  }) => void;
   isSending: boolean;
   disabled?: boolean;
 };
 
-export function ChatInput({ onSend, isSending, disabled }: Props) {
+export function ChatInput({ onSend, onSendImage, isSending, disabled }: Props) {
   const [text, setText] = useState('');
 
   const handleSend = () => {
@@ -22,12 +28,38 @@ export function ChatInput({ onSend, isSending, disabled }: Props) {
     setText('');
   };
 
+  const handlePickImage = async () => {
+    if (disabled || isSending) return;
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Permission required',
+        'Please allow photo library access to send images.'
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 1,
+    });
+    if (result.canceled) return;
+    const asset = result.assets?.[0];
+    if (!asset?.uri) return;
+    const mimeType = asset.mimeType ?? 'image/jpeg';
+    const fileName =
+      asset.fileName ??
+      `image_${Date.now()}.${mimeType.includes('png') ? 'png' : 'jpg'}`;
+    onSendImage({ uri: asset.uri, mimeType, fileName });
+  };
+
   return (
     <View
       className="flex-row items-end gap-2 border-t border-charcoal-800 bg-charcoal-900 p-2"
       style={{ paddingBottom: 16, backgroundColor: colors.charcoal[900] }}
     >
       <TouchableOpacity
+        onPress={handlePickImage}
         className="mb-1.5 size-10 items-center justify-center"
         accessibilityLabel="Attach image"
         accessibilityRole="button"
