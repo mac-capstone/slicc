@@ -8,7 +8,7 @@ import {
   serverTimestamp,
   writeBatch,
 } from 'firebase/firestore';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { queryClient } from '@/api';
@@ -29,9 +29,11 @@ export default function ExpenseView() {
   const router = useRouter();
   const theme = useThemeConfig();
   const [loading, setLoading] = useState(false);
-  const { id, viewMode } = useLocalSearchParams<{
+  const isProcessingRef = useRef(false);
+  const { id, viewMode, eventId } = useLocalSearchParams<{
     id: ExpenseIdT;
     viewMode: 'view' | 'confirm';
+    eventId?: string;
   }>();
   const [mode, setMode] = useState<'split' | 'items'>('split');
   const { data, isPending, isError } = useExpense({
@@ -59,7 +61,8 @@ export default function ExpenseView() {
   });
 
   const handleConfirmExpense = async () => {
-    if (loading) return;
+    if (loading || isProcessingRef.current) return;
+    isProcessingRef.current = true;
     setLoading(true);
     try {
       const tempExpenseState = getTempExpenseState();
@@ -114,11 +117,10 @@ export default function ExpenseView() {
 
         await batch.commit();
         clearTempExpense();
-        await queryClient.invalidateQueries({
-          queryKey: ['expenses'],
-          refetchType: 'all',
-        });
-        router.push('/');
+        queryClient.removeQueries({ queryKey: ['expenses'] });
+        queryClient.removeQueries({ queryKey: ['items'] });
+        queryClient.removeQueries({ queryKey: ['people'] });
+        router.replace(`/expense/${origId}` as any);
         return;
       }
 
@@ -131,6 +133,8 @@ export default function ExpenseView() {
           name: tempExpenseState!.name,
           date: tempExpenseState!.date,
           createdBy: tempExpenseState!.createdBy,
+          payerUserId: tempExpenseState!.payerUserId,
+          ...(eventId ? { eventId } : {}),
           totalAmount: tempExpenseState!.totalAmount,
           remainingAmount: tempExpenseState!.remainingAmount ?? 0,
           participantCount: tempExpenseState!.participantCount ?? 0,
@@ -143,9 +147,11 @@ export default function ExpenseView() {
         );
         activeCreatePeople.forEach((person) => {
           const personDocRef = doc(expenseDocRef, 'people', person.id);
+          const isGuest = person.userRef === null;
           batch.set(personDocRef, {
             subtotal: person.subtotal,
             paid: person.paid ?? 0,
+            ...(isGuest && person.name ? { guestName: person.name } : {}),
           });
         });
 
@@ -167,7 +173,11 @@ export default function ExpenseView() {
           queryKey: ['expenses'],
           refetchType: 'all',
         });
-        router.push('/');
+        if (eventId) {
+          router.replace(`/event/${eventId}/expenses` as any);
+        } else {
+          router.replace(`/expense/${expenseDocRef.id}` as any);
+        }
         return;
       }
       router.push('/');
@@ -175,6 +185,7 @@ export default function ExpenseView() {
       Alert.alert('Error', 'Failed to save expense. Please try again.');
       console.error('Error saving expense:', error);
     } finally {
+      isProcessingRef.current = false;
       setLoading(false);
     }
   };
@@ -207,13 +218,21 @@ export default function ExpenseView() {
                           queryClient.invalidateQueries({
                             queryKey: ['expenses', 'expenseId', id],
                           });
-                          router.replace('/');
+                          if (eventId) {
+                            router.replace(`/event/${eventId}/expenses` as any);
+                          } else {
+                            router.replace('/expenses' as any);
+                          }
                         },
                       },
                     ]
                   );
                 } else {
-                  router.back();
+                  if (eventId) {
+                    router.replace(`/event/${eventId}/expenses` as any);
+                  } else {
+                    router.replace('/expenses' as any);
+                  }
                 }
                 return true;
               }}
@@ -271,7 +290,7 @@ export default function ExpenseView() {
         <View className="pt-4">
           {mode === 'split' && (
             <View className="">
-              <ExpenseSplitMode expenseId={id} />
+              <ExpenseSplitMode expenseId={id} payerUserId={data.payerUserId} />
             </View>
           )}
           {mode === 'items' && (
@@ -295,7 +314,13 @@ export default function ExpenseView() {
   );
 }
 
-export const ExpenseSplitMode = ({ expenseId }: { expenseId: ExpenseIdT }) => {
+export const ExpenseSplitMode = ({
+  expenseId,
+  payerUserId,
+}: {
+  expenseId: ExpenseIdT;
+  payerUserId?: string;
+}) => {
   const { data, isPending, isError } = usePeopleIds({
     variables: expenseId,
   });
@@ -310,10 +335,14 @@ export const ExpenseSplitMode = ({ expenseId }: { expenseId: ExpenseIdT }) => {
       <FlashList
         data={data}
         renderItem={({ item }) => (
-          <PersonCard personId={item} expenseId={expenseId} />
+          <PersonCard
+            personId={item}
+            expenseId={expenseId}
+            payerUserId={payerUserId}
+          />
         )}
         keyExtractor={(item) => item}
-        ItemSeparatorComponent={() => <View className="h-3" />} // 12px gap
+        ItemSeparatorComponent={() => <View className="h-3" />}
       />
     </View>
   );
