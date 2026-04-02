@@ -214,7 +214,7 @@ const _useExpenseCreation = create<ExpenseCreationState>((set, get) => ({
       items: updatedItems,
       people: updatedPeople,
       totalAmount: current.totalAmount + amountDiff,
-      remainingAmount: current.remainingAmount + amountDiff,
+      remainingAmount: (current.remainingAmount ?? 0) + amountDiff,
     };
     set({ tempExpense: updated });
     setTempExpense(updated);
