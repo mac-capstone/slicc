@@ -21,7 +21,7 @@ import { ItemCard } from '@/components/item-card';
 import { PersonCard } from '@/components/person-card';
 import { SegmentToggle } from '@/components/segment-toggle';
 import { ActivityIndicator, Pressable, Text, View } from '@/components/ui';
-import { clearTempExpense } from '@/lib/store';
+import { clearTempExpense, getTempExpenseState } from '@/lib/store';
 import { useThemeConfig } from '@/lib/use-theme-config';
 import { type ExpenseIdT } from '@/types';
 
@@ -62,49 +62,110 @@ export default function ExpenseView() {
     if (loading) return;
     setLoading(true);
     try {
-      if (id === 'temp-expense') {
-        const batch = writeBatch(db);
-        const expenseDocRef = doc(collection(db, 'expenses'));
+      const tempExpenseState = getTempExpenseState();
 
-        batch.set(expenseDocRef, {
-          name: data.name,
-          date: data.date,
-          createdBy: data.createdBy,
-          totalAmount: data.totalAmount,
-          remainingAmount: data.remainingAmount ?? 0,
-          participantCount: data.participantCount ?? 0,
-          createdAt: serverTimestamp(),
+      if (id === 'temp-expense' && tempExpenseState?.originalExpenseId) {
+        // UPDATE existing expense — read from Zustand (always current)
+        const origId = tempExpenseState.originalExpenseId;
+        const batch = writeBatch(db);
+        const expenseDocRef = doc(db, 'expenses', origId);
+
+        // Delete old subcollection docs so stale items/people don't linger
+        tempExpenseState.originalItemIds?.forEach((itemId) => {
+          batch.delete(doc(db, 'expenses', origId, 'items', itemId));
+        });
+        tempExpenseState.originalPersonIds?.forEach((personId) => {
+          batch.delete(doc(db, 'expenses', origId, 'people', personId));
+        });
+
+        // Write updated people (skip anyone with subtotal 0)
+        const activeUpdatePeople = tempExpenseState.people.filter(
+          (p) => p.subtotal > 0
+        );
+        activeUpdatePeople.forEach((person) => {
+          const personDocRef = doc(db, 'expenses', origId, 'people', person.id);
+          batch.set(personDocRef, {
+            subtotal: person.subtotal,
+            paid: person.paid ?? 0,
+          });
+        });
+
+        // Update the expense document
+        batch.update(expenseDocRef, {
+          name: tempExpenseState.name,
+          totalAmount: tempExpenseState.totalAmount,
+          remainingAmount: tempExpenseState.remainingAmount ?? 0,
+          participantCount: activeUpdatePeople.length,
           updatedAt: serverTimestamp(),
         });
 
-        if (data.people) {
-          data.people.forEach((person) => {
-            const personDocRef = doc(expenseDocRef, 'people', person.id);
-            batch.set(personDocRef, {
-              subtotal: person.subtotal,
-              paid: person.paid ?? 0,
-            });
+        // Write updated items
+        tempExpenseState.items.forEach((item) => {
+          const itemDocRef = doc(db, 'expenses', origId, 'items', item.id);
+          batch.set(itemDocRef, {
+            name: item.name,
+            amount: item.amount,
+            taxRate: item.taxRate ?? 0,
+            split: item.split,
+            assignedPersonIds: item.assignedPersonIds,
+            isTip: item.isTip ?? false,
           });
-        }
-
-        if (data.items) {
-          data.items.forEach((item) => {
-            const itemDocRef = doc(expenseDocRef, 'items', item.id);
-            batch.set(itemDocRef, {
-              name: item.name,
-              amount: item.amount,
-              taxRate: item.taxRate ?? 0,
-              split: item.split,
-              assignedPersonIds: item.assignedPersonIds,
-              isTip: item.isTip ?? false,
-            });
-          });
-        }
+        });
 
         await batch.commit();
         clearTempExpense();
         await queryClient.invalidateQueries({
           queryKey: ['expenses'],
+          refetchType: 'all',
+        });
+        router.push('/');
+        return;
+      }
+
+      if (id === 'temp-expense') {
+        // CREATE new expense — read from Zustand (always current)
+        const batch = writeBatch(db);
+        const expenseDocRef = doc(collection(db, 'expenses'));
+
+        batch.set(expenseDocRef, {
+          name: tempExpenseState!.name,
+          date: tempExpenseState!.date,
+          createdBy: tempExpenseState!.createdBy,
+          totalAmount: tempExpenseState!.totalAmount,
+          remainingAmount: tempExpenseState!.remainingAmount ?? 0,
+          participantCount: tempExpenseState!.participantCount ?? 0,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+
+        const activeCreatePeople = (tempExpenseState!.people ?? []).filter(
+          (p) => p.subtotal > 0
+        );
+        activeCreatePeople.forEach((person) => {
+          const personDocRef = doc(expenseDocRef, 'people', person.id);
+          batch.set(personDocRef, {
+            subtotal: person.subtotal,
+            paid: person.paid ?? 0,
+          });
+        });
+
+        tempExpenseState!.items.forEach((item) => {
+          const itemDocRef = doc(expenseDocRef, 'items', item.id);
+          batch.set(itemDocRef, {
+            name: item.name,
+            amount: item.amount,
+            taxRate: item.taxRate ?? 0,
+            split: item.split,
+            assignedPersonIds: item.assignedPersonIds,
+            isTip: item.isTip ?? false,
+          });
+        });
+
+        await batch.commit();
+        clearTempExpense();
+        await queryClient.invalidateQueries({
+          queryKey: ['expenses'],
+          refetchType: 'all',
         });
         router.push('/');
         return;
@@ -173,15 +234,30 @@ export default function ExpenseView() {
             {data.name}
           </Text>
           {viewMode !== 'confirm' && (
-            <Pressable
-              onPress={() => router.push(`/expense/settle?id=${id}` as any)}
-            >
-              <Ionicons
-                name="create-outline"
-                size={30}
-                color={theme.dark ? '#fff' : '#000'}
-              />
-            </Pressable>
+            <View className="flex-row items-center gap-3">
+              {id !== 'temp-expense' && (
+                <Pressable
+                  onPress={() => router.push(`/expense/settle?id=${id}` as any)}
+                >
+                  <Ionicons
+                    name="wallet-outline"
+                    size={28}
+                    color={theme.dark ? '#fff' : '#000'}
+                  />
+                </Pressable>
+              )}
+              <Pressable
+                onPress={() =>
+                  router.push(`/expense/add-expense?expenseId=${id}` as any)
+                }
+              >
+                <Ionicons
+                  name="create-outline"
+                  size={30}
+                  color={theme.dark ? '#fff' : '#000'}
+                />
+              </Pressable>
+            </View>
           )}
         </View>
         <Text className="text-base font-medium dark:text-text-800">
