@@ -124,23 +124,6 @@ const _useExpenseCreation = create<ExpenseCreationState>((set, get) => ({
     }
   },
 
-  setItemName: (name: string) => {
-    const current = get().tempExpense;
-    if (current) {
-      const updated = { ...current, name };
-      set({ tempExpense: updated });
-      setTempExpense(updated);
-    }
-  },
-  setItemAmount: (amount: number) => {
-    const current = get().tempExpense;
-    if (current) {
-      const updated = { ...current, amount };
-      set({ tempExpense: updated });
-      setTempExpense(updated);
-    }
-  },
-
   addItem: (item) => {
     const current = get().tempExpense;
     if (current) {

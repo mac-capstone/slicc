@@ -246,17 +246,19 @@ export default function ExpenseView() {
                   />
                 </Pressable>
               )}
-              <Pressable
-                onPress={() =>
-                  router.push(`/expense/add-expense?expenseId=${id}` as any)
-                }
-              >
-                <Ionicons
-                  name="create-outline"
-                  size={30}
-                  color={theme.dark ? '#fff' : '#000'}
-                />
-              </Pressable>
+              {id !== 'temp-expense' && (
+                <Pressable
+                  onPress={() =>
+                    router.push(`/expense/add-expense?expenseId=${id}` as any)
+                  }
+                >
+                  <Ionicons
+                    name="create-outline"
+                    size={30}
+                    color={theme.dark ? '#fff' : '#000'}
+                  />
+                </Pressable>
+              )}
             </View>
           )}
         </View>

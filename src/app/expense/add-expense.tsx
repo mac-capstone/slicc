@@ -131,9 +131,33 @@ export default function AddExpense() {
         tempExpense?.originalExpenseId === (expenseId as ExpenseIdT);
 
       if (!alreadyLoaded && existingExpenseData) {
-        // First load: initialise store from Firestore data and sync name input
-        initializeFromExistingExpense(existingExpenseData);
-        setExpenseName(existingExpenseData.name);
+        // If the user has an in-progress new-expense draft, warn before overwriting
+        const hasDraft =
+          tempExpense &&
+          !tempExpense.originalExpenseId &&
+          (tempExpense.items?.length ?? 0) > 0;
+
+        if (hasDraft) {
+          Alert.alert(
+            'Discard Draft?',
+            'You have an unsaved expense in progress. Starting an edit will discard it.',
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => router.back() },
+              {
+                text: 'Discard & Edit',
+                style: 'destructive',
+                onPress: () => {
+                  initializeFromExistingExpense(existingExpenseData);
+                  setExpenseName(existingExpenseData.name);
+                },
+              },
+            ]
+          );
+        } else {
+          // First load: initialise store from Firestore data and sync name input
+          initializeFromExistingExpense(existingExpenseData);
+          setExpenseName(existingExpenseData.name);
+        }
       } else if (alreadyLoaded && expenseName === '') {
         // Store already hydrated from MMKV but name input is still empty — sync it
         setExpenseName(tempExpense!.name);
@@ -150,6 +174,7 @@ export default function AddExpense() {
     isEditMode,
     existingExpenseData,
     expenseId,
+    expenseName,
   ]);
 
   useEffect(() => {
