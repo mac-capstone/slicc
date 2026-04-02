@@ -25,13 +25,13 @@ import {
   View,
 } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
-import type { GroupIdT, UserIdT } from '@/types';
+import type { GroupIdT, UserIdT, UserWithId } from '@/types';
 
-// ---------------------------------------------------------------------------
-// Inline helper — renders a user avatar using useUser for displayName/color
-// ---------------------------------------------------------------------------
 function UserAvatar({ userId, size = 36 }: { userId: UserIdT; size?: number }) {
-  const { data: user } = useUser({ variables: userId });
+  const viewerUserId = useAuth.use.userId() ?? null;
+  const { data: user } = useUser({
+    variables: { userId, viewerUserId },
+  });
   const colorKey = (user as { color?: string } | undefined)?.color ?? 'white';
   const bgColor =
     colors.avatar[colorKey as keyof typeof colors.avatar] ??
@@ -51,9 +51,6 @@ function UserAvatar({ userId, size = 36 }: { userId: UserIdT; size?: number }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Group header with editable name
-// ---------------------------------------------------------------------------
 function GroupHeaderRow({
   groupTitle,
   setGroupTitle,
@@ -113,61 +110,24 @@ function GroupHeaderRow({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Bottom action buttons
-// ---------------------------------------------------------------------------
-function GroupFormBottomButtons({
-  hasGroupId,
-  groupLoaded,
-  isSaving,
-  onSave,
-  onCancel,
-}: {
-  hasGroupId: boolean;
-  groupLoaded: boolean;
-  isSaving: boolean;
-  onSave: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <View className="mt-8 gap-3">
-      <Button
-        label={hasGroupId ? 'Save Changes' : 'Create group'}
-        variant="outline"
-        onPress={onSave}
-        fullWidth
-        disabled={!groupLoaded || isSaving}
-      />
-      <Pressable
-        onPress={onCancel}
-        className="h-11 items-center justify-center rounded-xl border
-  border-red-600"
-      >
-        <Text className="text-base font-semibold text-red-500">Cancel</Text>
-      </Pressable>
-    </View>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Member list item
-// ---------------------------------------------------------------------------
 function MemberRow({
   user,
   isMember,
   onToggle,
 }: {
-  user: { id: string; displayName: string };
+  user: UserWithId;
   isMember: boolean;
   onToggle: () => void;
 }) {
-  const uid = user.id as UserIdT;
   return (
     <View className="flex-row items-center border-b border-neutral-800 py-3">
-      <UserAvatar userId={uid} size={36} />
-      <Text className="ml-3 flex-1 text-base text-white">
-        {user.displayName}
-      </Text>
+      <UserAvatar userId={user.id} size={36} />
+      <View className="ml-3 flex-1">
+        <Text className="text-base text-white">{user.displayName}</Text>
+        {user.username ? (
+          <Text className="text-xs text-gray-400">@{user.username}</Text>
+        ) : null}
+      </View>
       {isMember ? (
         <Pressable onPress={onToggle}>
           <Text className="text-sm font-semibold text-red-500">Remove</Text>
@@ -182,19 +142,13 @@ function MemberRow({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Main screen
-// ---------------------------------------------------------------------------
 export default function GroupFormScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ groupId?: string }>();
   const groupId = params.groupId as GroupIdT | undefined;
   const currentUserId = useAuth.use.userId();
 
-  const { data: group } = useGroup({
-    variables: groupId!,
-    enabled: !!groupId,
-  });
+  const { data: group } = useGroup({ variables: groupId!, enabled: !!groupId });
 
   const hasGroupId = Boolean(groupId);
   const groupLoaded = !hasGroupId || !!group;
@@ -204,7 +158,7 @@ export default function GroupFormScreen() {
   const [selectedMemberIds, setSelectedMemberIds] = useState<Set<UserIdT>>(
     () => new Set()
   );
-  const [tab, setTab] = useState<'selected' | 'allFriends'>('selected');
+  const [tab, setTab] = useState<'selected' | 'allUsers'>('selected');
   const [searchQuery, setSearchQuery] = useState('');
   const nameInputRef = useRef<TextInput>(null);
 
@@ -215,34 +169,47 @@ export default function GroupFormScreen() {
     }
   }, [group]);
 
-  const { data: userIds = [] } = useUserIds();
-
-  const userQueries = useQueries({
-    queries: userIds.map((id) => ({
+  // Fetch all users once (React Query caches; no expensive re-fetches)
+  const { data: allUserIds = [] } = useUserIds();
+  const allUserQueries = useQueries({
+    queries: allUserIds.map((id) => ({
       queryKey: ['users', 'userId', id] as const,
       queryFn: () => fetchUser(id),
+      staleTime: 5 * 60 * 1000,
     })),
   });
 
-  const users = useMemo(
+  const allUsers = useMemo(
     () =>
-      userQueries
+      allUserQueries
         .map((q) => q.data)
-        .filter((u): u is NonNullable<typeof u> => u != null),
-    [userQueries]
+        .filter((u): u is UserWithId => u != null),
+    [allUserQueries]
   );
 
+  // Fast lookup map for chips row
+  const usersById = useMemo(() => {
+    const map = new Map<UserIdT, UserWithId>();
+    allUsers.forEach((u) => map.set(u.id, u));
+    return map;
+  }, [allUsers]);
+
+  // Client-side case-insensitive filter (works for displayName and username)
   const displayedUsers = useMemo(() => {
     const base =
       tab === 'selected'
-        ? users.filter((u) => selectedMemberIds.has(u.id as UserIdT))
-        : users;
+        ? allUsers.filter((u) => selectedMemberIds.has(u.id))
+        : allUsers;
     if (!searchQuery.trim()) return base;
     const q = searchQuery.trim().toLowerCase();
-    return base.filter((u) => u.displayName.toLowerCase().includes(q));
-  }, [tab, selectedMemberIds, searchQuery, users]);
+    return base.filter(
+      (u) =>
+        u.displayName.toLowerCase().includes(q) ||
+        u.username.toLowerCase().includes(q)
+    );
+  }, [tab, allUsers, selectedMemberIds, searchQuery]);
 
-  const toggleMember = (uid: UserIdT) => {
+  const toggleMember = (uid: UserIdT): void => {
     setSelectedMemberIds((prev) => {
       const next = new Set(prev);
       if (next.has(uid)) next.delete(uid);
@@ -253,27 +220,19 @@ export default function GroupFormScreen() {
 
   const createGroup = useCreateGroup();
   const updateGroup = useUpdateGroup();
-
   const isSaving = createGroup.isPending || updateGroup.isPending;
 
-  const handleSave = async () => {
-    if (!currentUserId) return;
-    if (!groupLoaded) return;
-    if (isSaving) return;
+  const handleSave = async (): Promise<void> => {
+    if (!currentUserId || !groupLoaded || isSaving) return;
 
     const members = Array.from(selectedMemberIds);
-    if (!members.includes(currentUserId)) {
-      members.unshift(currentUserId);
-    }
+    if (!members.includes(currentUserId)) members.unshift(currentUserId);
 
     try {
       if (hasGroupId && groupId) {
         await updateGroup.mutateAsync({
           groupId,
-          data: {
-            name: groupTitle,
-            members,
-          },
+          data: { name: groupTitle, members },
         });
       } else {
         const newGroupId = uuidv4() as GroupIdT;
@@ -306,9 +265,7 @@ export default function GroupFormScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-
       <SafeAreaView className="flex-1 bg-background-950">
-        {/* ── Custom back button ── */}
         <View
           className="px-4 pb-2"
           style={{ paddingTop: Math.max(insets.top, 8) }}
@@ -332,26 +289,21 @@ export default function GroupFormScreen() {
             currentUserId={currentUserId}
           />
 
-          {/* ── Members label ── */}
           <Text className="mb-3 text-base text-neutral-400">Members</Text>
 
-          {/* ── Segment toggle: Selected | All Friends ── */}
+          {/* Segment toggle */}
           <View className="mb-4 flex-row rounded-full bg-background-900 p-1">
-            {(['selected', 'allFriends'] as const).map((t) => {
-              const label = t === 'selected' ? 'Selected' : 'All Friends';
+            {(['selected', 'allUsers'] as const).map((t) => {
+              const label = t === 'selected' ? 'Selected' : 'All Users';
               const isActive = tab === t;
               return (
                 <Pressable
                   key={t}
                   onPress={() => setTab(t)}
-                  className={`flex-1 items-center rounded-full py-2 ${
-                    isActive ? 'bg-accent-100' : 'bg-transparent'
-                  }`}
+                  className={`flex-1 items-center rounded-full py-2 ${isActive ? 'bg-accent-100' : 'bg-transparent'}`}
                 >
                   <Text
-                    className={`text-sm font-semibold ${
-                      isActive ? 'text-black' : 'text-neutral-400'
-                    }`}
+                    className={`text-sm font-semibold ${isActive ? 'text-black' : 'text-neutral-400'}`}
                   >
                     {label}
                   </Text>
@@ -360,7 +312,7 @@ export default function GroupFormScreen() {
             })}
           </View>
 
-          {/* ── Selected-member chips ── */}
+          {/* Selected chips */}
           {selectedMemberIds.size > 0 && (
             <ScrollView
               horizontal
@@ -368,16 +320,15 @@ export default function GroupFormScreen() {
               className="mb-4"
             >
               {Array.from(selectedMemberIds).map((uid) => {
-                const user = users.find((u) => u.id === uid);
+                const user = usersById.get(uid);
                 return (
                   <View
                     key={uid}
-                    className="mr-2 flex-row items-center rounded-full
-  bg-neutral-800 px-2 py-1"
+                    className="mr-2 flex-row items-center rounded-full bg-neutral-800 px-2 py-1"
                   >
                     <UserAvatar userId={uid} size={20} />
                     <Text className="ml-1 text-sm text-white">
-                      {user?.displayName?.split(' ')[0] ?? uid}
+                      {user?.displayName?.split(' ')[0] ?? '...'}
                     </Text>
                   </View>
                 );
@@ -385,40 +336,47 @@ export default function GroupFormScreen() {
             </ScrollView>
           )}
 
-          {/* ── Search bar ── */}
-          <View
-            className="mb-4 flex-row items-center rounded-full
-  bg-neutral-900 px-4 py-2"
-          >
+          {/* Search bar */}
+          <View className="mb-4 flex-row items-center rounded-full bg-neutral-900 px-4 py-2">
             <Feather name="search" size={16} color="#A4A4A4" />
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder="Search for friends"
+              placeholder="Search by name or username…"
               placeholderTextColor="#A4A4A4"
               style={{ flex: 1, marginLeft: 8, color: '#ffffff', fontSize: 14 }}
             />
           </View>
 
-          {/* ── Member list ── */}
+          {/* Member list */}
           <View>
             {displayedUsers.map((user) => (
               <MemberRow
                 key={user.id}
                 user={user}
-                isMember={selectedMemberIds.has(user.id as UserIdT)}
-                onToggle={() => toggleMember(user.id as UserIdT)}
+                isMember={selectedMemberIds.has(user.id)}
+                onToggle={() => toggleMember(user.id)}
               />
             ))}
           </View>
 
-          <GroupFormBottomButtons
-            hasGroupId={hasGroupId}
-            groupLoaded={groupLoaded}
-            isSaving={isSaving}
-            onSave={handleSave}
-            onCancel={() => router.back()}
-          />
+          <View className="mt-8 gap-3">
+            <Button
+              label={hasGroupId ? 'Save Changes' : 'Create group'}
+              variant="outline"
+              onPress={handleSave}
+              fullWidth
+              disabled={!groupLoaded || isSaving}
+            />
+            <Pressable
+              onPress={() => router.back()}
+              className="h-11 items-center justify-center rounded-xl border border-red-600"
+            >
+              <Text className="text-base font-semibold text-red-500">
+                Cancel
+              </Text>
+            </Pressable>
+          </View>
         </ScrollView>
       </SafeAreaView>
     </>

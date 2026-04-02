@@ -37,11 +37,13 @@ export const LanguageItem = () => {
         text="settings.language"
         value={selectedLanguage?.label}
         onPress={modal.present}
+        testID="settings-language-trigger"
       />
       <Options
         ref={modal.ref}
         options={langs}
         onSelect={onSelect}
+        testID="settings-language"
         value={selectedLanguage?.value}
       />
     </>

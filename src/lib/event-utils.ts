@@ -8,6 +8,46 @@ function toEventDate(value: Date | string): Date {
   return value instanceof Date ? value : new Date(value);
 }
 
+export type CategorizedEvents = {
+  upcoming: EventWithId[];
+  current: EventWithId[];
+  past: EventWithId[];
+};
+
+export function categorizeEvents(events: EventWithId[]): CategorizedEvents {
+  const now = new Date().getTime();
+  const upcoming: EventWithId[] = [];
+  const current: EventWithId[] = [];
+  const past: EventWithId[] = [];
+
+  for (const e of events) {
+    const start = toEventDate(e.startDate).getTime();
+    const end = toEventDate(e.endDate).getTime();
+    if (start > now) {
+      upcoming.push(e);
+    } else if (end >= now) {
+      current.push(e);
+    } else {
+      past.push(e);
+    }
+  }
+
+  upcoming.sort(
+    (a, b) =>
+      toEventDate(a.startDate).getTime() - toEventDate(b.startDate).getTime()
+  );
+  current.sort(
+    (a, b) =>
+      toEventDate(a.startDate).getTime() - toEventDate(b.startDate).getTime()
+  );
+  past.sort(
+    (a, b) =>
+      toEventDate(b.startDate).getTime() - toEventDate(a.startDate).getTime()
+  );
+
+  return { upcoming, current, past };
+}
+
 export function filterAndSortUpcomingEvents(
   events: EventWithId[],
   limit?: number
@@ -47,7 +87,7 @@ export function getMostRelevantEventId(
 
   if (upcoming.length > 0) return upcoming[0].id;
 
-  const past = events.sort(
+  const past = [...events].sort(
     (a, b) =>
       toEventDate(b.startDate).getTime() - toEventDate(a.startDate).getTime()
   );

@@ -44,6 +44,20 @@
     <false/>
     <key>LSMinimumSystemVersion</key>
     <string>12.0</string>
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+      <string>rbcmobile</string>
+      <string>tdct</string>
+      <string>scotiabank</string>
+      <string>cibcmobilebanking</string>
+      <string>bmomobile</string>
+      <string>nbcmobile</string>
+      <string>desjardins</string>
+      <string>tangerine</string>
+      <string>simplii</string>
+      <string>wealthsimple</string>
+      <string>koho</string>
+    </array>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>NSAppTransportSecurity</key>

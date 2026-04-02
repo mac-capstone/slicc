@@ -44,7 +44,9 @@ export const ExpenseCard = ({ id, config }: Props) => {
   const totalPaid = data.people.reduce((acc, person) => acc + person.paid, 0);
   const remainingAmount = Math.max(totalAmount - totalPaid, 0);
   const progressPercent =
-    totalAmount > 0 ? Math.min((totalPaid / totalAmount) * 100, 100) : 0;
+    totalAmount > 0
+      ? Math.min(Math.max((totalPaid / totalAmount) * 100, 0), 100)
+      : 0;
 
   return (
     <Pressable

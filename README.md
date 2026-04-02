@@ -2,7 +2,7 @@
 <img alt="logo" src="./assets/icon.png" width="124px" style="border-radius:10px"/><br/>
 slicc </h1>
 
-slicc is a cross-platform mobile app (iOS & Android) built with React Native and Expo that helps groups of people organize shared events and split expenses. Users can create and join groups, schedule one-time or recurring events, and track costs with fine-grained bill splitting — assigning individual line items to specific participants with flexible split modes. A built-in notification system keeps members in the loop with group invites, event invites, and upcoming-event reminders.
+slicc is a cross-platform mobile app (iOS & Android) built with React Native and Expo that helps groups of people organize shared events and split expenses. Users can create and join groups, schedule one-time or recurring events, and track costs with fine-grained bill splitting, assigning individual line items to specific participants with flexible split modes. A built-in notification system keeps members in the loop with group invites, event invites, and upcoming-event reminders.
 
 ## Prerequiste
 
@@ -116,7 +116,15 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
   [userId: UserId]: {
     username: string; // unique
     displayName: string;
-
+  	friends: UserId[];
+    settings: { // sub col
+      private: {
+        locationPreference?: string;
+        bankPreference?: string;
+        dietaryPreferences?: string[];
+        eTransferEmail?: string;
+      }
+    }
     createdAt?: Date;
     updatedAt?: Date;
   };
@@ -129,8 +137,8 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
     description?: string;
     owner: UserId;
     admins: UserId[];
-	members: UserId[];
-	events: EventId[];
+  	members: UserId[];
+	  events: EventId[];
     createdAt?: Date;
     updatedAt?: Date;
   };
@@ -189,6 +197,26 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
   };
 }
 
+// friendRequests collection — dedicated request documents (workflow state)
+{
+  [requestId: string]: {
+    fromUserId: UserId;
+    toUserId: UserId;
+    status: "pending" | "accepted" | "declined" | "cancelled";
+    createdAt: Date;
+    updatedAt?: Date;
+  };
+}
+
+// friendships collection — separate representation of confirmed friendships (one doc per pair)
+{
+  [friendshipId: string]: {
+    userIds: [UserId, UserId];
+    createdAt: Date;
+    acceptedFromRequestId?: string;
+  };
+}
+
 // notifications collection
 {
   [notificationId: NotificationId]: {
@@ -207,6 +235,17 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
   };
 }
 ```
+
+## Friend requests (Firebase)
+
+- Deploy composite indexes from the repo root: `firebase deploy --only firestore:indexes` (see `firestore.indexes.json`). The app queries `friendRequests` with `toUserId` + `status`.
+- **What the client does (one transaction each):**
+  - **Accept** (`src/api/social/friend-requests.ts`, `completeFriendshipInTransaction`): updates the `friendRequests` doc to `accepted`, creates `friendships/{pairId}` with sorted `userIds`, and updates **both** `users/{fromUserId}` and `users/{toUserId}` with `friends: arrayUnion(…)` (reciprocal entries).
+  - **Unfriend** (`src/api/social/friendships.ts`, `unfriendUser`): deletes `friendships/{pairId}`, deletes forward/reverse `friendRequests` docs when they exist, and updates **both** `users/{currentUserId}` and `users/{friendUserId}` with `friends: arrayRemove(…)`.
+- **Security rules:** Firestore evaluates **every write** in a transaction; `request.auth.uid` is the signed-in user. A simple **owner-only** rule on `users/{uid}` (e.g. `allow update: if request.auth.uid == uid`) authorizes that user’s document only. It does **not** authorize the same client session to update the **other** participant’s `users/{otherUid}` in the same transaction, so those client flows will fail until you either:
+  - **Relax or specialize rules** — e.g. still require owner-only updates for most fields, but allow a **narrow** update to another user’s `friends` (and maybe `updatedAt`) when a `get()` on the matching `friendRequests` / `friendships` data proves the actor is the other party and the operation matches the intended state transition; or
+  - **Move symmetric updates server-side** — e.g. Cloud Function or trusted backend using the Admin SDK after an authorized client write to `friendRequests` / `friendships` only.
+- Allow **deletion** of `friendships/{pairId}` when `request.auth.uid` is one of the `userIds` on that document. Define create/update rules for `friendRequests` and `friendships` separately (e.g. sender creates pending requests, recipient accepts or declines, both parties may unfriend per the flows above).
 
 ## 📄 License
 

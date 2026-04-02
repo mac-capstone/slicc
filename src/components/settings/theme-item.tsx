@@ -21,9 +21,9 @@ export const ThemeItem = () => {
 
   const themes = React.useMemo(
     () => [
-      { label: `${translate('settings.theme.dark')} 🌙`, value: 'dark' },
-      { label: `${translate('settings.theme.light')} 🌞`, value: 'light' },
-      { label: `${translate('settings.theme.system')} ⚙️`, value: 'system' },
+      { label: translate('settings.theme.dark'), value: 'dark' },
+      { label: translate('settings.theme.light'), value: 'light' },
+      { label: translate('settings.theme.system'), value: 'system' },
     ],
     []
   );
@@ -39,11 +39,13 @@ export const ThemeItem = () => {
         text="settings.theme.title"
         value={theme?.label}
         onPress={modal.present}
+        testID="settings-theme-trigger"
       />
       <Options
         ref={modal.ref}
         options={themes}
         onSelect={onSelect}
+        testID="settings-theme"
         value={theme?.value}
       />
     </>

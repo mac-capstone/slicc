@@ -6,8 +6,12 @@ import {
   type expensePersonSchema,
   type expenseSchema,
   type groupSchema,
+  type userProfileSchema,
   type userSchema,
+  type userSettingsSchema,
 } from './schema';
+
+export { userConverter, userSettingsConverter } from './schema';
 
 // ── Branded ID types ───────────────────────────────────────────────────────
 
@@ -19,8 +23,37 @@ export type EventIdT = string & { readonly __brand: unique symbol };
 export type GroupIdT = string & { readonly __brand: unique symbol };
 export type NotificationIdT = string & { readonly __brand: unique symbol };
 
+export type BankPreference =
+  | 'none'
+  | 'all-banks'
+  | 'interac'
+  | 'rbc'
+  | 'td'
+  | 'scotia'
+  | 'cibc'
+  | 'bmo'
+  | 'national-bank'
+  | 'desjardins'
+  | 'tangerine'
+  | 'simplii'
+  | 'laurentian'
+  | 'meridian'
+  | 'coast-capital'
+  | 'vancity'
+  | 'atb'
+  | 'eq-bank'
+  | 'wealthsimple'
+  | 'koho'
+  | 'neo'
+  | 'other';
+
 // ── Types derived from Zod schemas ─────────────────────────────────────────
 
+export type UserProfile = z.infer<typeof userProfileSchema>;
+export type UserSettings = z.infer<typeof userSettingsSchema>;
+
+/** Payload for merging into `users/{id}/settings/private` (no server timestamps). */
+export type UpdateUserSettingsData = Partial<Omit<UserSettings, 'updatedAt'>>;
 export type User = z.infer<typeof userSchema>;
 export type Group = z.infer<typeof groupSchema>;
 export type Event = z.infer<typeof eventSchema>;
@@ -50,7 +83,7 @@ export type Item = ExpenseItem;
 
 // ── WithId variants ────────────────────────────────────────────────────────
 
-export type UserWithId = User & { id: UserIdT };
+export type UserWithId = UserProfile & Partial<UserSettings> & { id: UserIdT };
 export type GroupWithId = Group & { id: GroupIdT };
 export type EventWithId = Event & { id: EventIdT };
 

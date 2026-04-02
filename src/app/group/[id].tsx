@@ -1,20 +1,19 @@
 import Feather from '@expo/vector-icons/Feather';
 import { useFocusEffect } from '@react-navigation/native';
-import { useQueries } from '@tanstack/react-query';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 
-import { fetchEvent } from '@/api/events/use-events';
+import { useEventsByGroupId } from '@/api/events/use-events';
 import { useGroup } from '@/api/groups/use-groups';
 import { AddButton } from '@/components/add-button';
-import { eventToCardData, GroupEventCard } from '@/components/group-event-card';
+import { UpcomingEventsSection } from '@/components/dashboard/upcoming-events-section';
 import { SearchableSectionHeader } from '@/components/searchable-section-header';
 import { colors, Text } from '@/components/ui';
-import { filterAndSortUpcomingEvents } from '@/lib/event-utils';
+import { categorizeEvents } from '@/lib/event-utils';
 import { markGroupAsRead } from '@/lib/group-preferences';
 import { useThemeConfig } from '@/lib/use-theme-config';
-import type { EventIdT, EventWithId, GroupIdT } from '@/types';
+import type { GroupIdT } from '@/types';
 
 export default function GroupDetailScreen() {
   const theme = useThemeConfig();
@@ -28,21 +27,14 @@ export default function GroupDetailScreen() {
   } = useGroup({
     variables: groupId,
   });
-
-  const eventQueries = useQueries({
-    queries: (group?.events ?? []).map((eventId) => ({
-      queryKey: ['events', 'eventId', eventId] as const,
-      queryFn: () => fetchEvent(eventId as EventIdT),
-    })),
+  const {
+    data: events = [],
+    isPending: eventsPending,
+    isError: eventsError,
+  } = useEventsByGroupId({
+    variables: groupId,
+    enabled: Boolean(groupId),
   });
-
-  const events = useMemo(
-    () =>
-      eventQueries
-        .map((q) => q.data)
-        .filter((e): e is EventWithId => e != null),
-    [eventQueries]
-  );
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchInputVisible, setIsSearchInputVisible] = useState(false);
@@ -56,24 +48,26 @@ export default function GroupDetailScreen() {
     }, [groupId])
   );
 
-  const allUpcomingEvents = useMemo(
-    () => filterAndSortUpcomingEvents(events).map(eventToCardData),
-    [events]
-  );
+  const categorized = useMemo(() => categorizeEvents(events), [events]);
 
-  const upcomingEvents = useMemo(() => {
-    if (!searchQuery.trim()) return allUpcomingEvents;
-    const query = searchQuery.trim().toLowerCase();
-    return allUpcomingEvents.filter((e) =>
-      e.name.toLowerCase().includes(query)
-    );
-  }, [allUpcomingEvents, searchQuery]);
+  const filteredCategorized = useMemo(() => {
+    if (!searchQuery.trim()) return categorized;
+    const q = searchQuery.trim().toLowerCase();
+    return {
+      current: categorized.current.filter((e) =>
+        e.name.toLowerCase().includes(q)
+      ),
+      upcoming: categorized.upcoming.filter((e) =>
+        e.name.toLowerCase().includes(q)
+      ),
+      past: categorized.past.filter((e) => e.name.toLowerCase().includes(q)),
+    };
+  }, [categorized, searchQuery]);
 
-  const handleBack = () => router.back();
+  const handleBack = () =>
+    router.push({ pathname: '/social', params: { segment: 'groups' } });
   const handleSettings = () =>
     router.push(`/group/${groupId}/members` as const);
-  const handleEventPress = (eventId: string) =>
-    router.push(`/event/${eventId}` as const);
   const handleNewEvent = () =>
     router.push(`/event/edit-event?groupId=${groupId}` as const);
 
@@ -103,7 +97,13 @@ export default function GroupDetailScreen() {
           headerTintColor: theme.dark ? '#fff' : '#000',
           headerShadowVisible: false,
           headerLeft: () => (
-            <Pressable onPress={handleBack} className="px-2">
+            <Pressable
+              onPress={() => {
+                console.log('backing from group details');
+                handleBack();
+              }}
+              className="px-2"
+            >
               <Feather
                 name="arrow-left"
                 size={24}
@@ -128,7 +128,7 @@ export default function GroupDetailScreen() {
           contentContainerStyle={{ paddingBottom: 24 }}
         >
           <SearchableSectionHeader
-            title="Upcoming Events"
+            title="Events"
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}
             isSearchInputVisible={isSearchInputVisible}
@@ -139,13 +139,11 @@ export default function GroupDetailScreen() {
           />
           <View className="mb-4 h-px bg-neutral-700" />
 
-          {upcomingEvents.map((event) => (
-            <GroupEventCard
-              key={event.id}
-              event={event}
-              onPress={() => handleEventPress(event.id)}
-            />
-          ))}
+          <UpcomingEventsSection
+            categorized={filteredCategorized}
+            isPending={eventsPending}
+            isError={eventsError}
+          />
 
           <AddButton
             label="Create New Event"

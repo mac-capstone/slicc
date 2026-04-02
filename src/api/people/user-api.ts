@@ -1,17 +1,24 @@
 import {
   collection,
+  deleteField,
   doc,
+  type DocumentData,
   getDoc,
   getDocs,
   query,
   runTransaction,
+  setDoc,
   Timestamp,
   where,
 } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 
 import { db, storage } from '@/api/common/firebase';
-import type { User } from '@/types';
+import type {
+  UpdateUserSettingsData,
+  UserProfile,
+  UserSettings,
+} from '@/types';
 
 const MIME_TYPE_BY_EXTENSION: Record<string, string> = {
   heic: 'image/heic',
@@ -52,6 +59,21 @@ export async function checkUsernameExists(
   const snapshot = await getDocs(q);
 
   return snapshot.docs.some((d) => d.id !== excludeUserId);
+}
+
+/** Returns another user's id for a normalized username, or null if none. */
+export async function getUserIdByUsername(
+  username: string,
+  excludeUserId?: string
+): Promise<string | null> {
+  const normalized = username.toLowerCase().trim();
+  if (!normalized) return null;
+
+  const usersRef = collection(db, 'users');
+  const q = query(usersRef, where('username', '==', normalized));
+  const snapshot = await getDocs(q);
+  const match = snapshot.docs.find((d) => d.id !== excludeUserId);
+  return match?.id ?? null;
 }
 
 export async function uploadProfilePicture(
@@ -95,6 +117,8 @@ export type CreateUserData = {
   username: string;
 };
 
+export type { UpdateUserSettingsData };
+
 export class UserAlreadyExistsError extends Error {
   constructor(userId: string) {
     super(`User profile already exists for ${userId}`);
@@ -111,17 +135,28 @@ export async function createUserInFirestore(
     username: data.username.toLowerCase().trim(),
   });
   const now = Timestamp.now();
-  const userDoc: Omit<User, 'createdAt' | 'updatedAt'> & {
+  const userDoc: Omit<UserProfile, 'createdAt' | 'updatedAt'> & {
     createdAt: Timestamp;
     updatedAt: Timestamp;
   } = {
     username: data.username.toLowerCase().trim(),
     displayName: data.displayName.trim(),
+    friends: [],
     createdAt: now,
     updatedAt: now,
   };
 
+  const userSettingsDoc: Omit<UserSettings, 'updatedAt'> & {
+    updatedAt: Timestamp;
+  } = {
+    dietaryPreferences: [],
+    defaultTaxRate: 0,
+    defaultTipRate: 0,
+    updatedAt: now,
+  };
+
   const userRef = doc(db, 'users', userId);
+  const userSettingsRef = doc(db, 'users', userId, 'settings', 'private');
   await runTransaction(db, async (transaction) => {
     const userSnap = await transaction.get(userRef);
 
@@ -130,6 +165,80 @@ export async function createUserInFirestore(
     }
 
     transaction.set(userRef, userDoc);
+    transaction.set(userSettingsRef, userSettingsDoc);
   });
   console.log('[user-api] firestore user created', { userId });
+}
+
+function buildUserSettingsPatch(
+  data: UpdateUserSettingsData,
+  updatedAt: Timestamp
+): DocumentData {
+  const payload: DocumentData = { updatedAt };
+  const record = data as Record<string, unknown>;
+
+  if (Object.hasOwn(record, 'dietaryPreferences')) {
+    const v = data.dietaryPreferences;
+    payload.dietaryPreferences = v === undefined ? deleteField() : v;
+  }
+
+  if (Object.hasOwn(record, 'locationPreference')) {
+    const trimmed = data.locationPreference?.trim();
+    payload.locationPreference = trimmed ? trimmed : deleteField();
+  }
+
+  if (Object.hasOwn(record, 'eTransferEmail')) {
+    const trimmed = data.eTransferEmail?.trim();
+    payload.eTransferEmail = trimmed ? trimmed : deleteField();
+  }
+
+  if (Object.hasOwn(record, 'bankPreference')) {
+    payload.bankPreference = data.bankPreference ?? deleteField();
+  }
+
+  if (Object.hasOwn(record, 'defaultTaxRate')) {
+    payload.defaultTaxRate =
+      data.defaultTaxRate === undefined ? deleteField() : data.defaultTaxRate;
+  }
+
+  if (Object.hasOwn(record, 'defaultTipRate')) {
+    payload.defaultTipRate =
+      data.defaultTipRate === undefined ? deleteField() : data.defaultTipRate;
+  }
+
+  return payload;
+}
+
+export async function updateUserSettingsInFirestore(
+  userId: string,
+  data: UpdateUserSettingsData
+): Promise<void> {
+  const userSettingsRef = doc(db, 'users', userId, 'settings', 'private');
+  const now = Timestamp.now();
+
+  await setDoc(userSettingsRef, buildUserSettingsPatch(data, now), {
+    merge: true,
+  });
+}
+
+export async function updateDefaultRatesInFirestore(
+  userId: string,
+  data: { defaultTaxRate?: number; defaultTipRate?: number }
+): Promise<void> {
+  const userSettingsRef = doc(db, 'users', userId, 'settings', 'private');
+  const now = Timestamp.now();
+  const payload: DocumentData = { updatedAt: now };
+  const record = data as Record<string, unknown>;
+
+  if (Object.hasOwn(record, 'defaultTaxRate')) {
+    payload.defaultTaxRate =
+      data.defaultTaxRate === undefined ? deleteField() : data.defaultTaxRate;
+  }
+
+  if (Object.hasOwn(record, 'defaultTipRate')) {
+    payload.defaultTipRate =
+      data.defaultTipRate === undefined ? deleteField() : data.defaultTipRate;
+  }
+
+  await setDoc(userSettingsRef, payload, { merge: true });
 }

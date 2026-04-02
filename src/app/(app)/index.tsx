@@ -25,10 +25,13 @@ export default function Home() {
     isError: pendingError,
   } = usePendingExpenses(userId, 3);
   const {
-    data: upcomingEvents,
+    data: categorizedEvents,
     isPending: eventsPending,
     isError: eventsError,
-  } = useUpcomingEvents(userId, 3);
+  } = useUpcomingEvents(userId, {
+    currentLimit: 3,
+    upcomingLimit: 3,
+  });
 
   const isLoading = balancesPending || pendingPending || eventsPending;
 
@@ -70,9 +73,16 @@ export default function Home() {
 
         <View>
           <UpcomingEventsSection
-            events={upcomingEvents ?? []}
+            categorized={
+              categorizedEvents ?? {
+                upcoming: [],
+                current: [],
+                past: [],
+              }
+            }
             isPending={eventsPending}
             isError={eventsError}
+            showArchived={false}
           />
         </View>
 

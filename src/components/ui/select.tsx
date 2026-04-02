@@ -7,7 +7,7 @@ import { useColorScheme } from 'nativewind';
 import * as React from 'react';
 import type { FieldValues } from 'react-hook-form';
 import { useController } from 'react-hook-form';
-import { Platform, View } from 'react-native';
+import { Platform, useWindowDimensions, View } from 'react-native';
 import { Pressable, type PressableProps } from 'react-native';
 import type { SvgProps } from 'react-native-svg';
 import Svg, { Path } from 'react-native-svg';
@@ -68,10 +68,27 @@ function keyExtractor(item: OptionType) {
   return `select-item-${item.value}`;
 }
 
+/** Max fraction of screen height so long option lists scroll instead of filling the whole screen. */
+const SELECT_SHEET_MAX_HEIGHT_RATIO = 0.64;
+const SELECT_ROW_ESTIMATE_PX = 70;
+const SELECT_SHEET_EXTRA_PX = 100;
+const SELECT_SHEET_MIN_HEIGHT_PX = 220;
+
 export const Options = React.forwardRef<BottomSheetModal, OptionsProps>(
   ({ options, onSelect, value, testID }, ref) => {
-    const height = options.length * 70 + 100;
-    const snapPoints = React.useMemo(() => [height], [height]);
+    const { height: windowHeight } = useWindowDimensions();
+    const snapPoints = React.useMemo(() => {
+      const contentHeight =
+        options.length * SELECT_ROW_ESTIMATE_PX + SELECT_SHEET_EXTRA_PX;
+      const maxHeight = Math.round(
+        windowHeight * SELECT_SHEET_MAX_HEIGHT_RATIO
+      );
+      const capped = Math.min(
+        Math.max(contentHeight, SELECT_SHEET_MIN_HEIGHT_PX),
+        maxHeight
+      );
+      return [capped];
+    }, [options.length, windowHeight]);
     const { colorScheme } = useColorScheme();
     const isDark = colorScheme === 'dark';
 
@@ -98,6 +115,7 @@ export const Options = React.forwardRef<BottomSheetModal, OptionsProps>(
         }}
       >
         <List
+          style={{ flex: 1 }}
           data={options}
           keyExtractor={keyExtractor}
           renderItem={renderSelectItem}

@@ -40,6 +40,7 @@ export default function GroupMembersScreen() {
       return {
         id: userId,
         name: user?.displayName ?? 'Unknown',
+        username: user?.username ?? '',
         isAdmin,
       };
     });
@@ -54,7 +55,7 @@ export default function GroupMembersScreen() {
 
     try {
       await leaveGroup.mutateAsync({ groupId, userId: currentUserId });
-      router.replace('/groups');
+      router.replace('/social');
     } catch (error) {
       console.error('Failed to leave group:', error);
       Alert.alert('Error', 'Failed to leave group, please try again.');
@@ -99,6 +100,11 @@ export default function GroupMembersScreen() {
 
                   <View className="flex-1">
                     <Text className="text-base text-white">{member.name}</Text>
+                    {member.username ? (
+                      <Text className="text-xs text-gray-400">
+                        @{member.username}
+                      </Text>
+                    ) : null}
                   </View>
 
                   {member.isAdmin ? (

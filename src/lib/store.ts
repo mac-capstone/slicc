@@ -78,6 +78,7 @@ const _useExpenseCreation = create<ExpenseCreationState>((set, get) => ({
       name: '',
       date: new Date().toISOString(),
       createdBy: createdBy as string,
+      payerUserId: createdBy,
       remainingAmount: 0,
       participantCount: 0,
       items: [],

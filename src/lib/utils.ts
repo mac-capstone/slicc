@@ -136,3 +136,67 @@ export const parseReceiptInfo = (
     .safeParse(parsedJson);
   return parsedResult;
 };
+
+export const encodeIdBase64Url = (value: string): string => {
+  const utf8FallbackEncode = (input: string): Uint8Array => {
+    const bytes: number[] = [];
+
+    for (const char of input) {
+      const codePoint = char.codePointAt(0);
+      if (codePoint === undefined) continue;
+
+      if (codePoint <= 0x7f) {
+        bytes.push(codePoint);
+      } else if (codePoint <= 0x7ff) {
+        bytes.push(0xc0 | (codePoint >> 6), 0x80 | (codePoint & 0x3f));
+      } else if (codePoint <= 0xffff) {
+        bytes.push(
+          0xe0 | (codePoint >> 12),
+          0x80 | ((codePoint >> 6) & 0x3f),
+          0x80 | (codePoint & 0x3f)
+        );
+      } else {
+        bytes.push(
+          0xf0 | (codePoint >> 18),
+          0x80 | ((codePoint >> 12) & 0x3f),
+          0x80 | ((codePoint >> 6) & 0x3f),
+          0x80 | (codePoint & 0x3f)
+        );
+      }
+    }
+
+    return Uint8Array.from(bytes);
+  };
+
+  const bytes =
+    typeof globalThis.TextEncoder === 'function'
+      ? new globalThis.TextEncoder().encode(value)
+      : utf8FallbackEncode(value);
+  const alphabet =
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  let output = '';
+  let i = 0;
+
+  while (i + 2 < bytes.length) {
+    const n = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
+    output += alphabet[(n >> 18) & 63];
+    output += alphabet[(n >> 12) & 63];
+    output += alphabet[(n >> 6) & 63];
+    output += alphabet[n & 63];
+    i += 3;
+  }
+
+  const remaining = bytes.length - i;
+  if (remaining === 1) {
+    const n = bytes[i] << 16;
+    output += alphabet[(n >> 18) & 63];
+    output += alphabet[(n >> 12) & 63];
+  } else if (remaining === 2) {
+    const n = (bytes[i] << 16) | (bytes[i + 1] << 8);
+    output += alphabet[(n >> 18) & 63];
+    output += alphabet[(n >> 12) & 63];
+    output += alphabet[(n >> 6) & 63];
+  }
+
+  return output;
+};
