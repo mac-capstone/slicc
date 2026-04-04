@@ -2,18 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import Octicons from '@expo/vector-icons/Octicons';
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import {
-  collection,
-  doc,
-  serverTimestamp,
-  writeBatch,
-} from 'firebase/firestore';
 import React, { useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { queryClient } from '@/api';
-import { db } from '@/api/common/firebase';
-import { useExpense } from '@/api/expenses/use-expenses';
+import {
+  useCreateExpense,
+  useExpense,
+  useUpdateExpense,
+} from '@/api/expenses/use-expenses';
 import { useItems } from '@/api/items/use-items';
 import { usePeopleIds } from '@/api/people/use-people';
 import ExpenseCreationFooter from '@/components/expense-creation-footer';
@@ -39,6 +36,9 @@ export default function ExpenseView() {
   const { data, isPending, isError } = useExpense({
     variables: id,
   });
+  const createExpense = useCreateExpense();
+  const updateExpense = useUpdateExpense();
+
   if (isPending) {
     return (
       <View className="flex-1 justify-center p-3">
@@ -68,115 +68,38 @@ export default function ExpenseView() {
       const tempExpenseState = getTempExpenseState();
 
       if (id === 'temp-expense' && tempExpenseState?.originalExpenseId) {
-        // UPDATE existing expense — read from Zustand (always current)
-        const origId = tempExpenseState.originalExpenseId;
-        const batch = writeBatch(db);
-        const expenseDocRef = doc(db, 'expenses', origId);
-
-        // Delete old subcollection docs so stale items/people don't linger
-        tempExpenseState.originalItemIds?.forEach((itemId) => {
-          batch.delete(doc(db, 'expenses', origId, 'items', itemId));
-        });
-        tempExpenseState.originalPersonIds?.forEach((personId) => {
-          batch.delete(doc(db, 'expenses', origId, 'people', personId));
-        });
-
-        // Write updated people (skip anyone with subtotal 0)
-        const activeUpdatePeople = tempExpenseState.people.filter(
-          (p) => p.subtotal > 0
-        );
-        activeUpdatePeople.forEach((person) => {
-          const personDocRef = doc(db, 'expenses', origId, 'people', person.id);
-          batch.set(personDocRef, {
-            subtotal: person.subtotal,
-            paid: person.paid ?? 0,
-          });
-        });
-
-        // Update the expense document
-        batch.update(expenseDocRef, {
+        const { expenseId } = await updateExpense.mutateAsync({
+          originalExpenseId: tempExpenseState.originalExpenseId,
+          originalItemIds: tempExpenseState.originalItemIds ?? [],
+          originalPersonIds: tempExpenseState.originalPersonIds ?? [],
           name: tempExpenseState.name,
           totalAmount: tempExpenseState.totalAmount,
           remainingAmount: tempExpenseState.remainingAmount ?? 0,
-          participantCount: activeUpdatePeople.length,
-          updatedAt: serverTimestamp(),
+          people: tempExpenseState.people,
+          items: tempExpenseState.items,
         });
-
-        // Write updated items
-        tempExpenseState.items.forEach((item) => {
-          const itemDocRef = doc(db, 'expenses', origId, 'items', item.id);
-          batch.set(itemDocRef, {
-            name: item.name,
-            amount: item.amount,
-            taxRate: item.taxRate ?? 0,
-            split: item.split,
-            assignedPersonIds: item.assignedPersonIds,
-            isTip: item.isTip ?? false,
-          });
-        });
-
-        await batch.commit();
         clearTempExpense();
-        queryClient.removeQueries({ queryKey: ['expenses'] });
-        queryClient.removeQueries({ queryKey: ['items'] });
-        queryClient.removeQueries({ queryKey: ['people'] });
-        router.replace(`/expense/${origId}` as any);
+        router.replace(`/expense/${expenseId}` as any);
         return;
       }
 
       if (id === 'temp-expense') {
-        // CREATE new expense — read from Zustand (always current)
-        const batch = writeBatch(db);
-        const expenseDocRef = doc(collection(db, 'expenses'));
-
-        batch.set(expenseDocRef, {
+        const { expenseId } = await createExpense.mutateAsync({
           name: tempExpenseState!.name,
           date: tempExpenseState!.date,
           createdBy: tempExpenseState!.createdBy,
           payerUserId: tempExpenseState!.payerUserId,
-          ...(eventId ? { eventId } : {}),
+          eventId: eventId ?? undefined,
           totalAmount: tempExpenseState!.totalAmount,
           remainingAmount: tempExpenseState!.remainingAmount ?? 0,
-          participantCount: tempExpenseState!.participantCount ?? 0,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
+          people: tempExpenseState!.people ?? [],
+          items: tempExpenseState!.items,
         });
-
-        const activeCreatePeople = (tempExpenseState!.people ?? []).filter(
-          (p) => p.subtotal > 0
-        );
-        activeCreatePeople.forEach((person) => {
-          const personDocRef = doc(expenseDocRef, 'people', person.id);
-          const isGuest = person.userRef === null;
-          batch.set(personDocRef, {
-            subtotal: person.subtotal,
-            paid: person.paid ?? 0,
-            ...(isGuest && person.name ? { guestName: person.name } : {}),
-          });
-        });
-
-        tempExpenseState!.items.forEach((item) => {
-          const itemDocRef = doc(expenseDocRef, 'items', item.id);
-          batch.set(itemDocRef, {
-            name: item.name,
-            amount: item.amount,
-            taxRate: item.taxRate ?? 0,
-            split: item.split,
-            assignedPersonIds: item.assignedPersonIds,
-            isTip: item.isTip ?? false,
-          });
-        });
-
-        await batch.commit();
         clearTempExpense();
-        await queryClient.invalidateQueries({
-          queryKey: ['expenses'],
-          refetchType: 'all',
-        });
         if (eventId) {
           router.replace(`/event/${eventId}/expenses` as any);
         } else {
-          router.replace(`/expense/${expenseDocRef.id}` as any);
+          router.replace(`/expense/${expenseId}` as any);
         }
         return;
       }

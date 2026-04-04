@@ -97,6 +97,11 @@ const _useExpenseCreation = create<ExpenseCreationState>((set, get) => ({
     const recalculatedPeople = expense.people
       .map((person) => ({
         ...person,
+        // After a Firestore round-trip, Zod strips `name` and `userRef`.
+        // Restore `name` from `guestName` so the store and mutations can
+        // use `person.name` consistently.
+        name: person.name ?? person.guestName ?? undefined,
+        userRef: person.userRef ?? null,
         subtotal: expense.items.reduce(
           (sum, item) => sum + calculatePersonShare(item, person.id),
           0
@@ -178,7 +183,10 @@ const _useExpenseCreation = create<ExpenseCreationState>((set, get) => ({
         people: updatedPeople,
         participantCount: updatedPeople.length,
         totalAmount: newTotal,
-        remainingAmount: newTotal,
+        remainingAmount: Math.max(
+          0,
+          (current.remainingAmount ?? 0) - (itemToRemove?.amount ?? 0)
+        ),
       };
       set({ tempExpense: updated });
       setTempExpense(updated);

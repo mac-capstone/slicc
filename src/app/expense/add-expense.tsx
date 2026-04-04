@@ -28,7 +28,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { v4 as uuidv4 } from 'uuid';
 
+import { useEvent } from '@/api/events/use-events';
 import { useExpense } from '@/api/expenses/use-expenses';
+import { useUser, useUsersAsPeople } from '@/api/people/use-users';
 import ExpenseCreationFooter from '@/components/expense-creation-footer';
 import {
   Button,
@@ -50,12 +52,20 @@ import {
   initializeFromExistingExpense,
   useExpenseCreation,
 } from '@/lib/store';
+import {
+  normalizeStoredTipPercent,
+  TIP_PERCENT_OPTIONS,
+  TIP_PERCENT_SELECT_OPTIONS,
+  type TipPercentOption,
+} from '@/lib/tip-percent-options';
 import { useThemeConfig } from '@/lib/use-theme-config';
 import {
   type EventIdT,
   type ExpenseIdT,
   type ItemIdT,
   type ItemWithId,
+  type PersonWithId,
+  type UserIdT,
 } from '@/types';
 
 const SWIPE_NUDGE_SHOWN_KEY = 'swipe-nudge-shown';
@@ -187,6 +197,13 @@ export default function AddExpense() {
   const addPerson = useExpenseCreation.use.addPerson();
   const avatarColors = useMemo(() => Object.keys(colors.avatar ?? {}), []);
 
+  const viewerUserId = userId ?? null;
+  const { data: signedInUser } = useUser({
+    variables: { userId: userId as UserIdT, viewerUserId },
+    enabled: Boolean(userId),
+  });
+  const { defaultTipPercent } = useUserSettings();
+
   const currentPayerId = tempExpense?.payerUserId;
   const resolvedDefaultTipRate = resolveDefaultTipRate(
     signedInUser,
@@ -297,9 +314,11 @@ export default function AddExpense() {
 
   // For standalone (non-event) expenses, auto-add the signed-in user as a person
   // so they appear in the split view as the default payer.
+  const hasAddedSelfRef = useRef(false);
   useEffect(() => {
     if (eventId) return;
     if (!tempExpense || !userId || !signedInUser?.displayName) return;
+    if (hasAddedSelfRef.current) return;
     const alreadyAdded = tempExpense.people.some((p) => p.id === userId);
     if (!alreadyAdded) {
       const color =
@@ -314,11 +333,12 @@ export default function AddExpense() {
         paid: 0,
       } as PersonWithId);
     }
+    hasAddedSelfRef.current = true;
   }, [
     eventId,
-    tempExpense,
     userId,
     signedInUser?.displayName,
+    tempExpense,
     addPerson,
     avatarColors,
   ]);
