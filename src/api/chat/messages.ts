@@ -117,6 +117,10 @@ function parseChatMessageRtdb(
     imagePath: typeof r.imagePath === 'string' ? r.imagePath : undefined,
     mimeType: typeof r.mimeType === 'string' ? r.mimeType : undefined,
     fileName: typeof r.fileName === 'string' ? r.fileName : undefined,
+    captionEncrypted:
+      typeof r.captionEncrypted === 'string' ? r.captionEncrypted : undefined,
+    captionNonce:
+      typeof r.captionNonce === 'string' ? r.captionNonce : undefined,
     locationPayload:
       r.locationPayload && typeof r.locationPayload === 'object'
         ? (r.locationPayload as LocationShare)
@@ -311,6 +315,7 @@ export async function sendImageMessage({
   mimeType,
   fileName,
   groupKey,
+  captionPlaintext,
 }: {
   groupId: string;
   senderId: string;
@@ -318,6 +323,8 @@ export async function sendImageMessage({
   mimeType: string;
   fileName: string;
   groupKey: string;
+  /** Optional text shown under the image in the thread. */
+  captionPlaintext?: string;
 }): Promise<void> {
   // Read local image bytes using the non-deprecated Expo File API.
   const file = new File(localUri);
@@ -335,6 +342,10 @@ export async function sendImageMessage({
     ciphertextB64: ciphertext,
   });
 
+  const captionTrimmed = captionPlaintext?.trim() ?? '';
+  const captionPayload =
+    captionTrimmed.length > 0 ? encryptMessage(captionTrimmed, groupKey) : null;
+
   const msgRef = push(dbRef(rtdb, messagesPath(groupId)));
   await set(msgRef, {
     senderId,
@@ -346,6 +357,12 @@ export async function sendImageMessage({
     keyVersion: 0,
     sentAt: serverTimestamp(),
     readBy: [],
+    ...(captionPayload
+      ? {
+          captionEncrypted: captionPayload.ciphertext,
+          captionNonce: captionPayload.nonce,
+        }
+      : {}),
   });
 }
 

@@ -94,34 +94,70 @@ export function MessageBubble({
       return <LocationCard location={message.locationPayload} />;
     }
     if (message.type === 'image') {
+      const caption =
+        message.decryptedContent && message.decryptedContent.length > 0
+          ? message.decryptedContent
+          : null;
       if (imageUri) {
         return (
-          <Image
-            source={{ uri: imageUri }}
-            style={{ width: 220, height: 220, borderRadius: 14 }}
-            contentFit="cover"
-          />
+          <View>
+            <Image
+              source={{ uri: imageUri }}
+              style={{ width: 220, height: 220, borderRadius: 14 }}
+              contentFit="cover"
+            />
+            {caption ? (
+              <Text
+                className="mt-2 text-sm leading-5"
+                style={{ color: bubbleTextColor }}
+              >
+                {caption}
+              </Text>
+            ) : null}
+          </View>
         );
       }
       if (imageLoadFailed) {
         return (
-          <Text
-            className="text-sm leading-5"
-            style={{ color: bubbleTextColor }}
-          >
-            Image unavailable
-          </Text>
+          <View>
+            <Text
+              className="text-sm leading-5"
+              style={{ color: bubbleTextColor }}
+            >
+              Image unavailable
+            </Text>
+            {caption ? (
+              <Text
+                className="mt-2 text-sm leading-5"
+                style={{ color: bubbleTextColor }}
+              >
+                {caption}
+              </Text>
+            ) : null}
+          </View>
         );
       }
       return (
-        <View
-          style={{
-            width: 220,
-            height: 220,
-            borderRadius: 14,
-            backgroundColor: isMine ? colors.accent[200] : colors.charcoal[800],
-          }}
-        />
+        <View>
+          <View
+            style={{
+              width: 220,
+              height: 220,
+              borderRadius: 14,
+              backgroundColor: isMine
+                ? colors.accent[200]
+                : colors.charcoal[800],
+            }}
+          />
+          {caption ? (
+            <Text
+              className="mt-2 text-sm leading-5"
+              style={{ color: bubbleTextColor }}
+            >
+              {caption}
+            </Text>
+          ) : null}
+        </View>
       );
     }
     if (isLockedText) return null; // locked messages should never show

@@ -120,7 +120,7 @@ function OverlapPanel({
     <View
       style={{
         width: PANEL_W,
-        paddingLeft: 6,
+        paddingLeft: 4,
         borderLeftWidth: 1,
         borderLeftColor: colors.charcoal[800],
       }}
@@ -151,7 +151,7 @@ function OverlapPanel({
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ alignItems: 'center', gap: 6 }}
+                  contentContainerStyle={{ alignItems: 'center', gap: 2 }}
                 >
                   {entries.map((entry) => {
                     const name = memberNames[entry.uid] ?? '?';
@@ -206,7 +206,10 @@ function DetailCard({
         const name = memberNames[entry.uid] ?? '?';
         const isSelected = entry.uid === info.entry.uid;
         return (
-          <View key={entry.uid} className="mb-0.5 flex-row items-center gap-1">
+          <View
+            key={entry.uid}
+            className="mb-0.5 flex-row items-center gap-0.5"
+          >
             <PersonAvatar
               userId={entry.uid as UserIdT}
               fallbackLabel={name}

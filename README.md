@@ -267,6 +267,10 @@ Paths are rooted at the default RTDB URL (`databaseURL` in Firebase config). Mes
   encryptedContent?: string;
   nonce?: string; // base64 AES-GCM IV
   keyVersion?: number;
+  // Encrypted image messages saved to Firebase Storage with path `groups/{groupId}/{uuid}.jpg`
+  imagePath?: string,
+  mimeType?: string,
+  fileName?: string,
 
   // type="location" - public place data (Explore page)
   locationPayload?: {

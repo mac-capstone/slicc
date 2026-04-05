@@ -31,6 +31,7 @@ type UseChatResult = {
     uri: string;
     mimeType: string;
     fileName: string;
+    caption?: string;
   }) => Promise<void>;
 };
 
@@ -148,6 +149,13 @@ export function useGroupChat(
           ) {
             return { ...msg, decryptedContent: prior.decryptedContent };
           }
+          if (
+            prior?.decryptedContent != null &&
+            msg.type === 'image' &&
+            msg.captionEncrypted
+          ) {
+            return { ...msg, decryptedContent: prior.decryptedContent };
+          }
           return msg;
         });
       });
@@ -155,16 +163,35 @@ export function useGroupChat(
     }
 
     const decrypted = rawMessages.map((msg) => {
-      if (msg.type !== 'text' || !msg.encryptedContent || !msg.nonce) {
+      if (msg.type === 'system') {
         return { ...msg, decryptedContent: msg.systemText ?? null };
       }
-      let content: string | null = null;
-      try {
-        content = decryptMessage(msg.encryptedContent, msg.nonce, groupKey);
-      } catch {
-        content = null;
+      if (msg.type === 'text' && msg.encryptedContent && msg.nonce) {
+        let content: string | null = null;
+        try {
+          content = decryptMessage(msg.encryptedContent, msg.nonce, groupKey);
+        } catch {
+          content = null;
+        }
+        return { ...msg, decryptedContent: content };
       }
-      return { ...msg, decryptedContent: content };
+      if (msg.type === 'image' && msg.captionEncrypted && msg.captionNonce) {
+        let content: string | null = null;
+        try {
+          content = decryptMessage(
+            msg.captionEncrypted,
+            msg.captionNonce,
+            groupKey
+          );
+        } catch {
+          content = null;
+        }
+        return { ...msg, decryptedContent: content };
+      }
+      if (msg.type === 'image' || msg.type === 'location') {
+        return { ...msg, decryptedContent: null };
+      }
+      return { ...msg, decryptedContent: msg.systemText ?? null };
     });
 
     setMessages(decrypted);
@@ -203,10 +230,12 @@ export function useGroupChat(
       uri,
       mimeType,
       fileName,
+      caption,
     }: {
       uri: string;
       mimeType: string;
       fileName: string;
+      caption?: string;
     }) => {
       if (!groupId || !userId || !groupKey) return;
       setIsSending(true);
@@ -228,6 +257,7 @@ export function useGroupChat(
           mimeType,
           fileName,
           groupKey,
+          captionPlaintext: caption,
         });
       } finally {
         setIsSending(false);

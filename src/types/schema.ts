@@ -222,6 +222,9 @@ export const chatMessageSchema = z.object({
   imagePath: z.string().optional(),
   mimeType: z.string().optional(),
   fileName: z.string().optional(),
+  /** Optional caption; encrypted separately from the image bytes (`nonce` is for the file). */
+  captionEncrypted: z.string().optional(),
+  captionNonce: z.string().optional(),
   locationPayload: locationPayloadSchema.optional(),
   systemText: z.string().optional(),
   // serverTimestamp() resolves to null on the first local snapshot (pending write),
