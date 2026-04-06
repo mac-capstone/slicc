@@ -18,15 +18,22 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
-async function fetchLocation(): Promise<{
+type FetchLocationOptions = {
+  /** Caller already obtained `granted` from `requestForegroundPermissionsAsync` (or equivalent). */
+  foregroundGranted?: boolean;
+};
+
+async function fetchLocation(options?: FetchLocationOptions): Promise<{
   latitude: number;
   longitude: number;
 } | null> {
-  const { status: perm } = await Location.requestForegroundPermissionsAsync();
-  console.log(`${LOG} Permission status: ${perm}`);
-  if (perm !== 'granted') {
-    console.log(`${LOG} Permission denied, skipping location fetch`);
-    return null;
+  if (!options?.foregroundGranted) {
+    const { status: perm } = await Location.requestForegroundPermissionsAsync();
+    console.log(`${LOG} Permission status: ${perm}`);
+    if (perm !== 'granted') {
+      console.log(`${LOG} Permission denied, skipping location fetch`);
+      return null;
+    }
   }
 
   let pos: Location.LocationObject | null = null;
@@ -94,7 +101,7 @@ export function useUserLocation(enabled = true): {
     const { status: perm } = await Location.requestForegroundPermissionsAsync();
     setStatus(perm);
     if (perm !== 'granted') return;
-    const coords = await fetchLocation();
+    const coords = await fetchLocation({ foregroundGranted: true });
     setLocation(coords);
     console.log(`${LOG} Final location:`, coords ?? 'null');
   }, [enabled]);

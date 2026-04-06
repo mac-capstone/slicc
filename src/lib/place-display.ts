@@ -5,6 +5,7 @@ const PRICE_LABELS: Record<PriceLevel, string> = {
   INEXPENSIVE: 'Inexpensive ($)',
   MODERATE: 'Moderate ($$)',
   EXPENSIVE: 'Expensive ($$$)',
+  VERY_EXPENSIVE: 'Very expensive ($$$$)',
 };
 
 export function formatPriceLevelForDisplay(

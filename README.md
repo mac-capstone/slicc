@@ -22,7 +22,7 @@ slicc is a cross-platform mobile app (iOS & Android) built with React Native and
 ### Environment variables
 
 1. Copy `.env.example` to `.env`
-2. Fill in your API keys (Google Places, Gemini, Firebase, etc.)
+2. Fill in your API keys (Google Places, Firebase, etc.). Receipt OCR uses `EXPO_PUBLIC_RECEIPT_EXTRACTION_URL` plus the small Node server in `server/` with `GEMINI_API_KEY` (see `server/.env.example`).
 3. Never commit `.env` — it contains secrets
 
 ### Generate native projects

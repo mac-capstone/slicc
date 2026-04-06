@@ -118,7 +118,13 @@ export function inferPriceRange(likedPlaces: Place[]): PriceLevel[] | null {
   const withPrice = likedPlaces.filter((p) => p.priceLevel != null);
   if (withPrice.length < 2) return null;
 
-  const levels: PriceLevel[] = ['FREE', 'INEXPENSIVE', 'MODERATE', 'EXPENSIVE'];
+  const levels: PriceLevel[] = [
+    'FREE',
+    'INEXPENSIVE',
+    'MODERATE',
+    'EXPENSIVE',
+    'VERY_EXPENSIVE',
+  ];
   const priceIndex = (level: PriceLevel): number => levels.indexOf(level);
   const minLevel = Math.min(
     ...withPrice.map((p) => priceIndex(p.priceLevel!)).filter((i) => i >= 0)

@@ -103,7 +103,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-location',
       {
-        locationAlwaysAndWhenInUsePermission:
+        locationWhenInUsePermission:
           'Allow this app to use your location to find nearby places.',
       },
     ],

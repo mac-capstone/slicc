@@ -23,9 +23,15 @@ export function usePlaceLikesFirestoreSync(): void {
   const userId = useAuth.use.userId();
   const placeRatings = usePlacePreferences.use.placeRatings();
   const migrationCheckedRef = useRef(false);
+  const lastUserIdRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     if (!userId || userId === 'guest_user') return;
+
+    if (lastUserIdRef.current !== userId) {
+      migrationCheckedRef.current = false;
+      lastUserIdRef.current = userId;
+    }
 
     const likedIds = Object.entries(placeRatings)
       .filter(([, r]) => r === 'up')

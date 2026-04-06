@@ -11,6 +11,7 @@ import {
   setDoc,
   Timestamp,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 
@@ -220,22 +221,29 @@ export async function updateUserSettingsInFirestore(
   data: UpdateUserSettingsData
 ): Promise<void> {
   const userSettingsRef = doc(db, 'users', userId, 'settings', 'private');
+  const userRef = doc(db, 'users', userId);
   const now = Timestamp.now();
 
-  await setDoc(userSettingsRef, buildUserSettingsPatch(data, now), {
-    merge: true,
-  });
-
+  const patch = buildUserSettingsPatch(data, now);
   const record = data as Record<string, unknown>;
-  if (Object.hasOwn(record, 'dietaryPreferences')) {
+  const hasDietaryUpdate = Object.hasOwn(record, 'dietaryPreferences');
+
+  const batch = writeBatch(db);
+  batch.set(userSettingsRef, patch, { merge: true });
+
+  if (hasDietaryUpdate) {
     const raw = data.dietaryPreferences;
     const ids = normalizeDietaryPreferenceIds(Array.isArray(raw) ? raw : []);
-    await setDoc(
-      doc(db, 'users', userId),
+    batch.set(
+      userRef,
       { dietaryPreferenceIds: ids, updatedAt: now },
-      { merge: true }
+      {
+        merge: true,
+      }
     );
   }
+
+  await batch.commit();
 }
 
 /**

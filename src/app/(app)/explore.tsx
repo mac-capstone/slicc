@@ -46,6 +46,18 @@ function placeMatchesSearch(place: Place, query: string): boolean {
   return name.includes(q) || address.includes(q);
 }
 
+function filterPlacesByCategoryAndSearch(
+  places: Place[],
+  categoryFilter: CategoryFilter,
+  searchQuery: string
+): Place[] {
+  let data = places;
+  if (categoryFilter !== 'all') {
+    data = data.filter((p) => placeMatchesCategory(p, categoryFilter));
+  }
+  return data.filter((p) => placeMatchesSearch(p, searchQuery));
+}
+
 const LOADING_PLACEHOLDER_ID = '__loading__';
 
 function sortedPlaceIdsKey(places: Place[]): string {
@@ -190,9 +202,11 @@ export default function Explore() {
 
     const result: ExploreSection[] = [];
 
-    const showFavorites = sectionFilter === 'favorites';
-    const showRecommended = sectionFilter === 'recommended';
-    const showNearby = sectionFilter === 'nearby';
+    const showFavorites =
+      sectionFilter === 'all' || sectionFilter === 'favorites';
+    const showRecommended =
+      sectionFilter === 'all' || sectionFilter === 'recommended';
+    const showNearby = sectionFilter === 'all' || sectionFilter === 'nearby';
 
     if (showFavorites) {
       result.push({
@@ -272,27 +286,35 @@ export default function Explore() {
 
   const searchViewData = useMemo((): Place[] | null => {
     if (!isSearching) return null;
-    const q = searchQuery.trim();
 
     if (sectionFilter === 'all') {
-      return searchResults ?? [];
+      return filterPlacesByCategoryAndSearch(
+        searchResults ?? [],
+        categoryFilter,
+        searchQuery
+      );
     }
     if (sectionFilter === 'favorites') {
-      let data = likedPlaces;
-      if (categoryFilter !== 'all') {
-        data = data.filter((p) => placeMatchesCategory(p, categoryFilter));
-      }
-      return data.filter((p) => placeMatchesSearch(p, q));
+      return filterPlacesByCategoryAndSearch(
+        likedPlaces,
+        categoryFilter,
+        searchQuery
+      );
     }
     if (sectionFilter === 'recommended') {
-      let data = recommendations ?? [];
-      if (categoryFilter !== 'all') {
-        data = data.filter((p) => placeMatchesCategory(p, categoryFilter));
-      }
-      return data.filter((p) => placeMatchesSearch(p, q));
+      return filterPlacesByCategoryAndSearch(
+        recommendations ?? [],
+        categoryFilter,
+        searchQuery
+      );
     }
     if (sectionFilter === 'nearby') {
-      return hasLocation ? (searchResults ?? []) : [];
+      if (!hasLocation) return [];
+      return filterPlacesByCategoryAndSearch(
+        searchResults ?? [],
+        categoryFilter,
+        searchQuery
+      );
     }
     return [];
   }, [

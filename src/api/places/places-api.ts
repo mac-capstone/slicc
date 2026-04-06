@@ -5,7 +5,12 @@ const PLACES_BASE = 'https://places.googleapis.com/v1/places';
 const FIELD_MASK =
   'places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.name,places.primaryType,places.types,places.priceLevel';
 
-export type PriceLevel = 'FREE' | 'INEXPENSIVE' | 'MODERATE' | 'EXPENSIVE';
+export type PriceLevel =
+  | 'FREE'
+  | 'INEXPENSIVE'
+  | 'MODERATE'
+  | 'EXPENSIVE'
+  | 'VERY_EXPENSIVE';
 
 type PlaceLocation = {
   latitude: number;
@@ -48,7 +53,8 @@ function normalizePriceLevel(raw: unknown): PriceLevel | undefined {
     key === 'FREE' ||
     key === 'INEXPENSIVE' ||
     key === 'MODERATE' ||
-    key === 'EXPENSIVE'
+    key === 'EXPENSIVE' ||
+    key === 'VERY_EXPENSIVE'
   ) {
     return key as PriceLevel;
   }
@@ -246,8 +252,19 @@ export async function getPlaceDetails(placeId: string): Promise<Place | null> {
 export async function getPlaceDetailsBatch(
   placeIds: string[]
 ): Promise<(Place | null)[]> {
-  const results = await Promise.all(placeIds.map((id) => getPlaceDetails(id)));
-  return results;
+  const settled = await Promise.allSettled(
+    placeIds.map((id) => getPlaceDetails(id))
+  );
+  return settled.map((result, index) => {
+    if (result.status === 'fulfilled') {
+      return result.value;
+    }
+    console.warn('[places-api] getPlaceDetailsBatch rejected', {
+      placeId: placeIds[index],
+      reason: result.reason,
+    });
+    return null;
+  });
 }
 
 export async function searchText(
