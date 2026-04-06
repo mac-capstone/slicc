@@ -39,6 +39,7 @@ export const ThemeItem = () => {
         text="settings.theme.title"
         value={theme?.label}
         onPress={modal.present}
+        compactPadding
         testID="settings-theme-trigger"
       />
       <Options
