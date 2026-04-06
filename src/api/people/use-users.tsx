@@ -195,13 +195,15 @@ export async function fetchUsersBatch(
 
 export function useUsersAsPeople(
   userIds: UserIdT[],
-  colors: string[] = []
+  colors: string[] = [],
+  options?: { enabled?: boolean }
 ): {
   people: (EventPerson & { id: UserIdT })[];
   isLoading: boolean;
   isError: boolean;
 } {
   const viewerUserId = useAuth.use.userId() ?? null;
+  const queryEnabled = userIds.length > 0 && (options?.enabled ?? true);
 
   const {
     data: users = [],
@@ -211,7 +213,7 @@ export function useUsersAsPeople(
     queryKey: ['users', 'batch', userIds, viewerUserId],
     queryFn: () => fetchUsersBatch(userIds, viewerUserId),
     staleTime: 5 * 60 * 1000,
-    enabled: userIds.length > 0,
+    enabled: queryEnabled,
   });
 
   const people = users.map((user, index) => {
