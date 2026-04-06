@@ -188,7 +188,7 @@ export const expensePersonConverter = zodConverter(expensePersonSchema);
 export const expenseItemSchema = z.object({
   name: z.string(),
   amount: z.number(),
-  taxRate: z.number().optional(),
+  taxRate: z.number(),
   split: z.object({
     mode: z.string(),
     shares: z.record(z.string(), z.number()),

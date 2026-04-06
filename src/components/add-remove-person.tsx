@@ -249,13 +249,15 @@ function ManagePeopleModal({
                 const expensePerson = people.find(
                   (p) => p.id === participant.id
                 );
+                if (!expensePerson) return null;
                 const displayPerson: PersonWithId = {
-                  id: participant.id,
-                  name: participant.name,
-                  color: avatarColors[index % avatarColors.length],
-                  userRef: participant.id,
-                  subtotal: expensePerson?.subtotal ?? 0,
-                  paid: expensePerson?.paid ?? 0,
+                  ...expensePerson,
+                  name: expensePerson.name ?? participant.name,
+                  color:
+                    expensePerson.color ??
+                    participant.color ??
+                    avatarColors[index % avatarColors.length] ??
+                    '',
                 };
                 return (
                   <ExpensePersonRow
@@ -364,12 +366,29 @@ export const AddRemovePerson = ({ itemID, expenseId, eventId }: Props) => {
     for (const friendUserId of friendUserIds) ids.add(friendUserId);
     return [...ids];
   }, [currentUserId, friendUserIds]);
-  const { people: nonEventParticipants, isLoading: isUsersLoading } =
-    useUsersAsPeople(nonEventUserIds, avatarColors);
-  const { people: eventParticipants } = useUsersAsPeople(
-    (event?.participants ?? []) as UserIdT[],
-    avatarColors
+  const eventParticipantIds = useMemo(
+    () => (event?.participants ?? []) as UserIdT[],
+    [event?.participants]
   );
+
+  const {
+    people: nonEventParticipants,
+    isLoading: isNonEventUsersLoading,
+    isError: isNonEventUsersError,
+  } = useUsersAsPeople(nonEventUserIds, avatarColors, {
+    enabled: !eventId && nonEventUserIds.length > 0,
+  });
+  const {
+    people: eventParticipants,
+    isLoading: isEventUsersLoading,
+    isError: isEventUsersError,
+  } = useUsersAsPeople(eventParticipantIds, avatarColors, {
+    enabled: Boolean(eventId) && eventParticipantIds.length > 0,
+  });
+
+  const needsNonEventUserProfiles = !eventId && nonEventUserIds.length > 0;
+  const needsEventParticipantProfiles =
+    Boolean(eventId) && eventParticipantIds.length > 0;
 
   const nonEventParticipantRows = useMemo(
     () =>
@@ -391,10 +410,27 @@ export const AddRemovePerson = ({ itemID, expenseId, eventId }: Props) => {
     [eventId, eventParticipants, tempExpense?.people]
   );
 
-  if (isPending || isAssignedPending || (!eventId && isUsersLoading))
+  if (
+    isPending ||
+    isAssignedPending ||
+    (needsNonEventUserProfiles && isNonEventUsersLoading) ||
+    (needsEventParticipantProfiles && isEventUsersLoading)
+  )
     return <ActivityIndicator />;
   if (isError || isAssignedError)
     return <Text>Error loading temp expense</Text>;
+  if (needsNonEventUserProfiles && isNonEventUsersError)
+    return (
+      <Text className="p-4 text-red-400">
+        Could not load people for this expense. Pull to refresh or try again.
+      </Text>
+    );
+  if (needsEventParticipantProfiles && isEventUsersError)
+    return (
+      <Text className="p-4 text-red-400">
+        Could not load event participants. Pull to refresh or try again.
+      </Text>
+    );
 
   const people = tempExpense?.people ?? [];
   const maxPeopleReached = people.length >= MAX_PEOPLE;

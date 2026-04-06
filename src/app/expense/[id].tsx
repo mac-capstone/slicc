@@ -41,6 +41,8 @@ export default function ExpenseView() {
   const { data, isPending, isError } = useExpense({
     variables: id,
   });
+  const updateExpense = useUpdateExpense();
+
   if (isPending) {
     return (
       <View className="flex-1 justify-center p-3">
@@ -69,6 +71,24 @@ export default function ExpenseView() {
     isProcessingRef.current = true;
     setLoading(true);
     try {
+      const tempExpenseState = getTempExpenseState();
+
+      if (id === 'temp-expense' && tempExpenseState?.originalExpenseId) {
+        const { expenseId } = await updateExpense.mutateAsync({
+          originalExpenseId: tempExpenseState.originalExpenseId,
+          originalItemIds: tempExpenseState.originalItemIds ?? [],
+          originalPersonIds: tempExpenseState.originalPersonIds ?? [],
+          name: tempExpenseState.name,
+          totalAmount: tempExpenseState.totalAmount,
+          remainingAmount: tempExpenseState.remainingAmount ?? 0,
+          people: tempExpenseState.people,
+          items: tempExpenseState.items,
+        });
+        clearTempExpense();
+        router.replace(`/expense/${expenseId}` as any);
+        return;
+      }
+
       if (id === 'temp-expense') {
         const payload = {
           expense: data,
@@ -203,23 +223,46 @@ export default function ExpenseView() {
             {data.name}
           </Text>
           {viewMode !== 'confirm' && (
-            <Pressable
-              onPress={() =>
-                router.push({
-                  pathname: '/expense/settle',
-                  params: {
-                    id,
-                    ...(eventId ? { eventId } : {}),
-                  },
-                } as any)
-              }
-            >
-              <Ionicons
-                name="create-outline"
-                size={30}
-                color={theme.dark ? '#fff' : '#000'}
-              />
-            </Pressable>
+            <View className="flex-row items-center gap-3">
+              {id !== 'temp-expense' && (
+                <Pressable
+                  onPress={() =>
+                    router.push({
+                      pathname: '/expense/settle',
+                      params: {
+                        id,
+                        ...(eventId ? { eventId } : {}),
+                      },
+                    } as any)
+                  }
+                >
+                  <Ionicons
+                    name="wallet-outline"
+                    size={28}
+                    color={theme.dark ? '#fff' : '#000'}
+                  />
+                </Pressable>
+              )}
+              {id !== 'temp-expense' && (
+                <Pressable
+                  onPress={() =>
+                    router.push({
+                      pathname: '/expense/add-expense',
+                      params: {
+                        expenseId: id,
+                        ...(eventId ? { eventId } : {}),
+                      },
+                    } as any)
+                  }
+                >
+                  <Ionicons
+                    name="create-outline"
+                    size={30}
+                    color={theme.dark ? '#fff' : '#000'}
+                  />
+                </Pressable>
+              )}
+            </View>
           )}
         </View>
         <Text className="text-base font-medium dark:text-text-800">

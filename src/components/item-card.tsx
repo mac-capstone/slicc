@@ -105,7 +105,7 @@ export const ItemCard = ({
               {item.name}
             </Text>
             <Text className="font-futuraMedium text-2xl dark:text-text-50">
-              ${item.amount.toFixed(2)}
+              ${(item.amount * (1 + item.taxRate / 100)).toFixed(2)}
             </Text>
           </View>
         </View>
@@ -121,7 +121,7 @@ export const ItemCard = ({
           {item.name}
         </Text>
         <Text className="font-futuraDemi text-xl dark:text-text-50">
-          ${item.amount.toFixed(2)}
+          ${(item.amount * (1 + item.taxRate / 100)).toFixed(2)}
         </Text>
       </View>
       <View className="flex flex-row items-center justify-start gap-2 pt-2">

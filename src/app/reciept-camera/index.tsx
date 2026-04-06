@@ -27,6 +27,7 @@ import {
   View as CustomView,
 } from '@/components/ui';
 import { white } from '@/components/ui/colors';
+import { useDefaultTaxRate } from '@/lib/hooks/use-default-tax-rate';
 import { useExpenseCreation } from '@/lib/store';
 import { useThemeConfig } from '@/lib/use-theme-config';
 import { type ItemIdT, type ItemWithId } from '@/types';
@@ -40,6 +41,7 @@ export default function ReceiptCameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   const { addItem, clearTempExpenseItems } = useExpenseCreation();
+  const { defaultTaxRate: defaultTaxRateValue } = useDefaultTaxRate();
 
   if (!permission) {
     return (
@@ -90,6 +92,7 @@ export default function ReceiptCameraScreen() {
         id: uuidv4() as ItemIdT,
         name: item.dish,
         amount: item.price,
+        taxRate: defaultTaxRateValue ?? 0,
         split: {
           mode: 'equal',
           shares: {},

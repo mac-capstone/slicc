@@ -190,9 +190,10 @@ export const ItemCardDetailed = ({ expenseId, itemId }: Props) => {
         <Text className="font-futuraDemi text-3xl dark:text-text-50">
           {itemName}
         </Text>
-        <Text className="text-lg dark:text-accent-100">{`$${itemPrice.toFixed(
-          2
-        )}`}</Text>
+        <Text className="text-lg dark:text-accent-100">{`$${(
+          itemPrice *
+          (1 + item.taxRate / 100)
+        ).toFixed(2)}`}</Text>
       </View>
 
       {/* Participants */}
