@@ -175,7 +175,7 @@ export const expenseSchema = z.object({
 
 export const expenseConverter = zodConverter(expenseSchema);
 
-// ── Expense → people subcollection ─────────────────────────────────────────
+// ── Expense -> people subcollection ─────────────────────────────────────────
 
 export const expensePersonSchema = z.object({
   subtotal: z.number(),
@@ -185,12 +185,12 @@ export const expensePersonSchema = z.object({
 
 export const expensePersonConverter = zodConverter(expensePersonSchema);
 
-// ── Expense → items subcollection ──────────────────────────────────────────
+// ── Expense -> items subcollection ──────────────────────────────────────────
 
 export const expenseItemSchema = z.object({
   name: z.string(),
   amount: z.number(),
-  taxRate: z.number().optional(),
+  taxRate: z.number(),
   split: z.object({
     mode: z.string(),
     shares: z.record(z.string(), z.number()),
@@ -209,3 +209,61 @@ export const placeLikesSchema = z.object({
 });
 
 export type PlaceLikes = z.infer<typeof placeLikesSchema>;
+
+// ── Chat message (Realtime DB: groups/{groupId}/messages/{pushId}) ─────────
+
+export const locationPayloadSchema = z.object({
+  name: z.string(),
+  address: z.string(),
+  coordinates: z.object({ lat: z.number(), lng: z.number() }),
+  mapsUrl: z.string(),
+  category: z.string().optional(),
+  imageUrl: z.string().optional(),
+  rating: z.number().optional(),
+  priceLevel: z.string().optional(),
+});
+
+export const chatMessageSchema = z.object({
+  senderId: z.string(),
+  type: z.enum(['text', 'image', 'location', 'system']),
+  encryptedContent: z.string().optional(),
+  nonce: z.string().optional(),
+  keyVersion: z.number().default(0),
+  imagePath: z.string().optional(),
+  mimeType: z.string().optional(),
+  fileName: z.string().optional(),
+  /** Optional caption; encrypted separately from the image bytes (`nonce` is for the file). */
+  captionEncrypted: z.string().optional(),
+  captionNonce: z.string().optional(),
+  locationPayload: locationPayloadSchema.optional(),
+  systemText: z.string().optional(),
+  sentAt: z
+    .custom<Timestamp | null>((val) => val instanceof Timestamp || val === null)
+    .transform((val) => (val instanceof Timestamp ? val.toDate() : new Date())),
+  readBy: z.array(z.string()).default([]),
+  reactions: z.record(z.string(), z.array(z.string())).default({}),
+});
+
+export const chatMessageConverter = zodConverter(chatMessageSchema);
+
+// ── Key bundle (Realtime DB: groups/{groupId}/keyBundles/{userId}) ───────────
+
+export const chatKeyBundleSchema = z.object({
+  encryptedGroupKey: z.string(),
+  senderPublicKey: z.string(),
+  nonce: z.string(),
+  keyVersion: z.number(),
+  recipientPublicKey: z.string().optional(),
+  updatedAt: firestoreTimestamp,
+});
+
+export const chatKeyBundleConverter = zodConverter(chatKeyBundleSchema);
+
+// ── Scheduler availability (Realtime DB: groups/{groupId}/availability/{userId}) ─
+
+export const availabilitySchema = z.object({
+  slots: z.array(z.string()).default([]),
+  updatedAt: firestoreTimestamp.optional(),
+});
+
+export const availabilityConverter = zodConverter(availabilitySchema);

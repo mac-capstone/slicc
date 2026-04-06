@@ -49,7 +49,11 @@ export function PendingExpenseItem({ expenseId, userId }: Props) {
       onPress={() =>
         router.push({
           pathname: `/expense/[id]`,
-          params: { id: expenseId, viewMode: 'view' },
+          params: {
+            id: expenseId,
+            viewMode: 'view',
+            ...(data.eventId ? { eventId: data.eventId } : {}),
+          },
         })
       }
       className="flex-row items-center justify-between rounded-lg bg-background-900 px-4 py-3"

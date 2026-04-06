@@ -14,7 +14,7 @@ import { useItem } from '@/api/items/use-items';
 import { usePeopleIdsForItem } from '@/api/people/use-people';
 import { calculatePersonShare } from '@/lib';
 import { useExpenseCreation } from '@/lib/store';
-import { type ExpenseIdT, type ItemIdT } from '@/types';
+import { type ExpenseIdT, type ItemIdT, type UserIdT } from '@/types';
 
 import { PersonAvatar } from './person-avatar';
 import { Button } from './ui/button';
@@ -143,7 +143,11 @@ export const ItemCardDetailed = ({ expenseId, itemId }: Props) => {
           >
             {assignedPeople.map((person, index: number) => (
               <View key={person.id} className={index > 0 ? '-ml-3' : 'm-0'}>
-                <PersonAvatar size="lg" />
+                <PersonAvatar
+                  userId={person.id as UserIdT}
+                  fallbackLabel={person.name}
+                  size="lg"
+                />
               </View>
             ))}
           </ScrollView>
@@ -186,9 +190,10 @@ export const ItemCardDetailed = ({ expenseId, itemId }: Props) => {
         <Text className="font-futuraDemi text-3xl dark:text-text-50">
           {itemName}
         </Text>
-        <Text className="text-lg dark:text-accent-100">{`$${itemPrice.toFixed(
-          2
-        )}`}</Text>
+        <Text className="text-lg dark:text-accent-100">{`$${(
+          itemPrice *
+          (1 + item.taxRate / 100)
+        ).toFixed(2)}`}</Text>
       </View>
 
       {/* Participants */}

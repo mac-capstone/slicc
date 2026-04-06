@@ -2,6 +2,7 @@ import Feather from '@expo/vector-icons/Feather';
 import React, { useEffect, useState } from 'react';
 import { FlatList, Modal, TextInput } from 'react-native';
 
+import { PersonAvatar } from '@/components/person-avatar';
 import { Button, Pressable, Text, View } from '@/components/ui';
 import type { UserIdT, UserWithId } from '@/types';
 
@@ -31,10 +32,13 @@ function MemberRow({
       accessibilityState={{ selected: isSelected }}
       className="flex-row items-center border-b border-neutral-800 py-3"
     >
-      <View className="mr-3 size-9 items-center justify-center rounded-full bg-neutral-700">
-        <Text className="text-sm font-bold text-white">
-          {user.displayName.charAt(0).toUpperCase()}
-        </Text>
+      <View className="mr-3">
+        <PersonAvatar
+          userId={user.id}
+          fallbackLabel={user.displayName}
+          size={36}
+          color="white"
+        />
       </View>
       <Text className="flex-1 text-base text-white">{user.displayName}</Text>
       {isSelected && <Feather name="check-circle" size={20} color="#00C8B3" />}
