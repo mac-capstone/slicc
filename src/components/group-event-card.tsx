@@ -48,16 +48,20 @@ function formatMonthDay(dateStr: string): { month: string; day: string } {
 type Props = {
   event: GroupEventCardData;
   onPress: () => void;
+  /** Event is in progress (between start and end). */
+  isLive?: boolean;
+  /** Tighter vertical spacing (e.g. in chat strip). */
+  dense?: boolean;
 };
 
-export function GroupEventCard({ event, onPress }: Props) {
+export function GroupEventCard({ event, onPress, isLive, dense }: Props) {
   const { month, day } = formatMonthDay(event.startDate);
   const participantCount = event.participants.length;
 
   return (
     <Pressable
       onPress={onPress}
-      className="mb-4"
+      className={dense ? 'mb-2' : 'mb-4'}
       accessibilityRole="button"
       accessibilityLabel={`View event ${event.name}`}
       accessibilityHint="Opens event details"
@@ -81,12 +85,27 @@ export function GroupEventCard({ event, onPress }: Props) {
           </Text>
         </View>
         <View className="min-w-0 flex-1">
-          <Text
-            className="font-interSemiBold text-2xl text-white"
-            numberOfLines={1}
-          >
-            {event.name}
-          </Text>
+          <View className="flex-row flex-wrap items-center gap-2">
+            <Text
+              className={`font-interSemiBold text-white ${dense ? 'text-xl' : 'text-2xl'}`}
+              numberOfLines={1}
+            >
+              {event.name}
+            </Text>
+            {isLive ? (
+              <View
+                className="rounded px-1.5 py-0.5"
+                style={{ backgroundColor: colors.accent[200] }}
+              >
+                <Text
+                  className="text-[10px] font-bold uppercase"
+                  style={{ color: colors.accent[100] }}
+                >
+                  LIVE
+                </Text>
+              </View>
+            ) : null}
+          </View>
           <View className="mt-1 flex-row items-center gap-1">
             <Text className="text-sm" style={{ color: colors.text[800] }}>
               {event.startTime}

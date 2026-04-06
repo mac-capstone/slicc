@@ -20,14 +20,18 @@ import { SegmentToggle } from '@/components/segment-toggle';
 import { ActivityIndicator, Pressable, Text, View } from '@/components/ui';
 import { clearTempExpense, getTempExpenseState } from '@/lib/store';
 import { useThemeConfig } from '@/lib/use-theme-config';
-import { type ExpenseIdT } from '@/types';
+import { type EventIdT, type ExpenseIdT } from '@/types';
 
 export default function ExpenseView() {
   const router = useRouter();
   const theme = useThemeConfig();
   const [loading, setLoading] = useState(false);
   const isProcessingRef = useRef(false);
-  const { id, viewMode, eventId } = useLocalSearchParams<{
+  const {
+    id,
+    viewMode,
+    eventId: eventIdParam,
+  } = useLocalSearchParams<{
     id: ExpenseIdT;
     viewMode: 'view' | 'confirm';
     eventId?: string;
@@ -53,6 +57,8 @@ export default function ExpenseView() {
       </View>
     );
   }
+
+  const eventId = (eventIdParam ?? data.eventId) as EventIdT | undefined;
 
   const formattedDate = new Date(data.date).toLocaleDateString('en-US', {
     day: 'numeric',
@@ -179,7 +185,15 @@ export default function ExpenseView() {
             <View className="flex-row items-center gap-3">
               {id !== 'temp-expense' && (
                 <Pressable
-                  onPress={() => router.push(`/expense/settle?id=${id}` as any)}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/expense/settle',
+                      params: {
+                        id,
+                        ...(eventId ? { eventId } : {}),
+                      },
+                    } as any)
+                  }
                 >
                   <Ionicons
                     name="wallet-outline"
@@ -191,7 +205,13 @@ export default function ExpenseView() {
               {id !== 'temp-expense' && (
                 <Pressable
                   onPress={() =>
-                    router.push(`/expense/add-expense?expenseId=${id}` as any)
+                    router.push({
+                      pathname: '/expense/add-expense',
+                      params: {
+                        expenseId: id,
+                        ...(eventId ? { eventId } : {}),
+                      },
+                    } as any)
                   }
                 >
                   <Ionicons

@@ -256,7 +256,7 @@ export default function Social() {
   );
 
   return (
-    <View className="flex-1 px-4">
+    <View className="flex-1 px-4" style={{ position: 'relative' }}>
       <Stack.Screen
         options={{
           title: 'Social',
@@ -429,6 +429,7 @@ export default function Social() {
           />
         </>
       )}
+
       {(isFriendRequestsOpen ||
         isAddFriendOpen ||
         removeFriendTarget != null) && (

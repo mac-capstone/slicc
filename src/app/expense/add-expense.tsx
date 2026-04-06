@@ -696,7 +696,7 @@ const TempItemCard = React.memo(function TempItemCard({
       </View>
     );
   }
-  const taxAmount = item.amount * ((item.taxRate ? item.taxRate : 0) / 100); 
+  const taxAmount = item.amount * ((item.taxRate ? item.taxRate : 0) / 100);
   const totalWithTax = item.amount + taxAmount;
   return (
     <View className="overflow-hidden rounded-xl">

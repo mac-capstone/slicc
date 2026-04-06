@@ -66,6 +66,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
     package: Env.PACKAGE,
     googleServicesFile: './google-services.json',
+    softwareKeyboardLayoutMode: 'resize',
   },
   web: {
     favicon: './assets/favicon.png',
@@ -96,6 +97,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     'expo-localization',
+    'expo-secure-store',
     'expo-router',
     '@react-native-community/datetimepicker',
     ['app-icon-badge', appIconBadgeConfig],
