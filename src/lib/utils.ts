@@ -3,17 +3,7 @@ import { twMerge } from 'tailwind-merge';
 import { z } from 'zod';
 import type { StoreApi, UseBoundStore } from 'zustand';
 
-import {
-  type ExpenseIdT,
-  type ExpenseWithId,
-  type ItemIdT,
-  type ItemWithId,
-  type Person,
-  type PersonWithId,
-  type UserIdT,
-} from '@/types';
-
-import { type mockData } from './mock-data';
+import { type ItemWithId } from '@/types';
 
 export function openLinkInBrowser(url: string) {
   Linking.canOpenURL(url).then((canOpen) => canOpen && Linking.openURL(url));
@@ -39,60 +29,6 @@ export const cn = (...classes: string[]) => {
   return twMerge(classes.filter(Boolean).join(' '));
 };
 
-export const mapMockPersonToPerson = (
-  person: (typeof mockData.expenses)[number]['people'][number]
-): Person => {
-  return {
-    name: person.doc.name,
-    color: person.doc.color,
-    userRef: person.doc.userRef,
-    subtotal: person.doc.subtotal,
-    paid: person.doc.paid,
-  };
-};
-
-export const mapMockPersonToPersonWithId = (
-  person: (typeof mockData.expenses)[number]['people'][number]
-): PersonWithId => {
-  return {
-    id: person.id,
-    name: person.doc.name,
-    color: person.doc.color,
-    userRef: person.doc.userRef,
-    subtotal: person.doc.subtotal,
-    paid: person.doc.paid,
-  };
-};
-
-export const mapMockExpenseToExpenseWithId = (
-  expense: (typeof mockData.expenses)[number]
-): ExpenseWithId => {
-  return {
-    id: expense.id as ExpenseIdT,
-    name: expense.doc.name,
-    totalAmount: expense.doc.totalAmount,
-    date: expense.doc.date,
-    remainingAmount: expense.doc.remainingAmount,
-    createdBy: expense.doc.createdBy as UserIdT,
-    participantCount: expense.doc.participantCount,
-  };
-};
-
-export const mapMockItemToItemWithId = (
-  item: (typeof mockData.expenses)[number]['items'][number]
-): ItemWithId => {
-  return {
-    id: item.id as ItemIdT,
-    name: item.doc.name,
-    amount: item.doc.amount,
-    split: {
-      mode: item.doc.split.mode as string,
-      shares: item.doc.split.shares as Record<string, number>,
-    },
-    assignedPersonIds: item.doc.assignedPersonIds as string[],
-  };
-};
-
 export const calculatePersonShare = (
   item: ItemWithId,
   personId: string
@@ -102,7 +38,10 @@ export const calculatePersonShare = (
     (acc: number, share: number) => acc + share,
     0
   );
-  return (item.split.shares[personId] * item.amount) / totalShares;
+  return (
+    (item.split.shares[personId] * item.amount * (1 + item.taxRate / 100)) /
+    totalShares
+  );
 };
 
 export const parseReceiptInfo = (

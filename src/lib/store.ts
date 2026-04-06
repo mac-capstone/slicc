@@ -124,8 +124,10 @@ const _useExpenseCreation = create<ExpenseCreationState>((set, get) => ({
       const updated = {
         ...current,
         items: [...current.items, item],
-        totalAmount: current.totalAmount + item.amount,
-        remainingAmount: current.totalAmount + item.amount,
+        totalAmount:
+          current.totalAmount + item.amount * (1 + item.taxRate / 100),
+        remainingAmount:
+          current.totalAmount + item.amount * (1 + item.taxRate / 100),
       };
       set({ tempExpense: updated });
       setTempExpense(updated);
@@ -140,10 +142,12 @@ const _useExpenseCreation = create<ExpenseCreationState>((set, get) => ({
         ...current,
         items: current.items.filter((item) => item.id !== itemId),
         totalAmount: itemToRemove
-          ? current.totalAmount - itemToRemove.amount
+          ? current.totalAmount -
+            itemToRemove.amount * (1 + itemToRemove.taxRate / 100)
           : current.totalAmount,
         remainingAmount: itemToRemove
-          ? current.totalAmount - itemToRemove.amount
+          ? current.totalAmount -
+            itemToRemove.amount * (1 + itemToRemove.taxRate / 100)
           : current.remainingAmount,
       };
       set({ tempExpense: updated });

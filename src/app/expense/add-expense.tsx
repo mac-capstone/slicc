@@ -550,7 +550,7 @@ const TempItemCard = React.memo(function TempItemCard({
                 {item.isTip ? `Tip` : item.name}
               </Text>
               <Text className="font-futuraDemi text-xl dark:text-text-50">
-                ${item.amount.toFixed(2)}
+                ${totalWithTax.toFixed(2)}
               </Text>
             </View>
             {!item.isTip &&
@@ -736,7 +736,7 @@ function CreateItemCard() {
     addItem({
       id: uuidv4() as ItemIdT,
       name: tempItemName,
-      amount: totalWithTax,
+      amount: baseAmount,
       taxRate: taxRate,
       isTip: false,
       split: {
@@ -888,6 +888,7 @@ function AddTipButton({
       id: uuidv4() as ItemIdT,
       name: 'Tip',
       amount: calculatedTipAmount,
+      taxRate: 0,
       isTip: true,
       split: {
         mode: 'equal',
