@@ -33,8 +33,7 @@ import {
 } from '@/lib/crypto/key-store';
 
 const pubKeyCache = new Map<string, string>();
-const identityPubKeyLastSyncAt = new Map<string, number>();
-const IDENTITY_PUBKEY_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
+const identityEnsureAttemptedUsers = new Set<string>();
 
 /** Bypass cache so bundle wrap/rewrap uses the latest registered identity key. */
 export function invalidateUserPublicKeyCache(userId: string): void {
@@ -125,25 +124,34 @@ export async function ensureIdentityKeyPair(userId: string): Promise<string> {
     storeIdentityKeyPair(privateKeyB64, publicKeyB64);
   }
 
-  const now = Date.now();
-  const lastSyncAt = identityPubKeyLastSyncAt.get(userId) ?? 0;
-  if (now - lastSyncAt >= IDENTITY_PUBKEY_SYNC_COOLDOWN_MS) {
-    try {
+  if (identityEnsureAttemptedUsers.has(userId)) {
+    pubKeyCache.set(userId, publicKeyB64);
+    return publicKeyB64;
+  }
+  identityEnsureAttemptedUsers.add(userId);
+
+  try {
+    const identityRef = doc(db, 'users', userId, 'e2eKeys', 'identity');
+    const identitySnap = await getDoc(identityRef);
+    const remotePublicKey = identitySnap.exists()
+      ? (identitySnap.data().publicKey as string | undefined)
+      : undefined;
+
+    if (remotePublicKey !== publicKeyB64) {
       await setDoc(
-        doc(db, 'users', userId, 'e2eKeys', 'identity'),
+        identityRef,
         {
           publicKey: publicKeyB64,
           updatedAt: Timestamp.now(),
         },
         { merge: true }
       );
-      identityPubKeyLastSyncAt.set(userId, now);
-    } catch (e) {
-      console.warn(
-        'ensureIdentityKeyPair: failed to sync public key, will retry later',
-        e
-      );
     }
+  } catch (e) {
+    console.warn(
+      'ensureIdentityKeyPair: sync failed; will retry next app session',
+      e
+    );
   }
 
   pubKeyCache.set(userId, publicKeyB64);
