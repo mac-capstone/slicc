@@ -71,8 +71,6 @@
     <string>Allow $(PRODUCT_NAME) to access your camera</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Allow this app to use the microphone.</string>
-    <key>NSPhotoLibraryUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your photos for your profile picture.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
     <string>Allow this app to use speech recognition.</string>
     <key>NSUserActivityTypes</key>
