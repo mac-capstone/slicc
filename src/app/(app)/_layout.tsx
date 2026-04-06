@@ -6,6 +6,7 @@ import { Text, TouchableOpacity } from 'react-native';
 import { colors } from '@/components/ui';
 import {
   useAuth,
+  useEnsureE2EIdentityKey,
   useIncomingFriendRequestsLiveSync,
   useIsFirstTime,
   useUserExistsInFirestore,
@@ -22,6 +23,7 @@ export default function TabLayout() {
   } = useUserExistsInFirestore(userId);
 
   const liveSyncUserId = status === 'signIn' ? userId : null;
+  useEnsureE2EIdentityKey(liveSyncUserId);
   useIncomingFriendRequestsLiveSync(liveSyncUserId);
 
   const hideSplash = useCallback(async () => {

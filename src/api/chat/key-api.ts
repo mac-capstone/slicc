@@ -33,6 +33,8 @@ import {
 } from '@/lib/crypto/key-store';
 
 const pubKeyCache = new Map<string, string>();
+const identityPubKeyLastSyncAt = new Map<string, number>();
+const IDENTITY_PUBKEY_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
 
 /** Bypass cache so bundle wrap/rewrap uses the latest registered identity key. */
 export function invalidateUserPublicKeyCache(userId: string): void {
@@ -108,15 +110,41 @@ async function removeKeyBundleSafe(
 
 /** Ensure identity key pair exists locally and is registered in Firestore. */
 export async function ensureIdentityKeyPair(userId: string): Promise<string> {
-  if (hasIdentityKeyPair()) return getIdentityPublicKey()!;
+  let publicKeyB64: string | undefined;
+  let privateKeyB64: string | undefined;
 
-  const { publicKeyB64, privateKeyB64 } = generateIdentityKeyPair();
-  storeIdentityKeyPair(privateKeyB64, publicKeyB64);
+  if (hasIdentityKeyPair()) {
+    publicKeyB64 = getIdentityPublicKey();
+    privateKeyB64 = getIdentityPrivateKey();
+  }
 
-  await setDoc(doc(db, 'users', userId, 'e2eKeys', 'identity'), {
-    publicKey: publicKeyB64,
-    updatedAt: Timestamp.now(),
-  });
+  if (!publicKeyB64 || !privateKeyB64) {
+    const generated = generateIdentityKeyPair();
+    publicKeyB64 = generated.publicKeyB64;
+    privateKeyB64 = generated.privateKeyB64;
+    storeIdentityKeyPair(privateKeyB64, publicKeyB64);
+  }
+
+  const now = Date.now();
+  const lastSyncAt = identityPubKeyLastSyncAt.get(userId) ?? 0;
+  if (now - lastSyncAt >= IDENTITY_PUBKEY_SYNC_COOLDOWN_MS) {
+    try {
+      await setDoc(
+        doc(db, 'users', userId, 'e2eKeys', 'identity'),
+        {
+          publicKey: publicKeyB64,
+          updatedAt: Timestamp.now(),
+        },
+        { merge: true }
+      );
+      identityPubKeyLastSyncAt.set(userId, now);
+    } catch (e) {
+      console.warn(
+        'ensureIdentityKeyPair: failed to sync public key, will retry later',
+        e
+      );
+    }
+  }
 
   pubKeyCache.set(userId, publicKeyB64);
   return publicKeyB64;

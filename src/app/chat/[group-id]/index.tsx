@@ -2,7 +2,7 @@ import { useQueries } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
 import * as React from 'react';
 import { useMemo } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -97,8 +97,10 @@ export default function GroupChatScreen() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior="padding"
-        keyboardVerticalOffset={insets.top + HEADER_BODY}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={
+          Platform.OS === 'ios' ? insets.top + HEADER_BODY : 0
+        }
       >
         <MessageList
           messages={messages}
