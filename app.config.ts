@@ -1,18 +1,25 @@
 import type { ConfigContext, ExpoConfig } from '@expo/config';
 import type { AppIconBadgeConfig } from 'app-icon-badge/types';
 
-import { Env } from './env.js';
+const APP_ENV = process.env.APP_ENV ?? 'development';
+const VERSION = '0.0.1';
+const NAME = 'slicc';
+const SCHEME = 'app';
+const BUNDLE_ID = 'com.slicc.app';
+const PACKAGE = 'com.slicc.app';
+const OWNER = 'slicc-capstone';
+const EAS_PROJECT_ID = 'a9455287-faee-496b-ab4d-b9a6fc1ef834';
 
 const appIconBadgeConfig: AppIconBadgeConfig = {
-  enabled: Env.APP_ENV !== 'production',
+  enabled: APP_ENV !== 'production',
   badges: [
     {
-      text: Env.APP_ENV,
+      text: APP_ENV,
       type: 'banner',
       color: 'white',
     },
     {
-      text: Env.VERSION.toString(),
+      text: VERSION,
       type: 'ribbon',
       color: 'white',
     },
@@ -21,23 +28,23 @@ const appIconBadgeConfig: AppIconBadgeConfig = {
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: Env.NAME,
-  description: `${Env.NAME} Mobile App`,
-  owner: Env.EXPO_ACCOUNT_OWNER,
-  scheme: Env.SCHEME,
+  name: NAME,
+  description: `${NAME} Mobile App`,
+  owner: OWNER,
+  scheme: SCHEME,
   slug: 'obytesapp',
-  version: Env.VERSION.toString(),
+  version: VERSION,
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
   updates: {
-    fallbackToCacheTimeout: 0,
+    enabled: false,
   },
   assetBundlePatterns: ['**/*'],
   ios: {
     supportsTablet: true,
-    bundleIdentifier: Env.BUNDLE_ID,
+    bundleIdentifier: BUNDLE_ID,
     googleServicesFile: './GoogleService-Info.plist',
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
@@ -64,7 +71,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#2E3C4B',
     },
-    package: Env.PACKAGE,
+    package: PACKAGE,
     googleServicesFile: './google-services.json',
   },
   web: {
@@ -121,9 +128,30 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
   ],
   extra: {
-    ...Env,
+    APP_ENV,
+    NAME,
+    SCHEME,
+    BUNDLE_ID,
+    PACKAGE,
+    VERSION,
+    EXPO_ACCOUNT_OWNER: OWNER,
+    EAS_PROJECT_ID,
+    EXPO_PUBLIC_FIREBASE_API_KEY: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+    EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN:
+      process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    EXPO_PUBLIC_FIREBASE_PROJECT_ID:
+      process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+    EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET:
+      process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID:
+      process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    EXPO_PUBLIC_FIREBASE_APP_ID: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+    EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID:
+      process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
+    EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID:
+      process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     eas: {
-      projectId: Env.EAS_PROJECT_ID,
+      projectId: EAS_PROJECT_ID,
     },
   },
 });

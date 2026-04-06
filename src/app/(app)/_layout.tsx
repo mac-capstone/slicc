@@ -1,7 +1,7 @@
 import Octicons from '@expo/vector-icons/Octicons';
-import { Redirect, router, SplashScreen, Tabs } from 'expo-router';
-import React, { useCallback, useEffect } from 'react';
-import { Text, TouchableOpacity } from 'react-native';
+import { Redirect, router, Tabs } from 'expo-router';
+import React from 'react';
+import { Text, TouchableOpacity, View } from 'react-native';
 
 import { colors } from '@/components/ui';
 import {
@@ -24,27 +24,44 @@ export default function TabLayout() {
   const liveSyncUserId = status === 'signIn' ? userId : null;
   useIncomingFriendRequestsLiveSync(liveSyncUserId);
 
-  const hideSplash = useCallback(async () => {
-    await SplashScreen.hideAsync();
-  }, []);
-
-  useEffect(() => {
-    if (status !== 'idle') {
-      setTimeout(() => {
-        hideSplash();
-      }, 1000);
-    }
-  }, [hideSplash, status]);
-
   if (isFirstTime) {
     return <Redirect href="/onboarding" />;
   }
+
   if (status === 'signOut') {
     return <Redirect href="/login" />;
   }
-  if (status === 'signIn' && userId !== 'guest_user' && isUserCheckRunning) {
-    return null;
+
+  if (status === 'idle') {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.background[950],
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Text style={{ color: colors.text[800] }}>Loading...</Text>
+      </View>
+    );
   }
+
+  if (status === 'signIn' && userId !== 'guest_user' && isUserCheckRunning) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.background[950],
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Text style={{ color: colors.text[800] }}>Checking profile...</Text>
+      </View>
+    );
+  }
+
   if (
     status === 'signIn' &&
     userId !== 'guest_user' &&
@@ -54,6 +71,7 @@ export default function TabLayout() {
   ) {
     return <Redirect href="/profile-create" />;
   }
+
   return (
     <Tabs
       screenOptions={{

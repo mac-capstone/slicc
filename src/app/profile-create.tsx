@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { Stack, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import {
   Alert,
@@ -59,9 +59,16 @@ export default function ProfileCreate() {
       },
     });
 
+  useEffect(() => {
+    if (status === 'signOut') {
+      router.replace('/login');
+    }
+  }, [status, router]);
+
   const pickImage = useCallback(async (): Promise<void> => {
     const { status: permStatus } =
       await ImagePicker.requestMediaLibraryPermissionsAsync();
+
     if (permStatus !== 'granted') {
       Alert.alert(
         'Permission required',
@@ -90,8 +97,10 @@ export default function ProfileCreate() {
       }
 
       setIsSubmitting(true);
+
       try {
         const usernameTaken = await checkUsernameExists(data.username);
+
         if (usernameTaken) {
           setError('username', {
             message: 'This username is already taken',
@@ -104,12 +113,7 @@ export default function ProfileCreate() {
         if (profileImageUri) {
           try {
             await uploadProfilePicture(userId, profileImageUri);
-          } catch (uploadError) {
-            console.warn(
-              'Profile picture upload failed, continuing without:',
-              uploadError
-            );
-          }
+          } catch {}
         }
 
         const userEmail = auth.currentUser?.email;
@@ -130,10 +134,9 @@ export default function ProfileCreate() {
         await queryClient.invalidateQueries({
           queryKey: ['userExists', userId],
         });
+
         router.replace('/(app)');
       } catch (error) {
-        console.error('Profile creation failed:', error);
-
         if (error instanceof UserAlreadyExistsError) {
           queryClient.setQueryData(['userExists', userId], true);
           await queryClient.invalidateQueries({
@@ -151,13 +154,20 @@ export default function ProfileCreate() {
     [userId, status, profileImageUri, router, setError, setFocus, queryClient]
   );
 
-  if (status === 'signOut') {
-    router.replace('/login');
-    return null;
+  if (status === 'idle' || !userId) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background-950">
+        <Text className="text-white">Loading profile setup...</Text>
+      </View>
+    );
   }
 
-  if (status === 'idle' || !userId) {
-    return null;
+  if (status === 'signOut') {
+    return (
+      <View className="flex-1 items-center justify-center bg-background-950">
+        <Text className="text-white">Redirecting...</Text>
+      </View>
+    );
   }
 
   return (

@@ -1,10 +1,10 @@
-import { Env } from '@env';
 import {
   GoogleSignin,
   isErrorWithCode,
   isSuccessResponse,
   statusCodes,
 } from '@react-native-google-signin/google-signin';
+import Constants from 'expo-constants';
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 
 import { auth } from '@/api/common/firebase';
@@ -16,9 +16,16 @@ type GoogleAuthResult = {
   idToken: string;
 };
 
+const webClientId =
+  Constants.expoConfig?.extra?.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+
 export function configureGoogleSignIn(): void {
+  if (!webClientId) {
+    throw new Error('Missing EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID');
+  }
+
   GoogleSignin.configure({
-    webClientId: Env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    webClientId,
   });
 }
 

@@ -1,6 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Redirect, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Alert } from 'react-native';
 
 import { GoogleIcon } from '@/components/icons/google-icon';
@@ -47,34 +46,17 @@ function AuthButton({
 }
 
 export default function Login() {
-  const router = useRouter();
   const googleSignIn = useAuth.use.googleSignIn();
-  const status = useAuth.use.status();
-  const userId = useAuth.use.userId();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-
-  useEffect(() => {
-    console.log('[login] auth state', {
-      status,
-      userId,
-      isGoogleLoading,
-    });
-  }, [isGoogleLoading, status, userId]);
-
-  if (status === 'signIn') {
-    return <Redirect href="/" />;
-  }
 
   const handleGoogleSignIn = async (): Promise<void> => {
     if (isGoogleLoading) return;
+
     setIsGoogleLoading(true);
+
     try {
-      console.log('[login] starting google sign in');
       await googleSignIn();
-      console.log('[login] google sign in completed, routing to app root');
-      router.push('/');
     } catch (error) {
-      console.log('[login] google sign in failed', { error });
       const message = getGoogleSignInErrorMessage(error);
       Alert.alert('Sign-in failed', message);
     } finally {

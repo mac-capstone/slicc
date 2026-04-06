@@ -1,23 +1,7 @@
-// Import  global CSS file
 import '../../global.css';
 
-import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import { ThemeProvider } from '@react-navigation/native';
-import { PortalHost } from '@rn-primitives/portal';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import React, { useEffect } from 'react';
-import { Platform, StyleSheet } from 'react-native';
-import FlashMessage from 'react-native-flash-message';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { KeyboardProvider } from 'react-native-keyboard-controller';
-import { FullWindowOverlay } from 'react-native-screens';
-
-import { APIProvider } from '@/api';
-import { hydrateAuth, hydrateGroupPreferences, loadSelectedTheme } from '@/lib';
-import { configureGoogleSignIn } from '@/lib/auth/google-auth';
-import { useThemeConfig } from '@/lib/use-theme-config';
+import React, { useEffect, useState } from 'react';
+import { Text, View } from 'react-native';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -25,78 +9,29 @@ export const unstable_settings = {
   initialRouteName: 'login',
 };
 
-configureGoogleSignIn();
-hydrateAuth();
-hydrateGroupPreferences();
-loadSelectedTheme();
-// Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
-// Set the animation options. This is optional.
-SplashScreen.setOptions({
-  duration: 500,
-  fade: true,
-});
-
 export default function RootLayout() {
-  const [loadedFonts] = useFonts({
-    Inter: require('../../assets/fonts/Inter.ttf'),
-    FuturaCyrillic: require('../../assets/fonts/FuturaCyrillicMedium.ttf'),
-    FuturaCyrillicBold: require('../../assets/fonts/FuturaCyrillicBold.ttf'),
-    FuturaCyrillicBook: require('../../assets/fonts/FuturaCyrillicBook.ttf'),
-    FuturaCyrillicDemi: require('../../assets/fonts/FuturaCyrillicDemi.ttf'),
-    FuturaCyrillicExtraBold: require('../../assets/fonts/FuturaCyrillicExtraBold.ttf'),
-    FuturaCyrillicHeavy: require('../../assets/fonts/FuturaCyrillicHeavy.ttf'),
-    FuturaCyrillicLight: require('../../assets/fonts/FuturaCyrillicLight.ttf'),
-    FuturaCyrillicMedium: require('../../assets/fonts/FuturaCyrillicMedium.ttf'),
-  });
+  const [ready, setReady] = useState(false);
+
   useEffect(() => {
-    if (loadedFonts) SplashScreen.hideAsync();
-  }, [loadedFonts]);
+    setReady(true);
+  }, []);
 
-  if (!loadedFonts) return null;
-  return (
-    <Providers>
-      <Stack>
-        <Stack.Screen name="(app)" options={{ headerShown: false }} />
-        <Stack.Screen name="group" options={{ headerShown: false }} />
-        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-        <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Screen name="profile-create" />
-      </Stack>
-    </Providers>
-  );
-}
+  if (!ready) {
+    return <View style={{ flex: 1, backgroundColor: 'white' }} />;
+  }
 
-function Providers({ children }: { children: React.ReactNode }) {
-  const theme = useThemeConfig();
   return (
-    <GestureHandlerRootView
-      style={styles.container}
-      className={theme.dark ? `dark` : undefined}
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: 'red',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
     >
-      <KeyboardProvider>
-        <ThemeProvider value={theme}>
-          <APIProvider>
-            <BottomSheetModalProvider>
-              {children}
-              {Platform.OS === 'ios' ? (
-                <FullWindowOverlay>
-                  <PortalHost />
-                </FullWindowOverlay>
-              ) : (
-                <PortalHost />
-              )}
-              <FlashMessage position="top" />
-            </BottomSheetModalProvider>
-          </APIProvider>
-        </ThemeProvider>
-      </KeyboardProvider>
-    </GestureHandlerRootView>
+      <Text style={{ color: 'white', fontSize: 28, fontWeight: '700' }}>
+        ROOT WORKS
+      </Text>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});

@@ -1,4 +1,4 @@
-import { Env } from '@env';
+import Constants from 'expo-constants';
 
 import { BankPreferenceSelect } from '@/components/settings/bank-preference-select';
 import { DietaryPreferencesMultiSelect } from '@/components/settings/dietary-preferences-multi-select';
@@ -15,6 +15,8 @@ import { translate } from '@/lib';
 import { formatAppName } from '@/lib/settings-screen-helpers';
 import { TIP_PERCENT_SELECT_OPTIONS } from '@/lib/tip-percent-options';
 import { type BankPreference } from '@/types';
+
+const extra = Constants.expoConfig?.extra;
 
 export type SettingsScreenContentProps = {
   bankPreference: BankPreference;
@@ -173,7 +175,7 @@ export function SettingsScreenContent({
       <View className="mt-8">
         <SectionTitle tx="settings.about" />
         <Text className="mt-5 text-xl text-text-50">
-          {`${formatAppName(Env.NAME)} v${Env.VERSION}`}
+          {`${formatAppName(extra?.NAME ?? 'App')} v${extra?.VERSION ?? '0.0.0'}`}
         </Text>
       </View>
 
