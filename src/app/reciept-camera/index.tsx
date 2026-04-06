@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 import { v4 as uuidv4 } from 'uuid';
 
-import { extractReceiptInfo } from '@/api/camera-receipt/extract-receipt-info';
+import { extractReceiptLineItems } from '@/api/camera-receipt/extract-receipt-line-items';
 import {
   Button,
   Pressable,
@@ -29,7 +29,6 @@ import {
 import { white } from '@/components/ui/colors';
 import { useExpenseCreation } from '@/lib/store';
 import { useThemeConfig } from '@/lib/use-theme-config';
-import { parseReceiptInfo } from '@/lib/utils';
 import { type ItemIdT, type ItemWithId } from '@/types';
 
 // TODO: add ability to pick reciept pic from galery
@@ -82,29 +81,12 @@ export default function ReceiptCameraScreen() {
       });
 
       const base64Image = photo.base64;
-      // 2. Send POST to Gemini
-      const result = await extractReceiptInfo(base64Image ?? '');
-      console.log(result);
-      if (!result) {
-        Alert.alert('Failed to process image', 'No response from AI service');
-        setLoading(false);
-        return;
-      }
-      const parsedResult = parseReceiptInfo(result);
-      if (!parsedResult) {
-        Alert.alert('Failed to process image', 'No response from AI service');
-        setLoading(false);
-        return;
-      }
-      if (parsedResult.error) {
-        console.log(parsedResult.error);
-        Alert.alert('Failed to process image: ' + parsedResult.error.message);
-        setLoading(false);
-        return;
-      }
-      console.log(parsedResult.data);
-      // set temp items to this
-      const items: ItemWithId[] = parsedResult.data.map((item) => ({
+      const imageUri = photo.uri;
+      const { items: lineItems } = await extractReceiptLineItems({
+        base64: base64Image,
+        imageUri,
+      });
+      const items: ItemWithId[] = lineItems.map((item) => ({
         id: uuidv4() as ItemIdT,
         name: item.dish,
         amount: item.price,

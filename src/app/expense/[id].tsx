@@ -2,17 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import Octicons from '@expo/vector-icons/Octicons';
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import {
-  collection,
-  doc,
-  serverTimestamp,
-  writeBatch,
-} from 'firebase/firestore';
 import React, { useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { queryClient } from '@/api';
-import { db } from '@/api/common/firebase';
+import { commitExpenseToFirestore } from '@/api/expenses/commit-expense';
 import { useExpense } from '@/api/expenses/use-expenses';
 import { useItems } from '@/api/items/use-items';
 import { usePeopleIds } from '@/api/people/use-people';
@@ -21,6 +15,9 @@ import { ItemCard } from '@/components/item-card';
 import { PersonCard } from '@/components/person-card';
 import { SegmentToggle } from '@/components/segment-toggle';
 import { ActivityIndicator, Pressable, Text, View } from '@/components/ui';
+import { useAuth } from '@/lib';
+import { fetchIsOnline } from '@/lib/network-status';
+import { enqueuePendingExpense } from '@/lib/offline/pending-expense-queue';
 import { clearTempExpense } from '@/lib/store';
 import { useThemeConfig } from '@/lib/use-theme-config';
 import { type EventIdT, type ExpenseIdT } from '@/types';
@@ -28,6 +25,7 @@ import { type EventIdT, type ExpenseIdT } from '@/types';
 export default function ExpenseView() {
   const router = useRouter();
   const theme = useThemeConfig();
+  const userId = useAuth.use.userId();
   const [loading, setLoading] = useState(false);
   const isProcessingRef = useRef(false);
   const {
@@ -72,57 +70,65 @@ export default function ExpenseView() {
     setLoading(true);
     try {
       if (id === 'temp-expense') {
-        const batch = writeBatch(db);
-        const expenseDocRef = doc(collection(db, 'expenses'));
+        const payload = {
+          expense: data,
+          eventId,
+          people: data.people,
+          items: data.items,
+        };
+        const signedInForSync = Boolean(userId && userId !== 'guest_user');
+        const online = await fetchIsOnline();
 
-        batch.set(expenseDocRef, {
-          name: data.name,
-          date: data.date,
-          createdBy: data.createdBy,
-          payerUserId: data.payerUserId,
-          ...(eventId ? { eventId } : {}),
-          totalAmount: data.totalAmount,
-          remainingAmount: data.remainingAmount ?? 0,
-          participantCount: data.participantCount ?? 0,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
+        const finishLocal = async (message?: string) => {
+          clearTempExpense();
+          await queryClient.invalidateQueries({ queryKey: ['expenses'] });
+          if (message) {
+            Alert.alert('Saved locally', message);
+          }
+          if (eventId) {
+            router.replace(`/event/${eventId}/expenses` as any);
+          } else {
+            router.replace('/(app)/expenses' as any);
+          }
+        };
 
-        if (data.people) {
-          data.people.forEach((person) => {
-            const personDocRef = doc(expenseDocRef, 'people', person.id);
-            const isGuest = person.userRef === null;
-            batch.set(personDocRef, {
-              subtotal: person.subtotal,
-              paid: person.paid ?? 0,
-              ...(isGuest && person.name ? { guestName: person.name } : {}),
-            });
-          });
+        if (!online) {
+          if (!signedInForSync) {
+            Alert.alert(
+              'No connection',
+              'Connect to the internet to save this expense, or sign in to save offline and sync later.'
+            );
+            return;
+          }
+          enqueuePendingExpense(payload);
+          await finishLocal(
+            'You are offline. This expense will upload when you are back online.'
+          );
+          return;
         }
 
-        if (data.items) {
-          data.items.forEach((item) => {
-            const itemDocRef = doc(expenseDocRef, 'items', item.id);
-            batch.set(itemDocRef, {
-              name: item.name,
-              amount: item.amount,
-              taxRate: item.taxRate ?? 0,
-              split: item.split,
-              assignedPersonIds: item.assignedPersonIds,
-              isTip: item.isTip ?? false,
-            });
-          });
+        try {
+          const expenseDocId = await commitExpenseToFirestore(payload);
+          clearTempExpense();
+          await queryClient.invalidateQueries({ queryKey: ['expenses'] });
+          if (eventId) {
+            router.replace(`/event/${eventId}/expenses` as any);
+          } else {
+            router.replace(`/expense/${expenseDocId}` as any);
+          }
+          return;
+        } catch (err) {
+          console.error('Error saving expense:', err);
+          if (!signedInForSync) {
+            Alert.alert('Error', 'Failed to save expense. Please try again.');
+            return;
+          }
+          enqueuePendingExpense(payload);
+          await finishLocal(
+            'Could not reach the server. Your expense is queued and will sync when possible.'
+          );
+          return;
         }
-
-        await batch.commit();
-        clearTempExpense();
-        await queryClient.invalidateQueries({ queryKey: ['expenses'] });
-        if (eventId) {
-          router.replace(`/event/${eventId}/expenses` as any);
-        } else {
-          router.replace(`/expense/${expenseDocRef.id}` as any);
-        }
-        return;
       }
       router.push('/');
     } catch (error) {
