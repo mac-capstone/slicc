@@ -83,14 +83,24 @@ export function PlacesMap({
         provider={PROVIDER_GOOGLE}
         style={styles.map}
         initialRegion={initialRegion}
-        showsUserLocation={!!userLocation}
-        showsMyLocationButton={!!userLocation}
+        // Avoid showsUserLocation on Fabric: native dispatches topUserLocationChange
+        // but RN has no handler → crash. We draw the user with a Marker instead.
+        showsUserLocation={false}
+        showsMyLocationButton={false}
         mapType="standard"
         customMapStyle={Platform.OS !== 'web' ? darkMapStyle : undefined}
         loadingEnabled
         loadingIndicatorColor={colors.accent[100]}
         loadingBackgroundColor={colors.neutral[900]}
       >
+        {userLocation ? (
+          <Marker
+            key="__user_location__"
+            coordinate={userLocation}
+            title="You"
+            pinColor={colors.avatar.blue}
+          />
+        ) : null}
         {placesWithLocation.map((place) => (
           <Marker
             key={place.id}
