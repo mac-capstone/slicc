@@ -93,6 +93,11 @@ module.exports = {
     800: '#128075',
     900: '#162221',
   },
+  scheduler: {
+    noneBase: '#333333',
+    primary: '#00DB9B',
+    mine: '#00DBC5',
+  },
   avatar: {
     red: '#C10007',
     blue: '#007595',

@@ -2,13 +2,15 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
 
 import { MemberPickerModal } from '@/components/member-picker-modal';
-import { PersonAvatar } from '@/components/person-avatar';
-import { colors, Pressable, Text, View } from '@/components/ui';
+import {
+  PersonAvatar,
+  personAvatarColorForIndex,
+} from '@/components/person-avatar';
+import { Pressable, Text, View } from '@/components/ui';
 import type { EventPerson, UserIdT, UserWithId } from '@/types';
 
 type Props = {
   participants: (EventPerson & { id: UserIdT })[];
-  isEditMode: boolean;
   showPicker: boolean;
   groupMembers: UserWithId[];
   selectedParticipantIds: UserIdT[];
@@ -17,13 +19,8 @@ type Props = {
   onPickerConfirm: (ids: UserIdT[]) => void;
 };
 
-const avatarColorKeys = Object.keys(
-  colors.avatar ?? {}
-) as (keyof typeof colors.avatar)[];
-
 export function EventParticipantsSection({
   participants,
-  isEditMode,
   showPicker,
   groupMembers,
   selectedParticipantIds,
@@ -54,27 +51,14 @@ export function EventParticipantsSection({
       <View>
         {participants.map((participant, index) => (
           <View key={participant.id} className="mb-3 flex-row items-center">
-            {isEditMode ? (
-              <View className="mr-3">
-                <PersonAvatar
-                  userId={participant.id}
-                  color={avatarColorKeys[index % avatarColorKeys.length]}
-                  size="md"
-                />
-              </View>
-            ) : (
-              <View
-                className="mr-3 size-8 items-center justify-center rounded-full"
-                style={{ backgroundColor: participant.color }}
-              >
-                <Text className="text-base font-bold text-white">
-                  {participant.name
-                    .split(' ')
-                    .map((n) => n[0])
-                    .join('')}
-                </Text>
-              </View>
-            )}
+            <View className="mr-3">
+              <PersonAvatar
+                userId={participant.id}
+                fallbackLabel={participant.name}
+                color={personAvatarColorForIndex(index)}
+                size="md"
+              />
+            </View>
             <Text className="text-base text-white">{participant.name}</Text>
           </View>
         ))}

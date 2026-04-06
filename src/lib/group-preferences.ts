@@ -35,8 +35,12 @@ const _useGroupPreferences = create<GroupPreferencesState>((set, get) => ({
   hydrate: () => {
     const loaded = loadPreferences();
     set({
-      pinnedGroupIds: loaded.pinnedGroupIds,
-      unreadGroupIds: loaded.unreadGroupIds,
+      pinnedGroupIds: Array.isArray(loaded.pinnedGroupIds)
+        ? loaded.pinnedGroupIds
+        : [],
+      unreadGroupIds: Array.isArray(loaded.unreadGroupIds)
+        ? loaded.unreadGroupIds
+        : [],
     });
   },
 

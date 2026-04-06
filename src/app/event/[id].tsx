@@ -187,7 +187,7 @@ export default function EventDetails() {
 
   const handleHeaderClose = (): void => {
     if (event?.groupId) {
-      router.replace(`/group/${event.groupId}` as const);
+      router.replace(`/chat/${event.groupId}` as const);
       return;
     }
     router.back();

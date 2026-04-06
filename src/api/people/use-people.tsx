@@ -62,12 +62,18 @@ export const usePerson = createQuery<
       if (!tempExpense) throw new Error('Person not found');
       const person = tempExpense.people.find((p) => p.id === personId);
       if (!person) throw new Error('Person not found');
-      const isGuest = person.userRef === null;
+      // After a round-trip through Firestore, `userRef` is stripped by Zod
+      // (undefined) rather than the original `null`, so use loose check.
+      // `guestName` may live on the person directly (Firestore load) or as
+      // `name` (fresh add via temp store).
+      const isGuest = person.userRef == null;
       return {
         id: personId,
         subtotal: person.subtotal,
         paid: person.paid,
-        guestName: isGuest ? (person.name ?? undefined) : undefined,
+        guestName: isGuest
+          ? (person.name ?? person.guestName ?? undefined)
+          : undefined,
       };
     }
 

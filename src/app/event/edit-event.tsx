@@ -511,7 +511,6 @@ export default function EditEvent() {
             {/* Participants Section */}
             <EventParticipantsSection
               participants={participants}
-              isEditMode={isEditMode}
               showPicker={showPicker}
               groupMembers={groupMembers}
               selectedParticipantIds={participantIds}
