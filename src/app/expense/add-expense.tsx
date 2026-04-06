@@ -696,7 +696,7 @@ const TempItemCard = React.memo(function TempItemCard({
       </View>
     );
   }
-  const taxAmount = item.amount * ((item.taxRate ? item.taxRate : 0) / 100); 
+  const taxAmount = item.amount * ((item.taxRate ? item.taxRate : 0) / 100);
   const totalWithTax = item.amount + taxAmount;
   return (
     <View className="overflow-hidden rounded-xl">
@@ -720,12 +720,9 @@ const TempItemCard = React.memo(function TempItemCard({
               <Text className="font-futuraBold text-lg dark:text-text-50">
                 {item.isTip ? `Tip` : item.name}
               </Text>
-              <Text className="font-futuraDemi text-xl dark:text-text-50">
-                ${totalWithTax.toFixed(2)}
-              </Text>
               <View className="flex-row items-center gap-3">
                 <Text className="font-futuraDemi text-xl dark:text-text-50">
-                  ${item.amount.toFixed(2)}
+                  ${totalWithTax.toFixed(2)}
                 </Text>
                 {!item.isTip && (
                   <Pressable onPress={handleEditPress} hitSlop={8}>
