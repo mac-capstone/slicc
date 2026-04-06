@@ -13,6 +13,12 @@ import { getItem, removeItem, setItem } from './storage';
 import { calculatePersonShare, createSelectors } from './utils';
 
 const TEMP_EXPENSE_KEY = 'temp-expense';
+
+/** Gross line total (pre-tax amount + tax), rounded to cents — matches displayed item totals. */
+function itemGrossRoundedToCents(amount: number, taxRate: number): number {
+  return Math.round(amount * (1 + taxRate / 100) * 100) / 100;
+}
+
 type TempExpense = ExpenseWithId & {
   items: ItemWithId[];
   people: PersonWithId[];
@@ -143,11 +149,12 @@ const _useExpenseCreation = create<ExpenseCreationState>((set, get) => ({
   addItem: (item) => {
     const current = get().tempExpense;
     if (current) {
+      const delta = itemGrossRoundedToCents(item.amount, item.taxRate);
       const updated = {
         ...current,
         items: [...current.items, item],
-        totalAmount: current.totalAmount + item.amount,
-        remainingAmount: current.totalAmount + item.amount,
+        totalAmount: current.totalAmount + delta,
+        remainingAmount: (current.remainingAmount ?? 0) + delta,
       };
       set({ tempExpense: updated });
       setTempExpense(updated);
@@ -173,20 +180,20 @@ const _useExpenseCreation = create<ExpenseCreationState>((set, get) => ({
         (person) => person.subtotal > 0
       );
 
-      const newTotal = itemToRemove
-        ? current.totalAmount - itemToRemove.amount
-        : current.totalAmount;
-
+      const delta = itemToRemove
+        ? itemGrossRoundedToCents(itemToRemove.amount, itemToRemove.taxRate)
+        : 0;
       const updated = {
         ...current,
         items: current.items.filter((item) => item.id !== itemId),
         people: updatedPeople,
         participantCount: updatedPeople.length,
-        totalAmount: newTotal,
-        remainingAmount: Math.max(
-          0,
-          (current.remainingAmount ?? 0) - (itemToRemove?.amount ?? 0)
-        ),
+        totalAmount: itemToRemove
+          ? current.totalAmount - delta
+          : current.totalAmount,
+        remainingAmount: itemToRemove
+          ? (current.remainingAmount ?? 0) - delta
+          : current.remainingAmount,
       };
       set({ tempExpense: updated });
       setTempExpense(updated);
