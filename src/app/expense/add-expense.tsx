@@ -532,9 +532,9 @@ const TempItemCard = React.memo(function TempItemCard({
   }, [item, onDelete]);
 
   const handleEditPress = useCallback(() => {
-    // Recover base amount from stored total-with-tax
+    // `item.amount` is pre-tax base (same as add-item and store totals)
     const taxRate = item.taxRate ?? 0;
-    const base = taxRate > 0 ? item.amount / (1 + taxRate / 100) : item.amount;
+    const base = item.amount;
     setEditName(item.isTip ? '' : item.name);
     setEditAmount(base.toFixed(2));
     setEditTax(taxRate > 0 ? taxRate.toString() : '');
@@ -545,10 +545,9 @@ const TempItemCard = React.memo(function TempItemCard({
   const handleSave = useCallback(() => {
     const base = parseFloat(editAmount) || 0;
     const tax = parseFloat(editTax) || 0;
-    const total = Math.round(base * (1 + tax / 100) * 100) / 100;
     onUpdate(item.id, {
       name: editName.trim() || item.name,
-      amount: total,
+      amount: base,
       taxRate: tax,
     });
     setIsEditing(false);
@@ -720,12 +719,9 @@ const TempItemCard = React.memo(function TempItemCard({
               <Text className="font-futuraBold text-lg dark:text-text-50">
                 {item.isTip ? `Tip` : item.name}
               </Text>
-              <Text className="font-futuraDemi text-xl dark:text-text-50">
-                ${totalWithTax.toFixed(2)}
-              </Text>
               <View className="flex-row items-center gap-3">
                 <Text className="font-futuraDemi text-xl dark:text-text-50">
-                  ${item.amount.toFixed(2)}
+                  ${totalWithTax.toFixed(2)}
                 </Text>
                 {!item.isTip && (
                   <Pressable onPress={handleEditPress} hitSlop={8}>

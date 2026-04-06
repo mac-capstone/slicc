@@ -221,15 +221,21 @@ const _useExpenseCreation = create<ExpenseCreationState>((set, get) => ({
         : person;
     });
 
-    // Keep totals in sync if the item amount changed
-    const amountDiff = (newItem?.amount ?? 0) - (oldItem?.amount ?? 0);
+    // `item.amount` is pre-tax base; expense total is sum of gross line totals
+    const oldGross = oldItem
+      ? itemGrossRoundedToCents(oldItem.amount, oldItem.taxRate ?? 0)
+      : 0;
+    const newGross = newItem
+      ? itemGrossRoundedToCents(newItem.amount, newItem.taxRate ?? 0)
+      : 0;
+    const grossDiff = newGross - oldGross;
 
     const updated = {
       ...current,
       items: updatedItems,
       people: updatedPeople,
-      totalAmount: current.totalAmount + amountDiff,
-      remainingAmount: (current.remainingAmount ?? 0) + amountDiff,
+      totalAmount: current.totalAmount + grossDiff,
+      remainingAmount: (current.remainingAmount ?? 0) + grossDiff,
     };
     set({ tempExpense: updated });
     setTempExpense(updated);
