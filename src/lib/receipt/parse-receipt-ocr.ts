@@ -21,7 +21,7 @@ export function parseReceiptLinesFromOcrText(fullText: string): {
     const m = line.match(/^(.+?)[\s\u00A0]+(\$?\d{1,6}(?:\.\d{1,2})?)\s*$/);
     if (!m) continue;
     const dish = m[1].replace(/\s+/g, ' ').trim();
-    const priceStr = m[2].replace('$', '').replace(',', '');
+    const priceStr = m[2].replace('$', '').replaceAll(',', '');
     const price = Number.parseFloat(priceStr);
     if (
       dish.length < 2 ||

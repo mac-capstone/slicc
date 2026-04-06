@@ -35,7 +35,7 @@ export function applyExpenseCommitToBatch(
     name: expense.name,
     date: expense.date,
     createdBy: expense.createdBy,
-    payerUserId: expense.payerUserId,
+    ...(expense.payerUserId ? { payerUserId: expense.payerUserId } : {}),
     ...(eventId ? { eventId } : {}),
     totalAmount: expense.totalAmount,
     remainingAmount: expense.remainingAmount ?? 0,

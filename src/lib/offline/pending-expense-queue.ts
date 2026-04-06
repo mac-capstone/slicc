@@ -10,6 +10,7 @@ import { fetchIsOnline } from '@/lib/network-status';
 import { storage } from '@/lib/storage';
 
 const QUEUE_KEY = 'pending-expense-sync-queue';
+let isFlushing = false;
 
 export type PendingExpenseRecord = {
   localId: string;
@@ -43,28 +44,33 @@ export function enqueuePendingExpense(payload: CommitExpenseInput): string {
  * Upload queued expenses when the device is online and Firebase Auth has a user.
  */
 export async function flushPendingExpenseQueue(): Promise<void> {
+  if (isFlushing) return;
   if (!auth.currentUser) return;
   const online = await fetchIsOnline();
   if (!online) return;
 
   const queue = readQueue();
   if (queue.length === 0) return;
+  isFlushing = true;
+  try {
+    const failed: PendingExpenseRecord[] = [];
+    let anyCommitted = false;
 
-  const failed: PendingExpenseRecord[] = [];
-  let anyCommitted = false;
-
-  for (const record of queue) {
-    try {
-      await commitExpenseToFirestore(record.payload);
-      anyCommitted = true;
-    } catch (e) {
-      console.warn('Pending expense sync failed, will retry:', e);
-      failed.push(record);
+    for (const record of queue) {
+      try {
+        await commitExpenseToFirestore(record.payload);
+        anyCommitted = true;
+      } catch (e) {
+        console.warn('Pending expense sync failed, will retry:', e);
+        failed.push(record);
+      }
     }
-  }
 
-  writeQueue(failed);
-  if (anyCommitted) {
-    await queryClient.invalidateQueries({ queryKey: ['expenses'] });
+    writeQueue(failed);
+    if (anyCommitted) {
+      await queryClient.invalidateQueries({ queryKey: ['expenses'] });
+    }
+  } finally {
+    isFlushing = false;
   }
 }
