@@ -7,7 +7,7 @@ import { Alert } from 'react-native';
 
 import { queryClient } from '@/api';
 import { commitExpenseToFirestore } from '@/api/expenses/commit-expense';
-import { useExpense } from '@/api/expenses/use-expenses';
+import { useExpense, useUpdateExpense } from '@/api/expenses/use-expenses';
 import { useItems } from '@/api/items/use-items';
 import { usePeopleIds } from '@/api/people/use-people';
 import ExpenseCreationFooter from '@/components/expense-creation-footer';
@@ -18,7 +18,7 @@ import { ActivityIndicator, Pressable, Text, View } from '@/components/ui';
 import { useAuth } from '@/lib';
 import { fetchIsOnline } from '@/lib/network-status';
 import { enqueuePendingExpense } from '@/lib/offline/pending-expense-queue';
-import { clearTempExpense } from '@/lib/store';
+import { clearTempExpense, getTempExpenseState } from '@/lib/store';
 import { useThemeConfig } from '@/lib/use-theme-config';
 import { type EventIdT, type ExpenseIdT } from '@/types';
 
