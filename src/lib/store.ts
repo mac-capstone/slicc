@@ -13,6 +13,12 @@ import { getItem, removeItem, setItem } from './storage';
 import { calculatePersonShare, createSelectors } from './utils';
 
 const TEMP_EXPENSE_KEY = 'temp-expense';
+
+/** Gross line total (pre-tax amount + tax), rounded to cents — matches displayed item totals. */
+function itemGrossRoundedToCents(amount: number, taxRate: number): number {
+  return Math.round(amount * (1 + taxRate / 100) * 100) / 100;
+}
+
 type TempExpense = ExpenseWithId & {
   items: ItemWithId[];
   people: PersonWithId[];
@@ -121,13 +127,12 @@ const _useExpenseCreation = create<ExpenseCreationState>((set, get) => ({
   addItem: (item) => {
     const current = get().tempExpense;
     if (current) {
+      const delta = itemGrossRoundedToCents(item.amount, item.taxRate);
       const updated = {
         ...current,
         items: [...current.items, item],
-        totalAmount:
-          current.totalAmount + item.amount * (1 + item.taxRate / 100),
-        remainingAmount:
-          current.totalAmount + item.amount * (1 + item.taxRate / 100),
+        totalAmount: current.totalAmount + delta,
+        remainingAmount: (current.remainingAmount ?? 0) + delta,
       };
       set({ tempExpense: updated });
       setTempExpense(updated);
@@ -138,16 +143,17 @@ const _useExpenseCreation = create<ExpenseCreationState>((set, get) => ({
     const current = get().tempExpense;
     if (current) {
       const itemToRemove = current.items.find((item) => item.id === itemId);
+      const delta = itemToRemove
+        ? itemGrossRoundedToCents(itemToRemove.amount, itemToRemove.taxRate)
+        : 0;
       const updated = {
         ...current,
         items: current.items.filter((item) => item.id !== itemId),
         totalAmount: itemToRemove
-          ? current.totalAmount -
-            itemToRemove.amount * (1 + itemToRemove.taxRate / 100)
+          ? current.totalAmount - delta
           : current.totalAmount,
         remainingAmount: itemToRemove
-          ? current.totalAmount -
-            itemToRemove.amount * (1 + itemToRemove.taxRate / 100)
+          ? (current.remainingAmount ?? 0) - delta
           : current.remainingAmount,
       };
       set({ tempExpense: updated });
