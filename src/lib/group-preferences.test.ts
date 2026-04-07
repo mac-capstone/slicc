@@ -1,3 +1,6 @@
+/**
+ * V&V §6.2.1 — group UI preferences (pinned groups, unread) backed by storage.
+ */
 import {
   hydrateGroupPreferences,
   markGroupAsRead,

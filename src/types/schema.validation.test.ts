@@ -1,6 +1,6 @@
 /**
- * V&V §6.7.1 — data validation / auth-shaped payloads (client-side contracts).
- * Exercises Zod converters used with Firestore without touching production modules.
+ * V&V §6.7.1 — data validation and client-side contracts (Zod shapes aligned with Firestore).
+ * Emulator-backed auth rules and cross-user access control are validated outside Jest.
  */
 import { Timestamp } from 'firebase/firestore';
 

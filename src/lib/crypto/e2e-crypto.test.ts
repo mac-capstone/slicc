@@ -1,3 +1,6 @@
+/**
+ * Supplementary: group chat key agreement / message crypto (ties to secure data handling; see vv-plan-coverage §6.7.1 note).
+ */
 import 'react-native-get-random-values';
 
 import {

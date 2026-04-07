@@ -1,3 +1,6 @@
+/**
+ * V&V §6.1.1 / §6.1.3 — presentation interactions + snapshot (see also title.test.tsx §6.1.2).
+ */
 import React from 'react';
 
 import { cleanup, fireEvent, render, screen } from '@/lib/test-utils';
@@ -25,5 +28,11 @@ describe('Button (presentation, §6.1.1)', () => {
     expect(
       render(<Button testID="snap-btn" label="Continue" />).toJSON()
     ).toMatchSnapshot();
+  });
+
+  it('initial render stays within the §6.1.2 interactivity budget', () => {
+    const t0 = global.performance.now();
+    render(<Button testID="perf-btn" label="Go" onPress={() => {}} />);
+    expect(global.performance.now() - t0).toBeLessThan(2000);
   });
 });

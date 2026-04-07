@@ -1,5 +1,7 @@
 /**
  * V&V §6.5 — ML Kit / Expo Voice → structured expense slots.
+ * §6.5.1 — behaviour + error-style inputs; §6.5.2 — latency (<3s) on this harness.
+ * TA feedback: pair latency with slot correctness (WER, price error), not time alone.
  */
 
 function getItemAndAmountFromTaggedWords(taggedWords: any[]): {
@@ -160,6 +162,20 @@ describe('Voice → item slots (§6.5) with correctness metrics', () => {
   it('reports high WER when the transcript does not match the gold item phrase', () => {
     const { itemName } = extractFromTranscript('water');
     expect(wordErrorRate('chicken sandwich', itemName)).toBeGreaterThan(0.4);
+  });
+
+  describe('§6.5.1 unclear or partial recognition (TA feedback)', () => {
+    it('yields empty slots when the transcript has no extractable noun/price', () => {
+      const { itemName, itemAmount } = extractFromTranscript('. . .');
+      expect(itemName).toBe('');
+      expect(itemAmount).toBe(0);
+    });
+
+    it('still completes under the §6.5.2 latency budget for noisy input', () => {
+      const t0 = global.performance.now();
+      extractFromTranscript('um well I think maybe sort of');
+      expect(global.performance.now() - t0).toBeLessThan(3000);
+    });
   });
 
   describe('getItemAndAmountFromTaggedWords edge cases', () => {

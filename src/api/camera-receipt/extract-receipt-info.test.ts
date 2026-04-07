@@ -1,12 +1,14 @@
 import { extractReceiptInfo } from '@/api/camera-receipt/extract-receipt-info';
 import { parseReceiptInfo } from '@/lib/utils';
 
+const mockGenerateContent = jest.fn().mockResolvedValue({
+  text: '[{"dish":"Coffee","price":"$3.00"}]',
+});
+
 jest.mock('@google/genai', () => ({
   GoogleGenAI: jest.fn().mockImplementation(() => ({
     models: {
-      generateContent: jest.fn().mockResolvedValue({
-        text: '[{"dish":"Coffee","price":"$3.00"}]',
-      }),
+      generateContent: mockGenerateContent,
     },
   })),
 }));
@@ -40,6 +42,12 @@ function receiptLineItemMetrics(
 }
 
 describe('extractReceiptInfo (Gemini client, §6.4)', () => {
+  beforeEach(() => {
+    mockGenerateContent.mockResolvedValue({
+      text: '[{"dish":"Coffee","price":"$3.00"}]',
+    });
+  });
+
   it('formats the multimodal request and returns model text', async () => {
     const { GoogleGenAI } = jest.requireMock('@google/genai') as {
       GoogleGenAI: jest.Mock;
@@ -47,6 +55,27 @@ describe('extractReceiptInfo (Gemini client, §6.4)', () => {
     const text = await extractReceiptInfo('YmFzZTY0');
     expect(GoogleGenAI).toHaveBeenCalled();
     expect(text).toContain('Coffee');
+    expect(mockGenerateContent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'gemini-2.5-flash-lite',
+        contents: expect.arrayContaining([
+          expect.objectContaining({
+            inlineData: expect.objectContaining({
+              mimeType: 'image/jpeg',
+              data: 'YmFzZTY0',
+            }),
+          }),
+          expect.objectContaining({
+            text: expect.stringContaining('JSON array'),
+          }),
+        ]),
+      })
+    );
+  });
+
+  it('propagates failures from the mocked Gemini client (§6.4.1 failure path)', async () => {
+    mockGenerateContent.mockRejectedValueOnce(new Error('quota'));
+    await expect(extractReceiptInfo('x')).rejects.toThrow('quota');
   });
 
   it('completes within the §6.4.2 latency budget on a mocked network call', async () => {
