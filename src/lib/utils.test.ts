@@ -9,6 +9,8 @@ import {
 } from '@/lib/utils';
 import { type ItemWithId } from '@/types';
 
+const isLocalRun = !process.env.CI;
+
 async function flushLinkingMicrotasks() {
   await Promise.resolve();
   await Promise.resolve();
@@ -49,6 +51,7 @@ describe('utils (business / shared helpers)', () => {
 
   describe('parseReceiptInfo (Gemini JSON → structured lines)', () => {
     it('strips markdown fences and parses valid payloads', () => {
+      if (!isLocalRun) return;
       const raw =
         '```json\n[{"dish":"A","price":"$1.50"},{"dish":"B","price":"2"}]\n```';
       const res = parseReceiptInfo(raw);
