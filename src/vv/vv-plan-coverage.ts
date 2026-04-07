@@ -4,8 +4,8 @@
  * exercised outside Jest (snapshot % threshold, Firebase Emulator, multi-screen flows).
  *
  * TA feedback (AI/ML): §6.4 and §6.5 require correctness metrics (precision/recall,
- * price error, WER/slot metrics), not latency alone — see extract-receipt-info and
- * voice-item-extraction tests.
+ * price error, WER/slot metrics), not latency alone — see extract-receipt-info,
+ * cord-v1-ocr-metrics, voice-item-extraction, and vv-product-metrics tests.
  *
  * §6.6 State management: explicitly out of scope per V&V; covered indirectly via
  * data-layer and component tests.
@@ -61,6 +61,7 @@ export const vvPlanCoverage = {
       'src/lib/settings-screen-helpers.test.ts',
       'src/lib/group-preferences.test.ts',
       'src/api/expenses/use-expenses-mutations.test.tsx (cache invalidation after create)',
+      'src/vv/vv-product-metrics.test.ts (task completion budget, recommendation F1@K, voice failure rate)',
     ],
     manualOrE2E:
       'Notification UX and push flows: not isolated in unit tests; seed/scripts reference notifications data.',
@@ -83,19 +84,31 @@ export const vvPlanCoverage = {
   },
   '6.4.1': {
     label: 'Gemini — request shape + response parsing (mocked)',
-    tests: ['src/api/camera-receipt/extract-receipt-info.test.ts'],
+    tests: [
+      'src/api/camera-receipt/extract-receipt-info.test.ts',
+      'src/api/camera-receipt/cord-v1-ocr-metrics.test.ts (parse success/failure accounting)',
+    ],
   },
   '6.4.2': {
     label: 'Gemini — latency + TA quality metrics (precision/recall/price)',
-    tests: ['src/api/camera-receipt/extract-receipt-info.test.ts'],
+    tests: [
+      'src/api/camera-receipt/extract-receipt-info.test.ts',
+      'src/api/camera-receipt/cord-v1-ocr-metrics.test.ts',
+    ],
   },
   '6.5.1': {
     label: 'Voice / NLP — structured slots + error-style cases',
-    tests: ['src/vv/voice-item-extraction.test.ts'],
+    tests: [
+      'src/vv/voice-item-extraction.test.ts',
+      'src/vv/vv-product-metrics.test.ts (intent precision/recall)',
+    ],
   },
   '6.5.2': {
     label: 'Voice — latency (<3s) + TA metrics (WER, price error)',
-    tests: ['src/vv/voice-item-extraction.test.ts'],
+    tests: [
+      'src/vv/voice-item-extraction.test.ts',
+      'src/vv/vv-product-metrics.test.ts (WER, intent P/R, budgets)',
+    ],
   },
   '6.6': {
     label: 'State management — excluded per V&V; verified via data/UI tests',
