@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Octicons from '@expo/vector-icons/Octicons';
+import { useQuery } from '@tanstack/react-query';
 import {
   arrayRemove,
   arrayUnion,
@@ -17,26 +18,31 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { v4 as uuidv4 } from 'uuid';
 
 import { queryClient } from '@/api/common/api-provider';
 import { db } from '@/api/common/firebase';
 import { useEvent } from '@/api/events/use-events';
 import { useExpense } from '@/api/expenses/use-expenses';
+import { useGroup } from '@/api/groups/use-groups';
 import { useItem } from '@/api/items/use-items';
 import { usePeopleIdsForItem } from '@/api/people/use-people';
-import { useUser, useUsersAsPeople } from '@/api/people/use-users';
+import { fetchUsersBatch, useUser } from '@/api/people/use-users';
 import { useFriendUserIds } from '@/api/social/friendships';
 import { colors } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
+import { softMatch } from '@/lib/soft-match';
 import { useExpenseCreation } from '@/lib/store';
 import {
   type EventIdT,
   type EventPerson,
   type ExpenseIdT,
   type ExpensePerson,
+  type GroupIdT,
   type ItemIdT,
   type PersonIdT,
   type PersonWithId,
@@ -52,39 +58,6 @@ type Props = {
 };
 
 const MAX_PEOPLE = 16;
-
-function getCombinedEventParticipantRows(
-  eventId: EventIdT | undefined,
-  eventParticipants: (EventPerson & { id: UserIdT })[],
-  expensePeople: PersonWithId[]
-): (EventPerson & { id: UserIdT })[] {
-  if (!eventId) {
-    return [];
-  }
-  const seen = new Set<string>();
-  const rows: (EventPerson & { id: UserIdT })[] = [];
-
-  for (const ep of eventParticipants) {
-    seen.add(ep.id);
-    rows.push(ep);
-  }
-
-  for (const p of expensePeople) {
-    if (seen.has(p.id)) continue;
-    seen.add(p.id);
-    const pw = p as PersonWithId;
-    rows.push({
-      id: p.id as UserIdT,
-      name: pw.name ?? pw.guestName ?? 'Unknown',
-      color: pw.color ?? '',
-      userRef: (pw.userRef ?? p.id) as string,
-      subtotal: pw.subtotal,
-      paid: pw.paid,
-    });
-  }
-
-  return rows;
-}
 
 // ── Row for a person already in the expense (toggles item assignment) ────────
 function ExpensePersonRow({
@@ -154,6 +127,14 @@ function EventParticipantRow({
   onAdd: (participant: EventPerson & { id: UserIdT }) => Promise<void>;
   disabled: boolean;
 }) {
+  const viewerUserId = useAuth.use.userId() ?? null;
+  const { data: userData } = useUser({
+    variables: {
+      userId: participant.id,
+      viewerUserId,
+    },
+  });
+
   return (
     <View className="mb-2 flex-row items-center justify-between rounded-lg border border-text-900 p-3">
       <View className="flex-row items-center">
@@ -163,7 +144,12 @@ function EventParticipantRow({
           inSplitView
           isSelected={false}
         />
-        <Text className="ml-3 text-white">{participant.name}</Text>
+        <View className="ml-3">
+          <Text className="text-white">{participant.name}</Text>
+          {userData?.username ? (
+            <Text className="text-xs text-gray-400">@{userData.username}</Text>
+          ) : null}
+        </View>
       </View>
       <TouchableOpacity
         onPress={() => onAdd(participant)}
@@ -184,9 +170,10 @@ function EventParticipantRow({
 function ManagePeopleModal({
   visible,
   onClose,
-  people,
-  combinedRows,
-  addedIds,
+  peopleInExpense,
+  searchQuery,
+  onSearchChange,
+  searchMatches,
   assignedPeopleIds,
   avatarColors,
   maxPeopleReached,
@@ -199,9 +186,10 @@ function ManagePeopleModal({
 }: {
   visible: boolean;
   onClose: () => void;
-  people: PersonWithId[];
-  combinedRows: (EventPerson & { id: UserIdT })[];
-  addedIds: Set<string>;
+  peopleInExpense: PersonWithId[];
+  searchQuery: string;
+  onSearchChange: (q: string) => void;
+  searchMatches: (EventPerson & { id: UserIdT })[];
   assignedPeopleIds: UserIdT[];
   avatarColors: string[];
   maxPeopleReached: boolean;
@@ -215,6 +203,10 @@ function ManagePeopleModal({
   previewColor: string;
   onAddGuest: () => Promise<void>;
 }) {
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const modalTopPadding = Math.max(insets.top, windowHeight / 3);
+  const searchTrimmed = searchQuery.trim();
   return (
     <Modal
       visible={visible}
@@ -223,58 +215,72 @@ function ManagePeopleModal({
       onRequestClose={onClose}
     >
       <Pressable
-        className="flex-1 items-center justify-center bg-black/80"
+        className="flex-1 items-center justify-start bg-black/80"
+        style={{ paddingTop: modalTopPadding }}
         onPress={onClose}
       >
         <Pressable
-          className="mx-4 w-full rounded-xl border border-text-900 bg-black p-6"
+          className="mx-4 w-full max-w-md self-center rounded-xl border border-text-900 bg-black p-6"
           onPress={(e) => e.stopPropagation()}
         >
           <Text className="mb-4 text-center text-lg font-bold text-white">
             Manage People
           </Text>
 
+          <View className="mb-3 rounded-lg border border-text-900 px-3 py-2">
+            <TextInput
+              className="text-white"
+              placeholder="Search by username or name"
+              placeholderTextColor="#6b7280"
+              value={searchQuery}
+              onChangeText={onSearchChange}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+
           <ScrollView
             className="mb-4"
             style={{ maxHeight: 300 }}
             showsVerticalScrollIndicator
+            keyboardShouldPersistTaps="handled"
           >
-            {combinedRows.map((participant, index) => {
-              const isInExpense = addedIds.has(participant.id);
-              const isAssigned =
-                isInExpense &&
-                assignedPeopleIds.includes(participant.id as UserIdT);
-
-              if (isInExpense) {
-                const expensePerson = people.find(
-                  (p) => p.id === participant.id
-                );
-                if (!expensePerson) return null;
-                const displayPerson: PersonWithId = {
-                  ...expensePerson,
-                  name: expensePerson.name ?? participant.name,
-                  color:
-                    expensePerson.color ??
-                    participant.color ??
-                    avatarColors[index % avatarColors.length] ??
-                    '',
-                };
-                return (
-                  <ExpensePersonRow
+            {searchTrimmed
+              ? searchMatches.map((participant) => (
+                  <EventParticipantRow
                     key={participant.id}
-                    person={displayPerson}
-                    isAssigned={isAssigned}
-                    onToggle={makeToggleHandler(participant.id, isAssigned)}
+                    participant={participant}
+                    onAdd={onAddParticipant}
+                    disabled={maxPeopleReached}
                   />
-                );
-              }
+                ))
+              : null}
 
+            {searchTrimmed && searchMatches.length === 0 ? (
+              <Text className="py-2 text-center text-sm text-gray-500">
+                No matching unassigned users
+              </Text>
+            ) : null}
+
+            {peopleInExpense.map((expensePerson, index) => {
+              const isAssigned = assignedPeopleIds.includes(
+                expensePerson.id as UserIdT
+              );
+              const displayPerson: PersonWithId = {
+                ...expensePerson,
+                name:
+                  expensePerson.name ?? expensePerson.guestName ?? 'Unknown',
+                color:
+                  expensePerson.color ??
+                  avatarColors[index % avatarColors.length] ??
+                  '',
+              };
               return (
-                <EventParticipantRow
-                  key={participant.id}
-                  participant={participant}
-                  onAdd={onAddParticipant}
-                  disabled={maxPeopleReached}
+                <ExpensePersonRow
+                  key={expensePerson.id}
+                  person={displayPerson}
+                  isAssigned={isAssigned}
+                  onToggle={makeToggleHandler(expensePerson.id, isAssigned)}
                 />
               );
             })}
@@ -334,6 +340,10 @@ export const AddRemovePerson = ({ itemID, expenseId, eventId }: Props) => {
     isPending,
     isError,
   } = useExpense({ variables: expenseId });
+
+  const resolvedEventId = (eventId ?? tempExpense?.eventId) as
+    | EventIdT
+    | undefined;
   const {
     data: assignedPeopleIds,
     isPending: isAssignedPending,
@@ -344,6 +354,7 @@ export const AddRemovePerson = ({ itemID, expenseId, eventId }: Props) => {
     useExpenseCreation();
 
   const [modalVisible, setModalVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [newPersonName, setNewPersonName] = useState('');
 
   const avatarColors = useMemo(() => Object.keys(colors.avatar ?? {}), []);
@@ -353,12 +364,31 @@ export const AddRemovePerson = ({ itemID, expenseId, eventId }: Props) => {
 
   const isTempExpense = expenseId === ('temp-expense' as ExpenseIdT);
 
-  // Fetch event participants when eventId is present
-  const { data: event } = useEvent({ variables: eventId, enabled: !!eventId });
+  // Event-backed expenses: search group members when the event belongs to a group,
+  // otherwise event participants (standalone events).
+  const {
+    data: event,
+    isPending: isEventPending,
+    isError: isEventError,
+  } = useEvent({
+    variables: resolvedEventId,
+    enabled: Boolean(resolvedEventId),
+  });
+  const groupIdForSearch = event?.groupId as GroupIdT | undefined;
+  const {
+    data: group,
+    isPending: isGroupPending,
+    isError: isGroupError,
+  } = useGroup({
+    variables: groupIdForSearch!,
+    enabled: Boolean(resolvedEventId && groupIdForSearch),
+  });
   const { data: friendUserIds = [] } = useFriendUserIds({
     variables: currentUserId,
     enabled:
-      !eventId && Boolean(currentUserId) && currentUserId !== 'guest_user',
+      !resolvedEventId &&
+      Boolean(currentUserId) &&
+      currentUserId !== 'guest_user',
   });
   const nonEventUserIds = useMemo(() => {
     const ids = new Set<UserIdT>();
@@ -370,71 +400,93 @@ export const AddRemovePerson = ({ itemID, expenseId, eventId }: Props) => {
     () => (event?.participants ?? []) as UserIdT[],
     [event?.participants]
   );
-
-  const {
-    people: nonEventParticipants,
-    isLoading: isNonEventUsersLoading,
-    isError: isNonEventUsersError,
-  } = useUsersAsPeople(nonEventUserIds, avatarColors, {
-    enabled: !eventId && nonEventUserIds.length > 0,
-  });
-  const {
-    people: eventParticipants,
-    isLoading: isEventUsersLoading,
-    isError: isEventUsersError,
-  } = useUsersAsPeople(eventParticipantIds, avatarColors, {
-    enabled: Boolean(eventId) && eventParticipantIds.length > 0,
-  });
-
-  const needsNonEventUserProfiles = !eventId && nonEventUserIds.length > 0;
-  const needsEventParticipantProfiles =
-    Boolean(eventId) && eventParticipantIds.length > 0;
-
-  const nonEventParticipantRows = useMemo(
-    () =>
-      getCombinedEventParticipantRows(
-        'non-event' as EventIdT,
-        nonEventParticipants,
-        (tempExpense?.people ?? []) as PersonWithId[]
-      ),
-    [nonEventParticipants, tempExpense?.people]
+  const groupMemberIds = useMemo(
+    () => (group?.members ?? []) as UserIdT[],
+    [group?.members]
   );
 
-  const combinedEventParticipantRows = useMemo(
-    () =>
-      getCombinedEventParticipantRows(
-        eventId,
-        eventParticipants,
-        (tempExpense?.people ?? []) as PersonWithId[]
-      ),
-    [eventId, eventParticipants, tempExpense?.people]
-  );
+  const searchPoolUserIds = useMemo((): UserIdT[] => {
+    if (!resolvedEventId) return nonEventUserIds;
+    if (groupIdForSearch) return groupMemberIds;
+    return eventParticipantIds;
+  }, [
+    resolvedEventId,
+    groupIdForSearch,
+    groupMemberIds,
+    eventParticipantIds,
+    nonEventUserIds,
+  ]);
+
+  const isWaitingForEventSearchContext =
+    Boolean(resolvedEventId) &&
+    (isEventPending || (Boolean(groupIdForSearch) && isGroupPending));
+
+  const needsSearchPoolProfiles = searchPoolUserIds.length > 0;
+
+  const {
+    data: searchPoolUsers = [],
+    isLoading: isSearchPoolLoading,
+    isError: isSearchPoolError,
+  } = useQuery({
+    queryKey: ['users', 'batch', searchPoolUserIds, currentUserId ?? null],
+    queryFn: () => fetchUsersBatch(searchPoolUserIds, currentUserId ?? null),
+    staleTime: 5 * 60 * 1000,
+    enabled: needsSearchPoolProfiles,
+  });
+
+  const expensePeopleEarly = (tempExpense?.people ?? []) as PersonWithId[];
+
+  const searchMatches = useMemo((): (EventPerson & { id: UserIdT })[] => {
+    const q = searchQuery.trim();
+    if (!q) return [];
+    const inExpense = new Set(expensePeopleEarly.map((p) => p.id));
+    return searchPoolUsers
+      .filter((u) => !inExpense.has(u.id))
+      .filter((u) =>
+        softMatch(q, String(u.displayName ?? ''), String(u.username ?? ''))
+      )
+      .map((user, index) => ({
+        id: user.id,
+        name: String(user.displayName ?? ''),
+        color: avatarColors[index % avatarColors.length] ?? '',
+        userRef: user.id,
+        subtotal: 0,
+        paid: 0,
+      }));
+  }, [searchQuery, searchPoolUsers, expensePeopleEarly, avatarColors]);
 
   if (
     isPending ||
     isAssignedPending ||
-    (needsNonEventUserProfiles && isNonEventUsersLoading) ||
-    (needsEventParticipantProfiles && isEventUsersLoading)
+    isWaitingForEventSearchContext ||
+    (needsSearchPoolProfiles && isSearchPoolLoading)
   )
     return <ActivityIndicator />;
   if (isError || isAssignedError)
     return <Text>Error loading temp expense</Text>;
-  if (needsNonEventUserProfiles && isNonEventUsersError)
+  if (resolvedEventId && isEventError)
+    return (
+      <Text className="p-4 text-red-400">
+        Could not load event context for people search. Pull to refresh or try
+        again.
+      </Text>
+    );
+  if (resolvedEventId && groupIdForSearch && isGroupError)
+    return (
+      <Text className="p-4 text-red-400">
+        Could not load group members for this expense. Pull to refresh or try
+        again.
+      </Text>
+    );
+  if (needsSearchPoolProfiles && isSearchPoolError)
     return (
       <Text className="p-4 text-red-400">
         Could not load people for this expense. Pull to refresh or try again.
       </Text>
     );
-  if (needsEventParticipantProfiles && isEventUsersError)
-    return (
-      <Text className="p-4 text-red-400">
-        Could not load event participants. Pull to refresh or try again.
-      </Text>
-    );
 
   const people = tempExpense?.people ?? [];
   const maxPeopleReached = people.length >= MAX_PEOPLE;
-  const addedIds = new Set(people.map((p) => p.id));
 
   // ── Invalidation helpers ──────────────────────────────────────────────────
   const invalidateExpense = () =>
@@ -566,12 +618,14 @@ export const AddRemovePerson = ({ itemID, expenseId, eventId }: Props) => {
     <View className="bg-transparent p-4">
       <ManagePeopleModal
         visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        people={people}
-        combinedRows={
-          eventId ? combinedEventParticipantRows : nonEventParticipantRows
-        }
-        addedIds={addedIds}
+        onClose={() => {
+          setModalVisible(false);
+          setSearchQuery('');
+        }}
+        peopleInExpense={people}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchMatches={searchMatches}
         assignedPeopleIds={assignedPeopleIds}
         avatarColors={avatarColors}
         maxPeopleReached={maxPeopleReached}
