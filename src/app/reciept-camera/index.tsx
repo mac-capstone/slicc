@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 import { v4 as uuidv4 } from 'uuid';
 
-import { extractReceiptLineItems } from '@/api/camera-receipt/extract-receipt-line-items';
+import { extractReceiptInfo } from '@/api/camera-receipt/extract-receipt-info';
 import {
   Button,
   Pressable,
@@ -30,6 +30,7 @@ import { white } from '@/components/ui/colors';
 import { useDefaultTaxRate } from '@/lib/hooks/use-default-tax-rate';
 import { useExpenseCreation } from '@/lib/store';
 import { useThemeConfig } from '@/lib/use-theme-config';
+import { parseReceiptInfo } from '@/lib/utils';
 import { type ItemIdT, type ItemWithId } from '@/types';
 
 // TODO: add ability to pick reciept pic from galery
@@ -73,10 +74,7 @@ export default function ReceiptCameraScreen() {
   const flashIcon = getFlashIconProps();
 
   async function handleCapture() {
-    if (!cameraRef.current || loading) return;
-
-    let shouldNavigateBack = false;
-
+    if (!cameraRef.current) return;
     try {
       setLoading(true);
       // 1. Take a photo and get base64 data for upload
@@ -86,68 +84,52 @@ export default function ReceiptCameraScreen() {
       });
 
       const base64Image = photo.base64;
-      const imageUri = photo.uri;
-      const {
-        items: lineItems,
-        taxAmount,
-        tipAmount,
-      } = await extractReceiptLineItems({
-        base64: base64Image,
-        imageUri,
-      });
-
-      const subtotal = lineItems.reduce((sum, item) => sum + item.price, 0);
-      const extractedTaxRate =
-        taxAmount > 0 && subtotal > 0
-          ? Math.round((taxAmount / subtotal) * 10_000) / 100
-          : 0;
-      const appliedTaxRate =
-        extractedTaxRate > 0 ? extractedTaxRate : (defaultTaxRateValue ?? 0);
-
-      const items: ItemWithId[] = lineItems.map((item) => ({
+      // 2. Send POST to Gemini
+      const result = await extractReceiptInfo(base64Image ?? '');
+      console.log(result);
+      if (!result) {
+        Alert.alert('Failed to process image', 'No response from AI service');
+        setLoading(false);
+        return;
+      }
+      const parsedResult = parseReceiptInfo(result);
+      if (!parsedResult) {
+        Alert.alert('Failed to process image', 'No response from AI service');
+        setLoading(false);
+        return;
+      }
+      if (parsedResult.error) {
+        console.log(parsedResult.error);
+        Alert.alert('Failed to process image: ' + parsedResult.error.message);
+        setLoading(false);
+        return;
+      }
+      console.log(parsedResult.data);
+      // set temp items to this
+      const items: ItemWithId[] = parsedResult.data.map((item) => ({
         id: uuidv4() as ItemIdT,
-        name: item.item,
+        name: item.dish,
         amount: item.price,
-        taxRate: appliedTaxRate,
+        taxRate: defaultTaxRateValue ?? 0,
         split: {
           mode: 'equal',
           shares: {},
         },
         assignedPersonIds: [],
       }));
-
-      if (tipAmount > 0) {
-        items.push({
-          id: uuidv4() as ItemIdT,
-          name: 'Tip',
-          amount: Math.round(tipAmount * 100) / 100,
-          taxRate: 0,
-          isTip: true,
-          split: {
-            mode: 'equal',
-            shares: {},
-          },
-          assignedPersonIds: [],
-        });
-      }
-
       // empty the temp items
       clearTempExpenseItems();
       // add the new items
       items.forEach((item) => {
         addItem(item);
       });
-      shouldNavigateBack = true;
+      setLoading(false);
+      router.back();
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : 'Unknown error occurred';
       Alert.alert('Failed to process image: ' + errorMessage);
-    } finally {
       setLoading(false);
-    }
-
-    if (shouldNavigateBack) {
-      router.back();
     }
   }
 
@@ -210,9 +192,8 @@ export default function ReceiptCameraScreen() {
           className="min-h-12"
           label="Capture Reciept"
           icon={<Ionicons name="camera-reverse-outline" size={20} />}
-          loading={loading}
           onPress={() => {
-            void handleCapture();
+            handleCapture();
           }}
         />
         <Button

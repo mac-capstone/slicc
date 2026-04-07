@@ -6,7 +6,6 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, View } from 'react-native';
 import Animated, { LinearTransition } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { fetchEvent } from '@/api/events/use-events';
 import { fetchGroup, useGroupIds } from '@/api/groups/use-groups';
@@ -40,7 +39,6 @@ const PIN_LAYOUT_TRANSITION = LinearTransition.springify()
 type SocialSegment = 'groupList' | 'friends';
 
 export default function Social() {
-  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ segment?: string }>();
   const queryClient = useQueryClient();
   const userId = useAuth.use.userId();
@@ -205,6 +203,7 @@ export default function Social() {
           id: u.id,
           displayName: u.displayName || 'Unknown',
           handle,
+          isOnline: false,
         };
       });
   }, [friendUserQueries]);
@@ -435,18 +434,7 @@ export default function Social() {
       {(isFriendRequestsOpen ||
         isAddFriendOpen ||
         removeFriendTarget != null) && (
-        <View
-          className={`absolute inset-0 z-50 bg-black/60 px-4 ${
-            isAddFriendOpen && !removeFriendTarget && !isFriendRequestsOpen
-              ? 'justify-start'
-              : 'justify-center'
-          }`}
-          style={
-            isAddFriendOpen && !removeFriendTarget && !isFriendRequestsOpen
-              ? { paddingTop: insets.top + 12 }
-              : undefined
-          }
-        >
+        <View className="absolute inset-0 z-50 justify-center bg-black/60 px-4">
           <Pressable
             className="absolute inset-0"
             onPress={() => {

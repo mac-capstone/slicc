@@ -6,8 +6,11 @@ import React, { useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { queryClient } from '@/api';
-import { commitExpenseToFirestore } from '@/api/expenses/commit-expense';
-import { useExpense, useUpdateExpense } from '@/api/expenses/use-expenses';
+import {
+  useCreateExpense,
+  useExpense,
+  useUpdateExpense,
+} from '@/api/expenses/use-expenses';
 import { useItems } from '@/api/items/use-items';
 import { usePeopleIds } from '@/api/people/use-people';
 import ExpenseCreationFooter from '@/components/expense-creation-footer';
@@ -15,9 +18,6 @@ import { ItemCard } from '@/components/item-card';
 import { PersonCard } from '@/components/person-card';
 import { SegmentToggle } from '@/components/segment-toggle';
 import { ActivityIndicator, Pressable, Text, View } from '@/components/ui';
-import { useAuth } from '@/lib';
-import { fetchIsOnline } from '@/lib/network-status';
-import { enqueuePendingExpense } from '@/lib/offline/pending-expense-queue';
 import { clearTempExpense, getTempExpenseState } from '@/lib/store';
 import { useThemeConfig } from '@/lib/use-theme-config';
 import { type EventIdT, type ExpenseIdT } from '@/types';
@@ -25,7 +25,6 @@ import { type EventIdT, type ExpenseIdT } from '@/types';
 export default function ExpenseView() {
   const router = useRouter();
   const theme = useThemeConfig();
-  const userId = useAuth.use.userId();
   const [loading, setLoading] = useState(false);
   const isProcessingRef = useRef(false);
   const {
@@ -41,6 +40,7 @@ export default function ExpenseView() {
   const { data, isPending, isError } = useExpense({
     variables: id,
   });
+  const createExpense = useCreateExpense();
   const updateExpense = useUpdateExpense();
 
   if (isPending) {
@@ -90,65 +90,24 @@ export default function ExpenseView() {
       }
 
       if (id === 'temp-expense') {
-        const payload = {
-          expense: data,
-          eventId,
-          people: data.people,
-          items: data.items,
-        };
-        const signedInForSync = Boolean(userId && userId !== 'guest_user');
-        const online = await fetchIsOnline();
-
-        const finishLocal = async (message?: string) => {
-          clearTempExpense();
-          await queryClient.invalidateQueries({ queryKey: ['expenses'] });
-          if (message) {
-            Alert.alert('Saved locally', message);
-          }
-          if (eventId) {
-            router.replace(`/event/${eventId}/expenses` as any);
-          } else {
-            router.replace('/(app)/expenses' as any);
-          }
-        };
-
-        if (!online) {
-          if (!signedInForSync) {
-            Alert.alert(
-              'No connection',
-              'Connect to the internet to save this expense, or sign in to save offline and sync later.'
-            );
-            return;
-          }
-          enqueuePendingExpense(payload);
-          await finishLocal(
-            'You are offline. This expense will upload when you are back online.'
-          );
-          return;
+        const { expenseId } = await createExpense.mutateAsync({
+          name: tempExpenseState!.name,
+          date: tempExpenseState!.date,
+          createdBy: tempExpenseState!.createdBy,
+          payerUserId: tempExpenseState!.payerUserId,
+          eventId: eventId ?? undefined,
+          totalAmount: tempExpenseState!.totalAmount,
+          remainingAmount: tempExpenseState!.remainingAmount ?? 0,
+          people: tempExpenseState!.people ?? [],
+          items: tempExpenseState!.items,
+        });
+        clearTempExpense();
+        if (eventId) {
+          router.replace(`/event/${eventId}/expenses` as any);
+        } else {
+          router.replace(`/expense/${expenseId}` as any);
         }
-
-        try {
-          const expenseDocId = await commitExpenseToFirestore(payload);
-          clearTempExpense();
-          await queryClient.invalidateQueries({ queryKey: ['expenses'] });
-          if (eventId) {
-            router.replace(`/event/${eventId}/expenses` as any);
-          } else {
-            router.replace(`/expense/${expenseDocId}` as any);
-          }
-          return;
-        } catch (err) {
-          console.error('Error saving expense:', err);
-          if (!signedInForSync) {
-            Alert.alert('Error', 'Failed to save expense. Please try again.');
-            return;
-          }
-          enqueuePendingExpense(payload);
-          await finishLocal(
-            'Could not reach the server. Your expense is queued and will sync when possible.'
-          );
-          return;
-        }
+        return;
       }
       router.push('/');
     } catch (error) {

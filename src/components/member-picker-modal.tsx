@@ -1,7 +1,6 @@
 import Feather from '@expo/vector-icons/Feather';
 import React, { useEffect, useState } from 'react';
 import { FlatList, Modal, TextInput } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PersonAvatar } from '@/components/person-avatar';
 import { Button, Pressable, Text, View } from '@/components/ui';
@@ -58,7 +57,6 @@ export function MemberPickerModal({
   onConfirm,
   title = 'Add Members',
 }: Props) {
-  const insets = useSafeAreaInsets();
   const [localSelected, setLocalSelected] = useState<Set<UserIdT>>(
     () => new Set(selectedIds)
   );
@@ -91,10 +89,7 @@ export function MemberPickerModal({
       presentationStyle="formSheet"
       onRequestClose={onClose}
     >
-      <View
-        className="flex-1 bg-background-950 px-4 pb-4"
-        style={{ paddingTop: Math.max(insets.top, 16) }}
-      >
+      <View className="flex-1 bg-background-950 p-4 pt-6">
         <View className="mb-4 flex-row items-center justify-between">
           <Text className="text-xl font-bold text-white">{title}</Text>
           <Pressable

@@ -150,25 +150,9 @@ const _useExpenseCreation = create<ExpenseCreationState>((set, get) => ({
     const current = get().tempExpense;
     if (current) {
       const delta = itemGrossRoundedToCents(item.amount, item.taxRate);
-
-      const existingAssignedIds = new Set<string>();
-      for (const existingItem of current.items) {
-        for (const pid of existingItem.assignedPersonIds ?? []) {
-          existingAssignedIds.add(pid);
-        }
-      }
-
-      const itemWithSharedAssignments = {
-        ...item,
-        assignedPersonIds:
-          item.assignedPersonIds?.length > 0
-            ? item.assignedPersonIds
-            : [...existingAssignedIds],
-      };
-
       const updated = {
         ...current,
-        items: [...current.items, itemWithSharedAssignments],
+        items: [...current.items, item],
         totalAmount: current.totalAmount + delta,
         remainingAmount: (current.remainingAmount ?? 0) + delta,
       };

@@ -31,6 +31,8 @@ export const userProfileSchema = z.object({
   username: z.string(),
   displayName: z.string(),
   friends: z.array(z.string()).default([]),
+  /** Denormalized from private settings for peer recommendation signals (readable to signed-in users). */
+  dietaryPreferenceIds: z.array(z.string()).default([]),
   createdAt: firestoreTimestamp.optional(),
   updatedAt: firestoreTimestamp.optional(),
 });
@@ -198,6 +200,15 @@ export const expenseItemSchema = z.object({
 });
 
 export const expenseItemConverter = zodConverter(expenseItemSchema);
+
+// ── Place likes (collaborative recommendations) ────────────────────────────
+
+export const placeLikesSchema = z.object({
+  placeIds: z.array(z.string()).default([]),
+  updatedAt: firestoreTimestamp.optional(),
+});
+
+export type PlaceLikes = z.infer<typeof placeLikesSchema>;
 
 // ── Chat message (Realtime DB: groups/{groupId}/messages/{pushId}) ─────────
 

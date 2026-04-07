@@ -47,12 +47,8 @@ export const calculatePersonShare = (
 export const parseReceiptInfo = (
   result: string
 ): z.SafeParseReturnType<
-  unknown,
-  {
-    items: { item: string; price: number }[];
-    taxAmount: number;
-    tipAmount: number;
-  }
+  { dish: string; price: number }[],
+  { dish: string; price: number }[]
 > | null => {
   // remove the ```json and ``` from the result
   const cleanedResult = result
@@ -69,67 +65,13 @@ export const parseReceiptInfo = (
     console.log('JSON parse error:', parseError);
     return null;
   }
-
-  const currencyValueSchema = z
-    .union([z.string(), z.number()])
-    .transform((value) => {
-      if (typeof value === 'number') {
-        return Number.isFinite(value) ? value : Number.NaN;
-      }
-
-      const normalized = value.trim().replace(/[$,]/g, '').replace(/\s+/g, '');
-      const parsed = Number(normalized);
-      return Number.isFinite(parsed) ? parsed : Number.NaN;
-    })
-    .pipe(z.number().min(0));
-
-  const receiptItemSchema = z
-    .object({
-      item: z.string().trim().min(1).optional(),
-      description: z.string().trim().min(1).optional(),
-      name: z.string().trim().min(1).optional(),
-      price: currencyValueSchema.optional(),
-      amount: currencyValueSchema.optional(),
-      total: currencyValueSchema.optional(),
-      lineTotal: currencyValueSchema.optional(),
-    })
-    .transform((item) => ({
-      item: item.item ?? item.description ?? item.name ?? '',
-      price: item.price ?? item.amount ?? item.total ?? item.lineTotal,
-    }))
-    .pipe(
-      z.object({
-        item: z.string().trim().min(1),
-        price: z.number().min(0),
-      })
-    );
-
-  const structuredReceiptSchema = z
-    .object({
-      items: z.array(receiptItemSchema),
-      tax: currencyValueSchema.optional(),
-      salesTax: currencyValueSchema.optional(),
-      vat: currencyValueSchema.optional(),
-      tip: currencyValueSchema.optional(),
-      gratuity: currencyValueSchema.optional(),
-      serviceCharge: currencyValueSchema.optional(),
-    })
-    .transform((data) => ({
-      items: data.items,
-      taxAmount: data.tax ?? data.salesTax ?? data.vat ?? 0,
-      tipAmount: data.tip ?? data.gratuity ?? data.serviceCharge ?? 0,
-    }));
-
-  const legacyItemsOnlySchema = z
-    .array(receiptItemSchema)
-    .transform((items) => ({
-      items,
-      taxAmount: 0,
-      tipAmount: 0,
-    }));
-
   const parsedResult = z
-    .union([structuredReceiptSchema, legacyItemsOnlySchema])
+    .array(
+      z.object({
+        dish: z.string(),
+        price: z.string().transform((val) => Number(val.replace('$', ''))),
+      })
+    )
     .safeParse(parsedJson);
   return parsedResult;
 };

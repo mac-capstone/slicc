@@ -5,8 +5,7 @@ import type { GroupIdT } from '@/types';
 
 /**
  * Group home is the chat. Event list + create live in the chat screen.
- * Group info (members, events, leave/delete): `/group/[id]/members`.
- * Create group: `/group/edit`.
+ * Members / edit: `/group/[id]/members` and `/group/edit`.
  */
 export default function GroupDetailRedirect() {
   const params = useLocalSearchParams<{ id: string }>();
