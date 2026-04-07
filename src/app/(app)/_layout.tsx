@@ -11,6 +11,7 @@ import {
   useIsFirstTime,
   useUserExistsInFirestore,
 } from '@/lib';
+import { usePendingExpenseSync } from '@/lib/hooks/use-pending-expense-sync';
 
 export default function TabLayout() {
   const status = useAuth.use.status();
@@ -25,6 +26,9 @@ export default function TabLayout() {
   const liveSyncUserId = status === 'signIn' ? userId : null;
   useEnsureE2EIdentityKey(liveSyncUserId);
   useIncomingFriendRequestsLiveSync(liveSyncUserId);
+  usePendingExpenseSync(
+    status === 'signIn' && Boolean(userId && userId !== 'guest_user')
+  );
 
   const hideSplash = useCallback(async () => {
     await SplashScreen.hideAsync();
