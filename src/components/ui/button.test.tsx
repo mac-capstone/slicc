@@ -1,0 +1,29 @@
+import React from 'react';
+
+import { cleanup, fireEvent, render, screen } from '@/lib/test-utils';
+
+import { Button } from './button';
+
+afterEach(cleanup);
+
+describe('Button (presentation, §6.1.1)', () => {
+  it('invokes onPress when enabled', () => {
+    const onPress = jest.fn();
+    render(<Button testID="btn" label="Save" onPress={onPress} />);
+    fireEvent.press(screen.getByTestId('btn'));
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not invoke onPress while loading', () => {
+    const onPress = jest.fn();
+    render(<Button testID="btn" label="Save" loading onPress={onPress} />);
+    fireEvent.press(screen.getByTestId('btn'));
+    expect(onPress).not.toHaveBeenCalled();
+  });
+
+  it('matches snapshot for default variant', () => {
+    expect(
+      render(<Button testID="snap-btn" label="Continue" />).toJSON()
+    ).toMatchSnapshot();
+  });
+});

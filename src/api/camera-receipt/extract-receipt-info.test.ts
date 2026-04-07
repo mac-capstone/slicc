@@ -1,0 +1,92 @@
+import { extractReceiptInfo } from '@/api/camera-receipt/extract-receipt-info';
+import { parseReceiptInfo } from '@/lib/utils';
+
+jest.mock('@google/genai', () => ({
+  GoogleGenAI: jest.fn().mockImplementation(() => ({
+    models: {
+      generateContent: jest.fn().mockResolvedValue({
+        text: '[{"dish":"Coffee","price":"$3.00"}]',
+      }),
+    },
+  })),
+}));
+
+/**
+ * TA feedback: receipt parsing must be scored on structured correctness and field
+ * accuracy, not latency alone (§6.4.1 / §6.4.2).
+ */
+function receiptLineItemMetrics(
+  expected: { dish: string; price: number }[],
+  actual: { dish: string; price: number }[]
+) {
+  const expSet = new Set(expected.map((e) => `${e.dish}::${e.price}`));
+  const actSet = new Set(actual.map((a) => `${a.dish}::${a.price}`));
+  let tp = 0;
+  for (const k of actSet) {
+    if (expSet.has(k)) tp++;
+  }
+  const precision = actSet.size ? tp / actSet.size : 1;
+  const recall = expSet.size ? tp / expSet.size : 1;
+  const priceMape =
+    expected.length === 0
+      ? 0
+      : expected.reduce((acc, e, i) => {
+          const a = actual[i];
+          if (!a) return acc + 1;
+          const denom = Math.abs(e.price) < 1e-9 ? 1 : Math.abs(e.price);
+          return acc + Math.abs(e.price - a.price) / denom;
+        }, 0) / expected.length;
+  return { precision, recall, priceMape };
+}
+
+describe('extractReceiptInfo (Gemini client, §6.4)', () => {
+  it('formats the multimodal request and returns model text', async () => {
+    const { GoogleGenAI } = jest.requireMock('@google/genai') as {
+      GoogleGenAI: jest.Mock;
+    };
+    const text = await extractReceiptInfo('YmFzZTY0');
+    expect(GoogleGenAI).toHaveBeenCalled();
+    expect(text).toContain('Coffee');
+  });
+
+  it('completes within the §6.4.2 latency budget on a mocked network call', async () => {
+    const t0 = global.performance.now();
+    await extractReceiptInfo('x');
+    expect(global.performance.now() - t0).toBeLessThan(5000);
+  });
+});
+
+describe('parseReceiptInfo + golden-set quality metrics (§6.4 TA feedback)', () => {
+  const gold = `[
+    {"dish":"Chicken Curry","price":"$12.99"},
+    {"dish":"Spring Rolls","price":"$5.50"}
+  ]`;
+
+  it('achieves high precision/recall on an exact golden transcript', () => {
+    const parsed = parseReceiptInfo(gold);
+    expect(parsed?.success).toBe(true);
+    if (!parsed?.success) return;
+    const expected = [
+      { dish: 'Chicken Curry', price: 12.99 },
+      { dish: 'Spring Rolls', price: 5.5 },
+    ];
+    const m = receiptLineItemMetrics(expected, parsed.data);
+    expect(m.precision).toBeGreaterThanOrEqual(0.9);
+    expect(m.recall).toBeGreaterThanOrEqual(0.9);
+    expect(m.priceMape).toBeLessThan(0.01);
+  });
+
+  it('flags lower recall when a line is dropped', () => {
+    const parsed = parseReceiptInfo(
+      '[{"dish":"Chicken Curry","price":"$12.99"}]'
+    );
+    expect(parsed?.success).toBe(true);
+    if (!parsed?.success) return;
+    const expected = [
+      { dish: 'Chicken Curry', price: 12.99 },
+      { dish: 'Spring Rolls', price: 5.5 },
+    ];
+    const m = receiptLineItemMetrics(expected, parsed.data);
+    expect(m.recall).toBeLessThan(1);
+  });
+});
