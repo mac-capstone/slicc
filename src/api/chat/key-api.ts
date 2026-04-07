@@ -33,7 +33,6 @@ import {
 } from '@/lib/crypto/key-store';
 
 const pubKeyCache = new Map<string, string>();
-const identityEnsureAttemptedUsers = new Set<string>();
 
 /** Bypass cache so bundle wrap/rewrap uses the latest registered identity key. */
 export function invalidateUserPublicKeyCache(userId: string): void {
@@ -109,50 +108,15 @@ async function removeKeyBundleSafe(
 
 /** Ensure identity key pair exists locally and is registered in Firestore. */
 export async function ensureIdentityKeyPair(userId: string): Promise<string> {
-  let publicKeyB64: string | undefined;
-  let privateKeyB64: string | undefined;
+  if (hasIdentityKeyPair()) return getIdentityPublicKey()!;
 
-  if (hasIdentityKeyPair()) {
-    publicKeyB64 = getIdentityPublicKey();
-    privateKeyB64 = getIdentityPrivateKey();
-  }
+  const { publicKeyB64, privateKeyB64 } = generateIdentityKeyPair();
+  storeIdentityKeyPair(privateKeyB64, publicKeyB64);
 
-  if (!publicKeyB64 || !privateKeyB64) {
-    const generated = generateIdentityKeyPair();
-    publicKeyB64 = generated.publicKeyB64;
-    privateKeyB64 = generated.privateKeyB64;
-    storeIdentityKeyPair(privateKeyB64, publicKeyB64);
-  }
-
-  if (identityEnsureAttemptedUsers.has(userId)) {
-    pubKeyCache.set(userId, publicKeyB64);
-    return publicKeyB64;
-  }
-  identityEnsureAttemptedUsers.add(userId);
-
-  try {
-    const identityRef = doc(db, 'users', userId, 'e2eKeys', 'identity');
-    const identitySnap = await getDoc(identityRef);
-    const remotePublicKey = identitySnap.exists()
-      ? (identitySnap.data().publicKey as string | undefined)
-      : undefined;
-
-    if (remotePublicKey !== publicKeyB64) {
-      await setDoc(
-        identityRef,
-        {
-          publicKey: publicKeyB64,
-          updatedAt: Timestamp.now(),
-        },
-        { merge: true }
-      );
-    }
-  } catch (e) {
-    console.warn(
-      'ensureIdentityKeyPair: sync failed; will retry next app session',
-      e
-    );
-  }
+  await setDoc(doc(db, 'users', userId, 'e2eKeys', 'identity'), {
+    publicKey: publicKeyB64,
+    updatedAt: Timestamp.now(),
+  });
 
   pubKeyCache.set(userId, publicKeyB64);
   return publicKeyB64;

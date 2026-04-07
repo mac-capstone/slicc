@@ -40,6 +40,8 @@
     </array>
     <key>CFBundleVersion</key>
     <string>1</string>
+    <key>GMSApiKey</key>
+    <string>AIzaSyDmFkvFTIgWf0mLgjlLCLdroSiPfv9hrjQ</string>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
     <key>LSApplicationQueriesSchemes</key>
@@ -76,7 +78,7 @@
     <key>NSLocationAlwaysUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your location</string>
     <key>NSLocationWhenInUseUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your location</string>
+    <string>Allow this app to use your location to find nearby places.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Allow this app to use the microphone.</string>
     <key>NSPhotoLibraryUsageDescription</key>

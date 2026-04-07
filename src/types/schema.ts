@@ -31,6 +31,8 @@ export const userProfileSchema = z.object({
   username: z.string(),
   displayName: z.string(),
   friends: z.array(z.string()).default([]),
+  /** Denormalized from private settings for peer recommendation signals (readable to signed-in users). */
+  dietaryPreferenceIds: z.array(z.string()).default([]),
   createdAt: firestoreTimestamp.optional(),
   updatedAt: firestoreTimestamp.optional(),
 });
@@ -198,3 +200,75 @@ export const expenseItemSchema = z.object({
 });
 
 export const expenseItemConverter = zodConverter(expenseItemSchema);
+
+// ── Place likes (collaborative recommendations) ────────────────────────────
+
+export const placeLikesSchema = z.object({
+  placeIds: z.array(z.string()).default([]),
+  updatedAt: firestoreTimestamp.optional(),
+});
+
+export type PlaceLikes = z.infer<typeof placeLikesSchema>;
+
+// ── Chat message (Realtime DB: groups/{groupId}/messages/{pushId}) ─────────
+
+export const locationPayloadSchema = z.object({
+  name: z.string(),
+  address: z.string(),
+  coordinates: z.object({ lat: z.number(), lng: z.number() }),
+  mapsUrl: z.string(),
+  category: z.string().optional(),
+  imageUrl: z.string().optional(),
+  rating: z.number().optional(),
+  priceLevel: z.string().optional(),
+});
+
+export const chatMessageSchema = z.object({
+  senderId: z.string(),
+  type: z.enum(['text', 'image', 'location', 'system']),
+  encryptedContent: z.string().optional(),
+  nonce: z.string().optional(),
+  keyVersion: z.number().default(0),
+  // For `type: "image"`: encrypted bytes are stored in Firebase Storage at `imagePath`.
+  imagePath: z.string().optional(),
+  mimeType: z.string().optional(),
+  fileName: z.string().optional(),
+  /** Optional caption; encrypted separately from the image bytes (`nonce` is for the file). */
+  captionEncrypted: z.string().optional(),
+  captionNonce: z.string().optional(),
+  locationPayload: locationPayloadSchema.optional(),
+  systemText: z.string().optional(),
+  // serverTimestamp() resolves to null on the first local snapshot (pending write),
+  // then fires again with the real Timestamp once the server confirms.
+  sentAt: z
+    .custom<Timestamp | null>((val) => val instanceof Timestamp || val === null)
+    .transform((val) => (val instanceof Timestamp ? val.toDate() : new Date())),
+  readBy: z.array(z.string()).default([]),
+  // emoji -> array of userIds who reacted with that emoji.
+  // Use arrayUnion / arrayRemove on reactions.<emoji> to toggle.
+  reactions: z.record(z.string(), z.array(z.string())).default({}),
+});
+
+export const chatMessageConverter = zodConverter(chatMessageSchema);
+
+// ── Key bundle (Realtime DB: groups/{groupId}/keyBundles/{userId}) ───────────
+
+export const chatKeyBundleSchema = z.object({
+  encryptedGroupKey: z.string(),
+  senderPublicKey: z.string(),
+  nonce: z.string(),
+  keyVersion: z.number(),
+  recipientPublicKey: z.string().optional(),
+  updatedAt: firestoreTimestamp,
+});
+
+export const chatKeyBundleConverter = zodConverter(chatKeyBundleSchema);
+
+// ── Scheduler availability (Realtime DB: groups/{groupId}/availability/{userId}) ─
+
+export const availabilitySchema = z.object({
+  slots: z.array(z.string()).default([]),
+  updatedAt: firestoreTimestamp.optional(),
+});
+
+export const availabilityConverter = zodConverter(availabilitySchema);

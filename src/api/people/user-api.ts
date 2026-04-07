@@ -3,6 +3,7 @@ import {
   deleteField,
   doc,
   type DocumentData,
+  documentId,
   getDoc,
   getDocs,
   query,
@@ -10,15 +11,18 @@ import {
   setDoc,
   Timestamp,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 
 import { db, storage } from '@/api/common/firebase';
+import { normalizeDietaryPreferenceIds } from '@/lib/dietary-preference-options';
 import type {
   UpdateUserSettingsData,
   UserProfile,
   UserSettings,
 } from '@/types';
+import { userConverter } from '@/types/schema';
 
 const MIME_TYPE_BY_EXTENSION: Record<string, string> = {
   heic: 'image/heic',
@@ -142,6 +146,7 @@ export async function createUserInFirestore(
     username: data.username.toLowerCase().trim(),
     displayName: data.displayName.trim(),
     friends: [],
+    dietaryPreferenceIds: [],
     createdAt: now,
     updatedAt: now,
   };
@@ -209,16 +214,63 @@ function buildUserSettingsPatch(
   return payload;
 }
 
+const FIRESTORE_IN_QUERY_LIMIT = 10;
+
 export async function updateUserSettingsInFirestore(
   userId: string,
   data: UpdateUserSettingsData
 ): Promise<void> {
   const userSettingsRef = doc(db, 'users', userId, 'settings', 'private');
+  const userRef = doc(db, 'users', userId);
   const now = Timestamp.now();
 
-  await setDoc(userSettingsRef, buildUserSettingsPatch(data, now), {
-    merge: true,
-  });
+  const patch = buildUserSettingsPatch(data, now);
+  const record = data as Record<string, unknown>;
+  const hasDietaryUpdate = Object.hasOwn(record, 'dietaryPreferences');
+
+  const batch = writeBatch(db);
+  batch.set(userSettingsRef, patch, { merge: true });
+
+  if (hasDietaryUpdate) {
+    const raw = data.dietaryPreferences;
+    const ids = normalizeDietaryPreferenceIds(Array.isArray(raw) ? raw : []);
+    batch.set(
+      userRef,
+      { dietaryPreferenceIds: ids, updatedAt: now },
+      {
+        merge: true,
+      }
+    );
+  }
+
+  await batch.commit();
+}
+
+/**
+ * Batch-load public dietary preference IDs for peer ranking (chunked `in` queries).
+ */
+export async function fetchPublicDietaryPreferencesByUserIds(
+  userIds: string[]
+): Promise<Map<string, string[]>> {
+  const out = new Map<string, string[]>();
+  if (userIds.length === 0) return out;
+
+  const usersRef = collection(db, 'users').withConverter(userConverter);
+  const unique = [...new Set(userIds)];
+
+  for (let i = 0; i < unique.length; i += FIRESTORE_IN_QUERY_LIMIT) {
+    const chunk = unique.slice(i, i + FIRESTORE_IN_QUERY_LIMIT);
+    const q = query(usersRef, where(documentId(), 'in', chunk));
+    const snapshot = await getDocs(q);
+    for (const d of snapshot.docs) {
+      const profile = d.data();
+      out.set(
+        d.id,
+        normalizeDietaryPreferenceIds(profile.dietaryPreferenceIds ?? [])
+      );
+    }
+  }
+  return out;
 }
 
 export async function updateDefaultRatesInFirestore(

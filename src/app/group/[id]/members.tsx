@@ -6,9 +6,12 @@ import { Alert, ScrollView, View } from 'react-native';
 import { useGroup, useLeaveGroup } from '@/api/groups/use-groups';
 import { fetchUser } from '@/api/people/use-users';
 import { AddButton } from '@/components/add-button';
+import { PersonAvatar } from '@/components/person-avatar';
 import { colors, Text } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import type { GroupIdT, UserIdT } from '@/types';
+
+const MEMBER_AVATAR_COLORS = ['red', 'blue', 'green', 'yellow'] as const;
 
 export default function GroupMembersScreen() {
   const params = useLocalSearchParams<{ id: string }>();
@@ -91,7 +94,14 @@ export default function GroupMembersScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: group.name }} />
+      <Stack.Screen
+        options={{
+          title: group.name,
+          headerShown: true,
+          headerTitleStyle: { fontSize: 28, fontWeight: 'bold' },
+          headerShadowVisible: false,
+        }}
+      />
       <View className="flex-1 bg-background-950">
         <ScrollView className="flex-1 p-4">
           <Text className="mb-3 text-base text-neutral-300">
@@ -102,10 +112,16 @@ export default function GroupMembersScreen() {
             {memberDetails.map((member, index) => (
               <View key={member.id}>
                 <View className="flex-row items-center py-3">
-                  <View className="mr-3 size-9 items-center justify-center rounded-full bg-red-500">
-                    <Text className="text-lg text-white">
-                      {member.name.charAt(0)}
-                    </Text>
+                  <View className="mr-3">
+                    <PersonAvatar
+                      userId={member.id as UserIdT}
+                      size={36}
+                      color={
+                        MEMBER_AVATAR_COLORS[
+                          index % MEMBER_AVATAR_COLORS.length
+                        ]
+                      }
+                    />
                   </View>
 
                   <View className="flex-1">

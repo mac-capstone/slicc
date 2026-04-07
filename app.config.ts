@@ -103,6 +103,20 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ['app-icon-badge', appIconBadgeConfig],
     ['react-native-edge-to-edge'],
     [
+      'expo-location',
+      {
+        locationWhenInUsePermission:
+          'Allow this app to use your location to find nearby places.',
+      },
+    ],
+    [
+      'react-native-maps',
+      {
+        androidGoogleMapsApiKey: Env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY ?? '',
+        iosGoogleMapsApiKey: Env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY ?? '',
+      },
+    ],
+    [
       'expo-speech-recognition',
       {
         microphonePermission: 'Allow this app to use the microphone.',

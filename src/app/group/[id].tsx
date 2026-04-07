@@ -15,6 +15,9 @@ import { markGroupAsRead } from '@/lib/group-preferences';
 import { useThemeConfig } from '@/lib/use-theme-config';
 import type { GroupIdT } from '@/types';
 
+/**
+ * Group detail: events list and create. Members / edit: `/group/[id]/members` and `/group/edit`.
+ */
 export default function GroupDetailScreen() {
   const theme = useThemeConfig();
   const params = useLocalSearchParams<{ id: string }>();

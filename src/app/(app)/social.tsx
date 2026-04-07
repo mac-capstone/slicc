@@ -203,6 +203,7 @@ export default function Social() {
           id: u.id,
           displayName: u.displayName || 'Unknown',
           handle,
+          isOnline: false,
         };
       });
   }, [friendUserQueries]);
