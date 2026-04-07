@@ -21,10 +21,20 @@ jest.mock('@google/genai', () => ({
  */
 function receiptLineItemMetrics(
   expected: { dish: string; price: number }[],
-  actual: { dish: string; price: number }[]
+  actual:
+    | { dish: string; price: number }[]
+    | {
+        items: { item: string; price: number }[];
+        taxAmount?: number;
+        tipAmount?: number;
+      }
 ) {
+  const actualItems: { dish: string; price: number }[] = Array.isArray(actual)
+    ? actual
+    : actual.items.map((i) => ({ dish: i.item, price: i.price }));
+
   const expSet = new Set(expected.map((e) => `${e.dish}::${e.price}`));
-  const actSet = new Set(actual.map((a) => `${a.dish}::${a.price}`));
+  const actSet = new Set(actualItems.map((a) => `${a.dish}::${a.price}`));
   let tp = 0;
   for (const k of actSet) {
     if (expSet.has(k)) tp++;
@@ -35,7 +45,7 @@ function receiptLineItemMetrics(
     expected.length === 0
       ? 0
       : expected.reduce((acc, e, i) => {
-          const a = actual[i];
+          const a = actualItems[i];
           if (!a) return acc + 1;
           const denom = Math.abs(e.price) < 1e-9 ? 1 : Math.abs(e.price);
           return acc + Math.abs(e.price - a.price) / denom;
