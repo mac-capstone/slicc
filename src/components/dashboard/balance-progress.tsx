@@ -16,10 +16,12 @@ export function BalanceProgress({
   youOwe,
   owedToYou,
 }: Props): React.JSX.Element {
+  const hasOwe = youOwe > 0;
+  const hasOwed = owedToYou > 0;
   const total = youOwe + owedToYou || 1;
-  const owePercent = (youOwe / total) * 100;
+  const owePercent = hasOwe ? (youOwe / total) * 100 : 0;
 
-  const anim = useRef(new Animated.Value(50)).current;
+  const anim = useRef(new Animated.Value(owePercent)).current;
 
   useEffect(() => {
     Animated.timing(anim, {
@@ -33,6 +35,9 @@ export function BalanceProgress({
     inputRange: [0, 100],
     outputRange: ['0%', '100%'],
   });
+
+  // When only one side is non-zero (or both zero), show a single full bar.
+  const showSplit = hasOwe && hasOwed;
 
   return (
     <View>
@@ -70,37 +75,64 @@ export function BalanceProgress({
           overflow: 'hidden',
         }}
       >
-        {/* Left segment — you owe (red outline, grows from left) */}
-        <Animated.View
-          style={{
-            height: '100%',
-            width: leftWidth,
-            backgroundColor: '#F8717130',
-            borderTopWidth: BORDER,
-            borderBottomWidth: BORDER,
-            borderLeftWidth: BORDER,
-            borderRightWidth: 0,
-            borderColor: colors.danger[400],
-            borderTopLeftRadius: RADIUS,
-            borderBottomLeftRadius: RADIUS,
-          }}
-        />
-
-        {/* Right segment — owed to you (teal outline, fills remainder) */}
-        <View
-          style={{
-            flex: 1,
-            height: '100%',
-            backgroundColor: '#00DBC52E',
-            borderTopWidth: BORDER,
-            borderBottomWidth: BORDER,
-            borderRightWidth: BORDER,
-            borderLeftWidth: 0,
-            borderColor: colors.accent[100],
-            borderTopRightRadius: RADIUS,
-            borderBottomRightRadius: RADIUS,
-          }}
-        />
+        {showSplit ? (
+          <>
+            {/* Left segment — you owe (red) */}
+            <Animated.View
+              style={{
+                height: '100%',
+                width: leftWidth,
+                backgroundColor: '#F8717130',
+                borderTopWidth: BORDER,
+                borderBottomWidth: BORDER,
+                borderLeftWidth: BORDER,
+                borderRightWidth: 0,
+                borderColor: colors.danger[400],
+                borderTopLeftRadius: RADIUS,
+                borderBottomLeftRadius: RADIUS,
+              }}
+            />
+            {/* Right segment — owed to you (teal) */}
+            <View
+              style={{
+                flex: 1,
+                height: '100%',
+                backgroundColor: '#00DBC52E',
+                borderTopWidth: BORDER,
+                borderBottomWidth: BORDER,
+                borderRightWidth: BORDER,
+                borderLeftWidth: 0,
+                borderColor: colors.accent[100],
+                borderTopRightRadius: RADIUS,
+                borderBottomRightRadius: RADIUS,
+              }}
+            />
+          </>
+        ) : hasOwe ? (
+          /* Only owe — full red bar */
+          <View
+            style={{
+              flex: 1,
+              height: '100%',
+              backgroundColor: '#F8717130',
+              borderWidth: BORDER,
+              borderColor: colors.danger[400],
+              borderRadius: RADIUS,
+            }}
+          />
+        ) : (
+          /* Both zero or only owed — full teal bar */
+          <View
+            style={{
+              flex: 1,
+              height: '100%',
+              backgroundColor: '#00DBC52E',
+              borderWidth: BORDER,
+              borderColor: colors.accent[100],
+              borderRadius: RADIUS,
+            }}
+          />
+        )}
       </View>
     </View>
   );
