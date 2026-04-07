@@ -1,4 +1,6 @@
 node_modules/
+# pnpm is the package manager; npm lockfile causes expo-doctor / CI issues
+package-lock.json
 .expo/
 dist/
 npm-debug.*

@@ -36,7 +36,10 @@ export default function EventExpenses() {
   });
 
   const handleClose = (): void => {
-    if (!eventId) router.back();
+    if (!eventId) {
+      router.back();
+      return;
+    }
     router.replace(`/event/${eventId}` as const);
   };
 
@@ -102,11 +105,7 @@ export default function EventExpenses() {
         <FlashList
           data={filteredExpenses}
           renderItem={({ item: expenseId }) => (
-            <ExpenseCard
-              id={expenseId}
-              config="progress"
-              eventContextId={eventId}
-            />
+            <ExpenseCard id={expenseId} config="progress" />
           )}
           keyExtractor={(expenseId) => expenseId}
           ListEmptyComponent={
@@ -122,7 +121,7 @@ export default function EventExpenses() {
           }
           ListFooterComponent={
             filteredExpenses.length > 0 ? (
-              <View className="mb-10 pt-5">
+              <View className="pt-5">
                 <DottedAddButton
                   text="Add new expense"
                   path={`/expense/add-expense?eventId=${eventId}` as any}

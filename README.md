@@ -203,10 +203,13 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
     }
 
     // subcollection: expenses/{expenseId}/items/{itemId}
+    // (Simplified — optional fields like taxRate and isTip are omitted)
     items: {
       [itemId: ItemId]: {
         name: string;
         amount: number;
+        taxRate?: number;
+        isTip?: boolean;
         split: { mode: string; shares: Record<string, number> };
         assignedPersonIds: UserId[];
       }

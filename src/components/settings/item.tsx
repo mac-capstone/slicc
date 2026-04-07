@@ -9,7 +9,6 @@ type ItemProps = {
   value?: string;
   onPress?: () => void;
   icon?: React.ReactNode;
-  compactPadding?: boolean;
   testID?: string;
 };
 
@@ -18,7 +17,6 @@ export function Item({
   value,
   icon,
   onPress,
-  compactPadding = false,
   testID,
 }: ItemProps): React.ReactElement {
   const isPressable = onPress !== undefined;
@@ -29,8 +27,7 @@ export function Item({
       pointerEvents={isPressable ? 'auto' : 'none'}
       testID={testID}
       className={cn(
-        'w-full flex-row items-center justify-between py-3.5',
-        compactPadding ? 'px-0' : 'px-4',
+        'w-full flex-row items-center justify-between px-4 py-3.5',
         isPressable ? 'active:opacity-80' : ''
       )}
     >

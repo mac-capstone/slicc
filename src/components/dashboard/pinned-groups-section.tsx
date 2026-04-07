@@ -51,7 +51,7 @@ export function PinnedGroupsSection() {
   }, [allEventIds, eventQueries]);
 
   const groupsLoading = groupQueries.some((q) => q.isPending);
-  const groupsFetchSettled = groupQueries.every((q) => !q.isPending);
+  const groupsError = groupQueries.some((q) => q.isError);
 
   const groupItems = useMemo((): GroupItemData[] => {
     return groups.map((g) => {
@@ -128,8 +128,10 @@ export function PinnedGroupsSection() {
     );
   }
 
-  if (pinnedGroupIds.length > 0 && groups.length === 0 && groupsFetchSettled) {
-    const firstError = groupQueries.find((q) => q.isError)?.error;
+  if (groupsError) {
+    const firstError =
+      groupQueries.find((q) => q.isError)?.error ??
+      eventQueries.find((q) => q.isError)?.error;
     const errorMessage =
       firstError instanceof Error
         ? firstError.message

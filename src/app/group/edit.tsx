@@ -1,20 +1,21 @@
-// src/app/group/edit.tsx — create new group only. Existing groups: `/group/[id]/members`.
+// src/app/group/edit.tsx
 import Feather from '@expo/vector-icons/Feather';
-import { useQueries } from '@tanstack/react-query';
-import { Redirect, router, Stack, useLocalSearchParams } from 'expo-router';
+import Octicons from '@expo/vector-icons/Octicons';
+import { useQuery } from '@tanstack/react-query';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Timestamp } from 'firebase/firestore';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, TextInput } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { v4 as uuidv4 } from 'uuid';
 
-import { useCreateGroup } from '@/api/groups/use-groups';
-import { fetchUser } from '@/api/people/use-users';
-import { useFriendUserIds } from '@/api/social/friendships';
-import { MemberPickerModal } from '@/components/member-picker-modal';
 import {
-  PersonAvatar,
-  personAvatarColorForIndex,
-} from '@/components/person-avatar';
+  useCreateGroup,
+  useGroup,
+  useUpdateGroup,
+} from '@/api/groups/use-groups';
+import { fetchUsersBatch, useUserIds } from '@/api/people/use-users';
+import { PersonAvatar } from '@/components/person-avatar';
 import {
   Button,
   Pressable,
@@ -26,270 +27,314 @@ import {
 import { useAuth } from '@/lib/auth';
 import type { GroupIdT, UserIdT, UserWithId } from '@/types';
 
-const EMPTY_USER_IDS: UserIdT[] = [];
-
-function GroupNameRow({
+function GroupHeaderRow({
   groupTitle,
   setGroupTitle,
   isEditingName,
   setIsEditingName,
   nameInputRef,
+  currentUserId,
 }: {
   groupTitle: string;
   setGroupTitle: (v: string) => void;
   isEditingName: boolean;
   setIsEditingName: (v: boolean) => void;
   nameInputRef: React.RefObject<TextInput | null>;
+  currentUserId: UserIdT | null;
 }) {
   return (
-    <View className="mb-8 items-center px-2">
-      {isEditingName ? (
-        <TextInput
-          ref={nameInputRef}
-          value={groupTitle}
-          onChangeText={setGroupTitle}
-          onBlur={() => setIsEditingName(false)}
-          autoFocus
-          style={{
-            fontSize: 24,
-            fontWeight: 'bold',
-            color: '#ffffff',
-            padding: 0,
-            textAlign: 'center',
-            width: '100%',
-          }}
-        />
+    <View className="mb-6 flex-row items-center">
+      <Pressable className="mr-4 size-14 items-center justify-center rounded-full bg-neutral-700">
+        <Octicons name="person" size={26} color="#A4A4A4" />
+      </Pressable>
+      <View className="flex-1">
+        {isEditingName ? (
+          <TextInput
+            ref={nameInputRef}
+            value={groupTitle}
+            onChangeText={setGroupTitle}
+            onBlur={() => setIsEditingName(false)}
+            autoFocus
+            style={{
+              fontSize: 24,
+              fontWeight: 'bold',
+              color: '#ffffff',
+              padding: 0,
+            }}
+          />
+        ) : (
+          <Pressable
+            onPress={() => {
+              setIsEditingName(true);
+              setTimeout(() => nameInputRef.current?.focus(), 50);
+            }}
+            className="flex-row items-center gap-2"
+          >
+            <Text className="text-2xl font-bold text-white">
+              {groupTitle || 'Group name'}
+            </Text>
+            <Feather name="edit-2" size={16} color="#A4A4A4" />
+          </Pressable>
+        )}
+      </View>
+      {currentUserId && (
+        <View className="ml-3">
+          <PersonAvatar userId={currentUserId} size={36} />
+        </View>
+      )}
+    </View>
+  );
+}
+
+function MemberRow({
+  user,
+  isMember,
+  onToggle,
+}: {
+  user: UserWithId;
+  isMember: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <View className="flex-row items-center border-b border-neutral-800 py-3">
+      <PersonAvatar userId={user.id} size={36} />
+      <View className="ml-3 flex-1">
+        <Text className="text-base text-white">{user.displayName}</Text>
+        {user.username ? (
+          <Text className="text-xs text-gray-400">@{user.username}</Text>
+        ) : null}
+      </View>
+      {isMember ? (
+        <Pressable onPress={onToggle}>
+          <Text className="text-sm font-semibold text-red-500">Remove</Text>
+        </Pressable>
       ) : (
-        <Pressable
-          onPress={() => {
-            setIsEditingName(true);
-            setTimeout(() => nameInputRef.current?.focus(), 50);
-          }}
-          className="flex-row items-center justify-center gap-2"
-        >
-          <Text className="text-center text-2xl font-bold text-white">
-            {groupTitle || 'Group name'}
-          </Text>
-          <Feather name="edit-2" size={18} color="#A4A4A4" />
+        <Pressable onPress={onToggle} className="flex-row items-center gap-1">
+          <Octicons name="person-add" size={14} color="#D4D4D4" />
+          <Text className="ml-1 text-sm font-semibold text-white">Add</Text>
         </Pressable>
       )}
     </View>
   );
 }
 
-function CreateGroupScreen() {
-  const currentUserId = useAuth.use.userId() as UserIdT | null;
+export default function GroupFormScreen() {
+  const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ groupId?: string }>();
+  const groupId = params.groupId as GroupIdT | undefined;
+  const currentUserId = useAuth.use.userId();
+  const viewerUserId = currentUserId ?? null;
+
+  const { data: group } = useGroup({ variables: groupId!, enabled: !!groupId });
+
+  const hasGroupId = Boolean(groupId);
+  const groupLoaded = !hasGroupId || !!group;
 
   const [groupTitle, setGroupTitle] = useState('');
   const [isEditingName, setIsEditingName] = useState(false);
   const [selectedMemberIds, setSelectedMemberIds] = useState<Set<UserIdT>>(
     () => new Set()
   );
-  const [memberPickerOpen, setMemberPickerOpen] = useState(false);
+  const [tab, setTab] = useState<'selected' | 'allUsers'>('selected');
+  const [searchQuery, setSearchQuery] = useState('');
   const nameInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
-    if (currentUserId) {
-      setSelectedMemberIds(new Set([currentUserId]));
+    if (group) {
+      setGroupTitle(group.name);
+      setSelectedMemberIds(new Set(group.members as UserIdT[]));
     }
-  }, [currentUserId]);
+  }, [group]);
 
-  const { data: friendUserIds = [] } = useFriendUserIds({
-    variables: currentUserId,
-    enabled: !!currentUserId,
+  const { data: allUserIds = [] } = useUserIds();
+
+  const { data: allUsers = [] } = useQuery({
+    queryKey: ['users', 'batch', allUserIds, viewerUserId],
+    queryFn: () => fetchUsersBatch(allUserIds, viewerUserId),
+    staleTime: 5 * 60 * 1000,
+    enabled: allUserIds.length > 0,
   });
 
-  const friendUserQueries = useQueries({
-    queries: friendUserIds.map((id) => ({
-      queryKey: ['users', 'userId', id] as const,
-      queryFn: () => fetchUser(id),
-      staleTime: 5 * 60 * 1000,
-    })),
-  });
+  // Fast lookup map for chips row
+  const usersById = useMemo(() => {
+    const map = new Map<UserIdT, UserWithId>();
+    allUsers.forEach((u) => map.set(u.id, u));
+    return map;
+  }, [allUsers]);
 
-  const friends = useMemo(
-    () =>
-      friendUserQueries
-        .map((q) => q.data)
-        .filter((u): u is UserWithId => u != null),
-    [friendUserQueries]
-  );
+  // Client-side case-insensitive filter (works for displayName and username)
+  const displayedUsers = useMemo(() => {
+    const base =
+      tab === 'selected'
+        ? allUsers.filter((u) => selectedMemberIds.has(u.id))
+        : allUsers;
+    if (!searchQuery.trim()) return base;
+    const q = searchQuery.trim().toLowerCase();
+    return base.filter(
+      (u) =>
+        u.displayName.toLowerCase().includes(q) ||
+        (u.username ?? '').toLowerCase().includes(q)
+    );
+  }, [tab, allUsers, selectedMemberIds, searchQuery]);
 
-  const addMemberCandidates = useMemo(
-    () => friends.filter((f) => !selectedMemberIds.has(f.id)),
-    [friends, selectedMemberIds]
-  );
-
-  const memberIdList = useMemo(
-    () => Array.from(selectedMemberIds),
-    [selectedMemberIds]
-  );
-
-  const memberQueries = useQueries({
-    queries: memberIdList.map((id) => ({
-      queryKey: ['users', 'userId', id] as const,
-      queryFn: () => fetchUser(id),
-      staleTime: 5 * 60 * 1000,
-    })),
-  });
-
-  const memberRows = useMemo(() => {
-    const rows = memberIdList.map((id, index) => {
-      const user = memberQueries[index]?.data;
-      return {
-        id,
-        displayName: user?.displayName ?? 'Unknown',
-        isSelf: id === currentUserId,
-      };
-    });
-    return rows.sort((a, b) => {
-      if (a.isSelf && !b.isSelf) return -1;
-      if (!a.isSelf && b.isSelf) return 1;
-      return a.displayName.localeCompare(b.displayName);
-    });
-  }, [memberIdList, memberQueries, currentUserId]);
-
-  const canRemoveMember = (memberId: UserIdT): boolean =>
-    !!currentUserId && memberId !== currentUserId;
-
-  const removeMember = (uid: UserIdT): void => {
-    if (!canRemoveMember(uid)) return;
+  const toggleMember = (uid: UserIdT): void => {
     setSelectedMemberIds((prev) => {
       const next = new Set(prev);
-      next.delete(uid);
+      if (next.has(uid)) next.delete(uid);
+      else next.add(uid);
       return next;
     });
   };
 
   const createGroup = useCreateGroup();
-  const isSaving = createGroup.isPending;
+  const updateGroup = useUpdateGroup();
+  const isSaving = createGroup.isPending || updateGroup.isPending;
 
   const handleSave = async (): Promise<void> => {
-    if (!currentUserId || isSaving) return;
+    if (!currentUserId || !groupLoaded || isSaving) return;
 
     const members = Array.from(selectedMemberIds);
     if (!members.includes(currentUserId)) members.unshift(currentUserId);
 
     try {
-      const newGroupId = uuidv4() as GroupIdT;
-      await createGroup.mutateAsync({
-        groupId: newGroupId,
-        data: {
-          name: groupTitle,
-          description: '',
-          owner: currentUserId,
-          admins: [currentUserId],
-          members,
-          events: [],
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now(),
-        },
-      });
+      if (hasGroupId && groupId) {
+        await updateGroup.mutateAsync({
+          groupId,
+          data: { name: groupTitle, members },
+        });
+      } else {
+        const newGroupId = uuidv4() as GroupIdT;
+        await createGroup.mutateAsync({
+          groupId: newGroupId,
+          data: {
+            name: groupTitle,
+            description: '',
+            owner: currentUserId,
+            admins: [currentUserId],
+            members,
+            events: [],
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+          },
+        });
+      }
       router.back();
     } catch (err) {
       console.error('Failed to save group:', err);
-      Alert.alert('Error', 'Failed to create group, please try again.');
+      Alert.alert(
+        'Error',
+        hasGroupId
+          ? 'Failed to save changes, please try again.'
+          : 'Failed to create group, please try again.'
+      );
     }
-  };
-
-  const handlePickerConfirm = (ids: UserIdT[]): void => {
-    if (ids.length === 0) {
-      setMemberPickerOpen(false);
-      return;
-    }
-    setSelectedMemberIds((prev) => {
-      const next = new Set(prev);
-      for (const id of ids) next.add(id);
-      return next;
-    });
-    setMemberPickerOpen(false);
   };
 
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <SafeAreaView className="flex-1 bg-background-950">
-        <View className="flex-row items-center px-4 pb-3">
-          <Pressable onPress={() => router.back()} className="p-1">
+        <View
+          className="px-4 pb-2"
+          style={{ paddingTop: Math.max(insets.top, 8) }}
+        >
+          <Pressable onPress={() => router.back()} className="self-start p-1">
             <Feather name="arrow-left" size={24} color="#ffffff" />
           </Pressable>
-          <Text className="ml-2 text-xl font-semibold text-white">
-            Create group
-          </Text>
         </View>
 
         <ScrollView
           className="flex-1 px-4"
-          contentContainerStyle={{ paddingTop: 12, paddingBottom: 24 }}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
           keyboardShouldPersistTaps="handled"
         >
-          <GroupNameRow
+          <GroupHeaderRow
             groupTitle={groupTitle}
             setGroupTitle={setGroupTitle}
             isEditingName={isEditingName}
             setIsEditingName={setIsEditingName}
             nameInputRef={nameInputRef}
+            currentUserId={currentUserId}
           />
 
-          <Text className="mb-3 text-sm text-neutral-400">
-            {selectedMemberIds.size}{' '}
-            {selectedMemberIds.size === 1 ? 'Member' : 'Members'}
-          </Text>
+          <Text className="mb-3 text-base text-neutral-400">Members</Text>
 
-          <View className="mb-2">
-            {memberRows.map((row, listIndex) => (
-              <View
-                key={row.id}
-                className="flex-row items-center border-b border-neutral-800 py-3"
-              >
-                <PersonAvatar
-                  userId={row.id}
-                  fallbackLabel={row.displayName}
-                  size={36}
-                  color={personAvatarColorForIndex(listIndex)}
-                />
-                <Text className="ml-3 flex-1 text-base text-white">
-                  {row.isSelf ? 'You' : row.displayName}
-                </Text>
-                {canRemoveMember(row.id) ? (
-                  <Pressable
-                    onPress={() => removeMember(row.id)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Remove ${row.displayName}`}
+          {/* Segment toggle */}
+          <View className="mb-4 flex-row rounded-full bg-background-900 p-1">
+            {(['selected', 'allUsers'] as const).map((t) => {
+              const label = t === 'selected' ? 'Selected' : 'All Users';
+              const isActive = tab === t;
+              return (
+                <Pressable
+                  key={t}
+                  onPress={() => setTab(t)}
+                  className={`flex-1 items-center rounded-full py-2 ${isActive ? 'bg-accent-100' : 'bg-transparent'}`}
+                >
+                  <Text
+                    className={`text-sm font-semibold ${isActive ? 'text-black' : 'text-neutral-400'}`}
                   >
-                    <Text
-                      className="text-sm font-semibold"
-                      style={{ color: '#ef4444' }}
-                    >
-                      Remove
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* Selected chips */}
+          {selectedMemberIds.size > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              className="mb-4"
+            >
+              {Array.from(selectedMemberIds).map((uid) => {
+                const user = usersById.get(uid);
+                return (
+                  <View
+                    key={uid}
+                    className="mr-2 flex-row items-center rounded-full bg-neutral-800 px-2 py-1"
+                  >
+                    <PersonAvatar userId={uid} size={20} />
+                    <Text className="ml-1 text-sm text-white">
+                      {user?.displayName?.split(' ')[0] ?? '...'}
                     </Text>
-                  </Pressable>
-                ) : null}
-              </View>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          )}
+
+          {/* Search bar */}
+          <View className="mb-4 flex-row items-center rounded-full bg-neutral-900 px-4 py-2">
+            <Feather name="search" size={16} color="#A4A4A4" />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search by name or username…"
+              placeholderTextColor="#A4A4A4"
+              style={{ flex: 1, marginLeft: 8, color: '#ffffff', fontSize: 14 }}
+            />
+          </View>
+
+          {/* Member list */}
+          <View>
+            {displayedUsers.map((user) => (
+              <MemberRow
+                key={user.id}
+                user={user}
+                isMember={selectedMemberIds.has(user.id)}
+                onToggle={() => toggleMember(user.id)}
+              />
             ))}
           </View>
 
-          <Pressable
-            onPress={() => setMemberPickerOpen(true)}
-            className="mb-8 flex-row items-center py-3"
-            accessibilityRole="button"
-            accessibilityLabel="Add member"
-          >
-            <View className="mr-3 size-10 items-center justify-center rounded-full border border-dashed border-neutral-600">
-              <Feather name="user-plus" size={20} color="#00C8B3" />
-            </View>
-            <Text className="text-base font-semibold text-[#00C8B3]">
-              Add Member
-            </Text>
-          </Pressable>
-
-          <View className="gap-3">
+          <View className="mt-8 gap-3">
             <Button
-              label="Create group"
+              label={hasGroupId ? 'Save Changes' : 'Create group'}
               variant="outline"
-              onPress={() => void handleSave()}
+              onPress={handleSave}
               fullWidth
-              disabled={isSaving}
+              disabled={!groupLoaded || isSaving}
             />
             <Pressable
               onPress={() => router.back()}
@@ -301,25 +346,7 @@ function CreateGroupScreen() {
             </Pressable>
           </View>
         </ScrollView>
-
-        <MemberPickerModal
-          visible={memberPickerOpen}
-          onClose={() => setMemberPickerOpen(false)}
-          candidates={addMemberCandidates}
-          selectedIds={EMPTY_USER_IDS}
-          onConfirm={handlePickerConfirm}
-          title="Add Member"
-        />
       </SafeAreaView>
     </>
   );
-}
-
-export default function GroupFormScreen() {
-  const params = useLocalSearchParams<{ groupId?: string }>();
-  const groupIdParam = params.groupId as GroupIdT | undefined;
-  if (groupIdParam) {
-    return <Redirect href={`/group/${groupIdParam}/members`} />;
-  }
-  return <CreateGroupScreen />;
 }

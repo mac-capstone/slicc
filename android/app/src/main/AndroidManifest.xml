@@ -14,50 +14,6 @@
       <category android:name="android.intent.category.BROWSABLE"/>
       <data android:scheme="https"/>
     </intent>
-    <intent>
-      <action android:name="android.intent.action.VIEW"/>
-      <data android:scheme="rbcmobile"/>
-    </intent>
-    <intent>
-      <action android:name="android.intent.action.VIEW"/>
-      <data android:scheme="tdct"/>
-    </intent>
-    <intent>
-      <action android:name="android.intent.action.VIEW"/>
-      <data android:scheme="scotiabank"/>
-    </intent>
-    <intent>
-      <action android:name="android.intent.action.VIEW"/>
-      <data android:scheme="cibcmobilebanking"/>
-    </intent>
-    <intent>
-      <action android:name="android.intent.action.VIEW"/>
-      <data android:scheme="bmomobile"/>
-    </intent>
-    <intent>
-      <action android:name="android.intent.action.VIEW"/>
-      <data android:scheme="nbcmobile"/>
-    </intent>
-    <intent>
-      <action android:name="android.intent.action.VIEW"/>
-      <data android:scheme="desjardins"/>
-    </intent>
-    <intent>
-      <action android:name="android.intent.action.VIEW"/>
-      <data android:scheme="tangerine"/>
-    </intent>
-    <intent>
-      <action android:name="android.intent.action.VIEW"/>
-      <data android:scheme="simplii"/>
-    </intent>
-    <intent>
-      <action android:name="android.intent.action.VIEW"/>
-      <data android:scheme="wealthsimple"/>
-    </intent>
-    <intent>
-      <action android:name="android.intent.action.VIEW"/>
-      <data android:scheme="koho"/>
-    </intent>
   </queries>
   <queries>
     <package android:name="com.google.android.googlequicksearchbox"/>

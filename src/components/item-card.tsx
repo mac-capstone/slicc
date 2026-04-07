@@ -88,11 +88,7 @@ export const ItemCard = ({
             <View className="flex-row items-center">
               {assignedPeople.slice(0, 4).map((person, index: number) => (
                 <View key={person.id} className={index > 0 ? '-ml-3' : ''}>
-                  <PersonAvatar
-                    userId={person.id as UserIdT}
-                    fallbackLabel={person.name}
-                    size="md"
-                  />
+                  <PersonAvatar size="md" userId={person.id as UserIdT} />
                 </View>
               ))}
               {assignedPeople.length > 4 && (
@@ -105,7 +101,7 @@ export const ItemCard = ({
               {item.name}
             </Text>
             <Text className="font-futuraMedium text-2xl dark:text-text-50">
-              ${(item.amount * (1 + item.taxRate / 100)).toFixed(2)}
+              ${item.amount.toFixed(2)}
             </Text>
           </View>
         </View>
@@ -121,12 +117,12 @@ export const ItemCard = ({
           {item.name}
         </Text>
         <Text className="font-futuraDemi text-xl dark:text-text-50">
-          ${(item.amount * (1 + item.taxRate / 100)).toFixed(2)}
+          ${item.amount.toFixed(2)}
         </Text>
       </View>
       <View className="flex flex-row items-center justify-start gap-2 pt-2">
         {item.assignedPersonIds.map((personId) => (
-          <PersonAvatar key={personId} userId={personId as UserIdT} size="md" />
+          <PersonAvatar key={personId} userId={personId as UserIdT} />
         ))}
       </View>
     </View>

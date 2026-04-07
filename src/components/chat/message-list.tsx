@@ -88,11 +88,7 @@ export function MessageList({
           >
             {showPeerAvatar ? (
               <View className="mr-1.5 self-end pb-6">
-                <PersonAvatar
-                  userId={item.senderId as UserIdT}
-                  fallbackLabel={senderNames[item.senderId] ?? '?'}
-                  size={28}
-                />
+                <PersonAvatar userId={item.senderId as UserIdT} size={28} />
               </View>
             ) : null}
             <MessageBubble

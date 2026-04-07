@@ -1,13 +1,11 @@
 import { type z } from 'zod';
 
 import {
-  type chatMessageSchema,
   type eventSchema,
   type expenseItemSchema,
   type expensePersonSchema,
   type expenseSchema,
   type groupSchema,
-  type locationPayloadSchema,
   type userProfileSchema,
   type userSchema,
   type userSettingsSchema,
@@ -24,6 +22,7 @@ export type PersonIdT = string & { readonly __brand: unique symbol };
 export type EventIdT = string & { readonly __brand: unique symbol };
 export type GroupIdT = string & { readonly __brand: unique symbol };
 export type NotificationIdT = string & { readonly __brand: unique symbol };
+export type ChatMessageIdT = string & { readonly __brand: unique symbol };
 
 export type BankPreference =
   | 'none'
@@ -97,10 +96,34 @@ export type ItemWithId = Item & { id: ItemIdT };
 
 // ── Chat types ──────────────────────────────────────────────────────────────
 
-export type ChatMessageIdT = string & { readonly __brand: unique symbol };
-export type LocationShare = z.infer<typeof locationPayloadSchema>;
-export type ChatMessage = z.infer<typeof chatMessageSchema>;
-export type ChatMessageWithId = ChatMessage & {
-  id: ChatMessageIdT;
+export type LocationShare = {
+  name: string;
+  address: string;
+  coordinates: { lat: number; lng: number };
+  mapsUrl: string;
+  category?: string;
+  imageUrl?: string;
+  rating?: number;
+  priceLevel?: string;
+};
+
+export type ChatMessage = {
+  senderId: string;
+  type: 'text' | 'image' | 'location' | 'system';
+  encryptedContent?: string;
+  nonce?: string;
+  keyVersion: number;
+  imagePath?: string;
+  mimeType?: string;
+  fileName?: string;
+  captionEncrypted?: string;
+  captionNonce?: string;
+  locationPayload?: LocationShare;
+  systemText?: string;
+  sentAt: Date;
+  readBy: string[];
+  reactions: Record<string, string[]>;
   decryptedContent?: string | null;
 };
+
+export type ChatMessageWithId = ChatMessage & { id: ChatMessageIdT };

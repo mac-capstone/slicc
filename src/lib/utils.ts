@@ -3,7 +3,16 @@ import { twMerge } from 'tailwind-merge';
 import { z } from 'zod';
 import type { StoreApi, UseBoundStore } from 'zustand';
 
-import { type ItemWithId } from '@/types';
+import { type mockData } from '@/lib/mock-data';
+import {
+  type ExpenseIdT,
+  type ExpenseWithId,
+  type ItemIdT,
+  type ItemWithId,
+  type Person,
+  type PersonWithId,
+  type UserIdT,
+} from '@/types';
 
 export function openLinkInBrowser(url: string) {
   Linking.canOpenURL(url).then((canOpen) => canOpen && Linking.openURL(url));
@@ -29,6 +38,60 @@ export const cn = (...classes: string[]) => {
   return twMerge(classes.filter(Boolean).join(' '));
 };
 
+export function mapMockPersonToPerson(
+  person: (typeof mockData.expenses)[number]['people'][number]
+): Person {
+  return {
+    name: person.doc.name,
+    color: person.doc.color,
+    userRef: person.doc.userRef,
+    subtotal: person.doc.subtotal,
+    paid: person.doc.paid,
+  };
+}
+
+export function mapMockPersonToPersonWithId(
+  person: (typeof mockData.expenses)[number]['people'][number]
+): PersonWithId {
+  return {
+    id: person.id,
+    name: person.doc.name,
+    color: person.doc.color,
+    userRef: person.doc.userRef,
+    subtotal: person.doc.subtotal,
+    paid: person.doc.paid,
+  };
+}
+
+export function mapMockExpenseToExpenseWithId(
+  expense: (typeof mockData.expenses)[number]
+): ExpenseWithId {
+  return {
+    id: expense.id as ExpenseIdT,
+    name: expense.doc.name,
+    totalAmount: expense.doc.totalAmount,
+    date: expense.doc.date,
+    remainingAmount: expense.doc.remainingAmount,
+    createdBy: expense.doc.createdBy as UserIdT,
+    participantCount: expense.doc.participantCount,
+  };
+}
+
+export function mapMockItemToItemWithId(
+  item: (typeof mockData.expenses)[number]['items'][number]
+): ItemWithId {
+  return {
+    id: item.id as ItemIdT,
+    name: item.doc.name,
+    amount: item.doc.amount,
+    split: {
+      mode: item.doc.split.mode,
+      shares: item.doc.split.shares as Record<string, number>,
+    },
+    assignedPersonIds: item.doc.assignedPersonIds,
+  };
+}
+
 export const calculatePersonShare = (
   item: ItemWithId,
   personId: string
@@ -38,21 +101,14 @@ export const calculatePersonShare = (
     (acc: number, share: number) => acc + share,
     0
   );
-  return (
-    (item.split.shares[personId] * item.amount * (1 + item.taxRate / 100)) /
-    totalShares
-  );
+  return (item.split.shares[personId] * item.amount) / totalShares;
 };
 
 export const parseReceiptInfo = (
   result: string
 ): z.SafeParseReturnType<
-  unknown,
-  {
-    items: { item: string; price: number }[];
-    taxAmount: number;
-    tipAmount: number;
-  }
+  { dish: string; price: number }[],
+  { dish: string; price: number }[]
 > | null => {
   // remove the ```json and ``` from the result
   const cleanedResult = result
@@ -69,67 +125,18 @@ export const parseReceiptInfo = (
     console.log('JSON parse error:', parseError);
     return null;
   }
-
-  const currencyValueSchema = z
-    .union([z.string(), z.number()])
-    .transform((value) => {
-      if (typeof value === 'number') {
-        return Number.isFinite(value) ? value : Number.NaN;
-      }
-
-      const normalized = value.trim().replace(/[$,]/g, '').replace(/\s+/g, '');
-      const parsed = Number(normalized);
-      return Number.isFinite(parsed) ? parsed : Number.NaN;
-    })
-    .pipe(z.number().min(0));
-
-  const receiptItemSchema = z
-    .object({
-      item: z.string().trim().min(1).optional(),
-      description: z.string().trim().min(1).optional(),
-      name: z.string().trim().min(1).optional(),
-      price: currencyValueSchema.optional(),
-      amount: currencyValueSchema.optional(),
-      total: currencyValueSchema.optional(),
-      lineTotal: currencyValueSchema.optional(),
-    })
-    .transform((item) => ({
-      item: item.item ?? item.description ?? item.name ?? '',
-      price: item.price ?? item.amount ?? item.total ?? item.lineTotal,
-    }))
-    .pipe(
-      z.object({
-        item: z.string().trim().min(1),
-        price: z.number().min(0),
-      })
-    );
-
-  const structuredReceiptSchema = z
-    .object({
-      items: z.array(receiptItemSchema),
-      tax: currencyValueSchema.optional(),
-      salesTax: currencyValueSchema.optional(),
-      vat: currencyValueSchema.optional(),
-      tip: currencyValueSchema.optional(),
-      gratuity: currencyValueSchema.optional(),
-      serviceCharge: currencyValueSchema.optional(),
-    })
-    .transform((data) => ({
-      items: data.items,
-      taxAmount: data.tax ?? data.salesTax ?? data.vat ?? 0,
-      tipAmount: data.tip ?? data.gratuity ?? data.serviceCharge ?? 0,
-    }));
-
-  const legacyItemsOnlySchema = z
-    .array(receiptItemSchema)
-    .transform((items) => ({
-      items,
-      taxAmount: 0,
-      tipAmount: 0,
-    }));
-
   const parsedResult = z
-    .union([structuredReceiptSchema, legacyItemsOnlySchema])
+    .array(
+      z.object({
+        dish: z.string(),
+        price: z
+          .string()
+          .transform((val) => Number(val.replace(/[$,]/g, '').trim()))
+          .refine((n) => Number.isFinite(n) && !Number.isNaN(n), {
+            message: 'Invalid price',
+          }),
+      })
+    )
     .safeParse(parsedJson);
   return parsedResult;
 };

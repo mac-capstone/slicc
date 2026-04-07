@@ -11,7 +11,6 @@ import {
   useIsFirstTime,
   useUserExistsInFirestore,
 } from '@/lib';
-import { usePendingExpenseSync } from '@/lib/hooks/use-pending-expense-sync';
 
 export default function TabLayout() {
   const status = useAuth.use.status();
@@ -26,9 +25,6 @@ export default function TabLayout() {
   const liveSyncUserId = status === 'signIn' ? userId : null;
   useEnsureE2EIdentityKey(liveSyncUserId);
   useIncomingFriendRequestsLiveSync(liveSyncUserId);
-  usePendingExpenseSync(
-    status === 'signIn' && Boolean(userId && userId !== 'guest_user')
-  );
 
   const hideSplash = useCallback(async () => {
     await SplashScreen.hideAsync();
@@ -112,6 +108,16 @@ export default function TabLayout() {
             <Text style={{ fontSize: 24, fontWeight: 'bold', color }}>$</Text>
           ),
           tabBarButtonTestID: 'expenses-tab',
+          headerRight: () => (
+            <TouchableOpacity
+              onPress={() => router.push('/expense/graph')}
+              style={{ marginRight: 16 }}
+              accessibilityLabel="Open Expense Flow Graph"
+              accessibilityRole="button"
+            >
+              <Octicons name="git-branch" size={24} color={colors.text[800]} />
+            </TouchableOpacity>
+          ),
         }}
       />
       <Tabs.Screen

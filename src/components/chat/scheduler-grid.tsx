@@ -77,14 +77,13 @@ type SchedulerMemberChipProps = {
 
 function SchedulerMemberChip({
   userId,
-  name,
+  name: _name,
   onPress,
 }: SchedulerMemberChipProps) {
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
       <PersonAvatar
         userId={userId as UserIdT}
-        fallbackLabel={name}
         size={20}
         color={avatarColorKeyForUid(userId)}
       />
@@ -212,7 +211,6 @@ function DetailCard({
           >
             <PersonAvatar
               userId={entry.uid as UserIdT}
-              fallbackLabel={name}
               size={20}
               color={avatarColorKeyForUid(entry.uid)}
             />

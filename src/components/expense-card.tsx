@@ -9,15 +9,14 @@ import {
   Text,
   View,
 } from '@/components/ui';
-import { type EventIdT, type ExpenseIdT } from '@/types';
+import { type ExpenseIdT } from '@/types';
 
 type Props = {
   id: ExpenseIdT;
   config: 'progress' | 'compact' | 'withPic' | 'compactWithPic';
-  eventContextId?: EventIdT;
 };
 
-export const ExpenseCard = ({ id, config, eventContextId }: Props) => {
+export const ExpenseCard = ({ id, config }: Props) => {
   const router = useRouter();
 
   const { data, isPending, isError } = useExpense({
@@ -53,14 +52,9 @@ export const ExpenseCard = ({ id, config, eventContextId }: Props) => {
     <Pressable
       className="flex-1"
       onPress={() => {
-        const eventId = data.eventId ?? eventContextId;
         router.push({
           pathname: `/expense/[id]`,
-          params: {
-            id,
-            viewMode: 'view',
-            ...(eventId ? { eventId } : {}),
-          },
+          params: { id, viewMode: 'view' },
         });
       }}
     >

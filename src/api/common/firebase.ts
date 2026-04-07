@@ -15,7 +15,6 @@ const firebaseConfig = {
   storageBucket: Env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: Env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: Env.EXPO_PUBLIC_FIREBASE_APP_ID,
-  databaseURL: `https://${Env.EXPO_PUBLIC_FIREBASE_PROJECT_ID}-default-rtdb.firebaseio.com`,
 };
 // Initialize Firebase using modular Web SDK
 // Only initialize if no apps exist to prevent duplicate initialization
@@ -24,11 +23,11 @@ export const app =
 
 export const db = getFirestore(app);
 
-export const rtdb = getDatabase(app);
-
 export const functions = getFunctions(app);
 
 export const storage = getStorage(app);
+
+export const rtdb = getDatabase(app);
 
 export const auth = initializeAuth(app, {
   persistence: getReactNativePersistence(reactNativeAsyncStorage),

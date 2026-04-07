@@ -39,21 +39,17 @@ export function PendingExpenseItem({ expenseId, userId }: Props) {
 
   if (!hasYouOwe && !hasOwedToYou) return null;
 
-  const label = hasOwedToYou
-    ? `$${owedToYou.toFixed(2)}`
-    : `$${youOwe.toFixed(2)}`;
-  const labelColor = hasOwedToYou ? colors.accent[100] : colors.danger[400];
+  const label = hasYouOwe
+    ? `$${youOwe.toFixed(2)}`
+    : `$${owedToYou.toFixed(2)}`;
+  const labelColor = hasYouOwe ? colors.danger[400] : colors.accent[100];
 
   return (
     <Pressable
       onPress={() =>
         router.push({
           pathname: `/expense/[id]`,
-          params: {
-            id: expenseId,
-            viewMode: 'view',
-            ...(data.eventId ? { eventId: data.eventId } : {}),
-          },
+          params: { id: expenseId, viewMode: 'view' },
         })
       }
       className="flex-row items-center justify-between rounded-lg bg-background-900 px-4 py-3"

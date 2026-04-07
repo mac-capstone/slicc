@@ -13,18 +13,9 @@ import { getItem, removeItem, setItem } from './storage';
 import { calculatePersonShare, createSelectors } from './utils';
 
 const TEMP_EXPENSE_KEY = 'temp-expense';
-
-/** Gross line total (pre-tax amount + tax), rounded to cents — matches displayed item totals. */
-function itemGrossRoundedToCents(amount: number, taxRate: number): number {
-  return Math.round(amount * (1 + taxRate / 100) * 100) / 100;
-}
-
 type TempExpense = ExpenseWithId & {
   items: ItemWithId[];
   people: PersonWithId[];
-  originalExpenseId?: ExpenseIdT;
-  originalItemIds?: ItemIdT[];
-  originalPersonIds?: string[];
 };
 export const getTempExpense = () => getItem<TempExpense>(TEMP_EXPENSE_KEY);
 export const removeTempExpense = () => removeItem(TEMP_EXPENSE_KEY);
@@ -52,9 +43,6 @@ interface ExpenseCreationState {
   clearTempExpense: () => void;
   clearTempExpenseItems: () => void;
   initializeTempExpense: (createdBy: UserIdT) => void;
-  initializeFromExistingExpense: (
-    expense: ExpenseWithId & { items: ItemWithId[]; people: PersonWithId[] }
-  ) => void;
   hydrate: () => void;
   getTotalAmount: () => number;
 }
@@ -95,37 +83,13 @@ const _useExpenseCreation = create<ExpenseCreationState>((set, get) => ({
     setTempExpense(newTempExpense);
   },
 
-  initializeFromExistingExpense: (expense) => {
-    // Recalculate each person's subtotal from items rather than trusting
-    // the stored value (which may be stale from before the removeItem fix).
-    // People whose recalculated subtotal is 0 have no assigned items and
-    // should be excluded.
-    const recalculatedPeople = expense.people
-      .map((person) => ({
-        ...person,
-        // After a Firestore round-trip, Zod strips `name` and `userRef`.
-        // Restore `name` from `guestName` so the store and mutations can
-        // use `person.name` consistently.
-        name: person.name ?? person.guestName ?? undefined,
-        userRef: person.userRef ?? null,
-        subtotal: expense.items.reduce(
-          (sum, item) => sum + calculatePersonShare(item, person.id),
-          0
-        ),
-      }))
-      .filter((person) => person.subtotal > 0);
-
-    const tempExpense: TempExpense = {
-      ...expense,
-      id: 'temp-expense' as ExpenseIdT,
-      people: recalculatedPeople,
-      participantCount: recalculatedPeople.length,
-      originalExpenseId: expense.id,
-      originalItemIds: expense.items.map((i) => i.id),
-      originalPersonIds: expense.people.map((p) => p.id),
-    };
-    set({ tempExpense });
-    setTempExpense(tempExpense);
+  setExpenseName: (name) => {
+    const current = get().tempExpense;
+    if (current) {
+      const updated = { ...current, name };
+      set({ tempExpense: updated });
+      setTempExpense(updated);
+    }
   },
 
   setPayerUserId: (payerUserId) => {
@@ -137,40 +101,14 @@ const _useExpenseCreation = create<ExpenseCreationState>((set, get) => ({
     }
   },
 
-  setExpenseName: (name) => {
-    const current = get().tempExpense;
-    if (current) {
-      const updated = { ...current, name };
-      set({ tempExpense: updated });
-      setTempExpense(updated);
-    }
-  },
-
   addItem: (item) => {
     const current = get().tempExpense;
     if (current) {
-      const delta = itemGrossRoundedToCents(item.amount, item.taxRate);
-
-      const existingAssignedIds = new Set<string>();
-      for (const existingItem of current.items) {
-        for (const pid of existingItem.assignedPersonIds ?? []) {
-          existingAssignedIds.add(pid);
-        }
-      }
-
-      const itemWithSharedAssignments = {
-        ...item,
-        assignedPersonIds:
-          item.assignedPersonIds?.length > 0
-            ? item.assignedPersonIds
-            : [...existingAssignedIds],
-      };
-
       const updated = {
         ...current,
-        items: [...current.items, itemWithSharedAssignments],
-        totalAmount: current.totalAmount + delta,
-        remainingAmount: (current.remainingAmount ?? 0) + delta,
+        items: [...current.items, item],
+        totalAmount: current.totalAmount + item.amount,
+        remainingAmount: current.totalAmount + item.amount,
       };
       set({ tempExpense: updated });
       setTempExpense(updated);
@@ -181,35 +119,23 @@ const _useExpenseCreation = create<ExpenseCreationState>((set, get) => ({
     const current = get().tempExpense;
     if (current) {
       const itemToRemove = current.items.find((item) => item.id === itemId);
+      if (!itemToRemove) return;
 
-      // Subtract each person's share of the removed item from their subtotal
-      const recalculatedPeople = current.people.map((person) => {
-        if (!itemToRemove) return person;
+      const nextTotal = current.totalAmount - itemToRemove.amount;
+      const updatedPeople = current.people.map((person) => {
         const share = calculatePersonShare(itemToRemove, person.id);
-        return share > 0
-          ? { ...person, subtotal: person.subtotal - share }
-          : person;
+        return {
+          ...person,
+          subtotal: Math.max(0, person.subtotal - share),
+        };
       });
 
-      // Remove people who no longer have any items (subtotal dropped to 0)
-      const updatedPeople = recalculatedPeople.filter(
-        (person) => person.subtotal > 0
-      );
-
-      const delta = itemToRemove
-        ? itemGrossRoundedToCents(itemToRemove.amount, itemToRemove.taxRate)
-        : 0;
       const updated = {
         ...current,
         items: current.items.filter((item) => item.id !== itemId),
         people: updatedPeople,
-        participantCount: updatedPeople.length,
-        totalAmount: itemToRemove
-          ? current.totalAmount - delta
-          : current.totalAmount,
-        remainingAmount: itemToRemove
-          ? (current.remainingAmount ?? 0) - delta
-          : current.remainingAmount,
+        totalAmount: nextTotal,
+        remainingAmount: nextTotal,
       };
       set({ tempExpense: updated });
       setTempExpense(updated);
@@ -218,43 +144,16 @@ const _useExpenseCreation = create<ExpenseCreationState>((set, get) => ({
 
   updateItem: (itemId, updates) => {
     const current = get().tempExpense;
-    if (!current) return;
-
-    const oldItem = current.items.find((i) => i.id === itemId);
-    const newItem = oldItem ? { ...oldItem, ...updates } : null;
-
-    const updatedItems = current.items.map((item) =>
-      item.id === itemId ? { ...item, ...updates } : item
-    );
-
-    // Recalculate people subtotals so their share of this item stays correct
-    const updatedPeople = current.people.map((person) => {
-      const oldShare = oldItem ? calculatePersonShare(oldItem, person.id) : 0;
-      const newShare = newItem ? calculatePersonShare(newItem, person.id) : 0;
-      const diff = newShare - oldShare;
-      return diff !== 0
-        ? { ...person, subtotal: person.subtotal + diff }
-        : person;
-    });
-
-    // `item.amount` is pre-tax base; expense total is sum of gross line totals
-    const oldGross = oldItem
-      ? itemGrossRoundedToCents(oldItem.amount, oldItem.taxRate ?? 0)
-      : 0;
-    const newGross = newItem
-      ? itemGrossRoundedToCents(newItem.amount, newItem.taxRate ?? 0)
-      : 0;
-    const grossDiff = newGross - oldGross;
-
-    const updated = {
-      ...current,
-      items: updatedItems,
-      people: updatedPeople,
-      totalAmount: current.totalAmount + grossDiff,
-      remainingAmount: (current.remainingAmount ?? 0) + grossDiff,
-    };
-    set({ tempExpense: updated });
-    setTempExpense(updated);
+    if (current) {
+      const updated = {
+        ...current,
+        items: current.items.map((item) =>
+          item.id === itemId ? { ...item, ...updates } : item
+        ),
+      };
+      set({ tempExpense: updated });
+      setTempExpense(updated);
+    }
   },
 
   updateItemShare: (itemId, personId, newShare) => {
@@ -442,10 +341,6 @@ export const initializeTempExpense = (createdBy: UserIdT) =>
 
 export const clearTempExpense = () =>
   _useExpenseCreation.getState().clearTempExpense();
-
-export const initializeFromExistingExpense = (
-  expense: ExpenseWithId & { items: ItemWithId[]; people: PersonWithId[] }
-) => _useExpenseCreation.getState().initializeFromExistingExpense(expense);
 
 export const hydrateTempExpense = () =>
   _useExpenseCreation.getState().hydrate();

@@ -2,12 +2,18 @@ import { Ionicons } from '@expo/vector-icons';
 import Octicons from '@expo/vector-icons/Octicons';
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import {
+  collection,
+  doc,
+  serverTimestamp,
+  writeBatch,
+} from 'firebase/firestore';
 import React, { useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { queryClient } from '@/api';
-import { commitExpenseToFirestore } from '@/api/expenses/commit-expense';
-import { useExpense, useUpdateExpense } from '@/api/expenses/use-expenses';
+import { db } from '@/api/common/firebase';
+import { useExpense } from '@/api/expenses/use-expenses';
 import { useItems } from '@/api/items/use-items';
 import { usePeopleIds } from '@/api/people/use-people';
 import ExpenseCreationFooter from '@/components/expense-creation-footer';
@@ -15,24 +21,16 @@ import { ItemCard } from '@/components/item-card';
 import { PersonCard } from '@/components/person-card';
 import { SegmentToggle } from '@/components/segment-toggle';
 import { ActivityIndicator, Pressable, Text, View } from '@/components/ui';
-import { useAuth } from '@/lib';
-import { fetchIsOnline } from '@/lib/network-status';
-import { enqueuePendingExpense } from '@/lib/offline/pending-expense-queue';
-import { clearTempExpense, getTempExpenseState } from '@/lib/store';
+import { clearTempExpense } from '@/lib/store';
 import { useThemeConfig } from '@/lib/use-theme-config';
-import { type EventIdT, type ExpenseIdT } from '@/types';
+import { type ExpenseIdT } from '@/types';
 
 export default function ExpenseView() {
   const router = useRouter();
   const theme = useThemeConfig();
-  const userId = useAuth.use.userId();
   const [loading, setLoading] = useState(false);
   const isProcessingRef = useRef(false);
-  const {
-    id,
-    viewMode,
-    eventId: eventIdParam,
-  } = useLocalSearchParams<{
+  const { id, viewMode, eventId } = useLocalSearchParams<{
     id: ExpenseIdT;
     viewMode: 'view' | 'confirm';
     eventId?: string;
@@ -41,8 +39,6 @@ export default function ExpenseView() {
   const { data, isPending, isError } = useExpense({
     variables: id,
   });
-  const updateExpense = useUpdateExpense();
-
   if (isPending) {
     return (
       <View className="flex-1 justify-center p-3">
@@ -58,8 +54,6 @@ export default function ExpenseView() {
     );
   }
 
-  const eventId = (eventIdParam ?? data.eventId) as EventIdT | undefined;
-
   const formattedDate = new Date(data.date).toLocaleDateString('en-US', {
     day: 'numeric',
     month: 'long',
@@ -71,84 +65,58 @@ export default function ExpenseView() {
     isProcessingRef.current = true;
     setLoading(true);
     try {
-      const tempExpenseState = getTempExpenseState();
-
-      if (id === 'temp-expense' && tempExpenseState?.originalExpenseId) {
-        const { expenseId } = await updateExpense.mutateAsync({
-          originalExpenseId: tempExpenseState.originalExpenseId,
-          originalItemIds: tempExpenseState.originalItemIds ?? [],
-          originalPersonIds: tempExpenseState.originalPersonIds ?? [],
-          name: tempExpenseState.name,
-          totalAmount: tempExpenseState.totalAmount,
-          remainingAmount: tempExpenseState.remainingAmount ?? 0,
-          people: tempExpenseState.people,
-          items: tempExpenseState.items,
-        });
-        clearTempExpense();
-        router.replace(`/expense/${expenseId}` as any);
-        return;
-      }
-
       if (id === 'temp-expense') {
-        const payload = {
-          expense: data,
-          eventId,
-          people: data.people,
-          items: data.items,
-        };
-        const signedInForSync = Boolean(userId && userId !== 'guest_user');
-        const online = await fetchIsOnline();
+        const batch = writeBatch(db);
+        const expenseDocRef = doc(collection(db, 'expenses'));
 
-        const finishLocal = async (message?: string) => {
-          clearTempExpense();
-          await queryClient.invalidateQueries({ queryKey: ['expenses'] });
-          if (message) {
-            Alert.alert('Saved locally', message);
-          }
-          if (eventId) {
-            router.replace(`/event/${eventId}/expenses` as any);
-          } else {
-            router.replace('/(app)/expenses' as any);
-          }
-        };
+        batch.set(expenseDocRef, {
+          name: data.name,
+          date: data.date,
+          createdBy: data.createdBy,
+          payerUserId: data.payerUserId,
+          ...(eventId ? { eventId } : {}),
+          totalAmount: data.totalAmount,
+          remainingAmount: data.remainingAmount ?? 0,
+          participantCount: data.participantCount ?? 0,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
 
-        if (!online) {
-          if (!signedInForSync) {
-            Alert.alert(
-              'No connection',
-              'Connect to the internet to save this expense, or sign in to save offline and sync later.'
-            );
-            return;
-          }
-          enqueuePendingExpense(payload);
-          await finishLocal(
-            'You are offline. This expense will upload when you are back online.'
-          );
-          return;
+        if (data.people) {
+          data.people.forEach((person) => {
+            const personDocRef = doc(expenseDocRef, 'people', person.id);
+            const isGuest = person.userRef === null;
+            batch.set(personDocRef, {
+              subtotal: person.subtotal,
+              paid: person.paid ?? 0,
+              ...(isGuest && person.name ? { guestName: person.name } : {}),
+            });
+          });
         }
 
-        try {
-          const expenseDocId = await commitExpenseToFirestore(payload);
-          clearTempExpense();
-          await queryClient.invalidateQueries({ queryKey: ['expenses'] });
-          if (eventId) {
-            router.replace(`/event/${eventId}/expenses` as any);
-          } else {
-            router.replace(`/expense/${expenseDocId}` as any);
-          }
-          return;
-        } catch (err) {
-          console.error('Error saving expense:', err);
-          if (!signedInForSync) {
-            Alert.alert('Error', 'Failed to save expense. Please try again.');
-            return;
-          }
-          enqueuePendingExpense(payload);
-          await finishLocal(
-            'Could not reach the server. Your expense is queued and will sync when possible.'
-          );
-          return;
+        if (data.items) {
+          data.items.forEach((item) => {
+            const itemDocRef = doc(expenseDocRef, 'items', item.id);
+            batch.set(itemDocRef, {
+              name: item.name,
+              amount: item.amount,
+              taxRate: item.taxRate ?? 0,
+              split: item.split,
+              assignedPersonIds: item.assignedPersonIds,
+              isTip: item.isTip ?? false,
+            });
+          });
         }
+
+        await batch.commit();
+        clearTempExpense();
+        await queryClient.invalidateQueries({ queryKey: ['expenses'] });
+        if (eventId) {
+          router.replace(`/event/${eventId}/expenses` as any);
+        } else {
+          router.replace(`/expense/${expenseDocRef.id}` as any);
+        }
+        return;
       }
       router.push('/');
     } catch (error) {
@@ -185,9 +153,11 @@ export default function ExpenseView() {
                         text: 'Leave',
                         onPress: () => {
                           clearTempExpense();
-                          queryClient.invalidateQueries({
-                            queryKey: ['expenses', 'expenseId', id],
-                          });
+                          if (id !== 'temp-expense') {
+                            queryClient.invalidateQueries({
+                              queryKey: ['expenses', 'expenseId', id],
+                            });
+                          }
                           if (eventId) {
                             router.replace(`/event/${eventId}/expenses` as any);
                           } else {
@@ -223,46 +193,15 @@ export default function ExpenseView() {
             {data.name}
           </Text>
           {viewMode !== 'confirm' && (
-            <View className="flex-row items-center gap-3">
-              {id !== 'temp-expense' && (
-                <Pressable
-                  onPress={() =>
-                    router.push({
-                      pathname: '/expense/settle',
-                      params: {
-                        id,
-                        ...(eventId ? { eventId } : {}),
-                      },
-                    } as any)
-                  }
-                >
-                  <Ionicons
-                    name="wallet-outline"
-                    size={28}
-                    color={theme.dark ? '#fff' : '#000'}
-                  />
-                </Pressable>
-              )}
-              {id !== 'temp-expense' && (
-                <Pressable
-                  onPress={() =>
-                    router.push({
-                      pathname: '/expense/add-expense',
-                      params: {
-                        expenseId: id,
-                        ...(eventId ? { eventId } : {}),
-                      },
-                    } as any)
-                  }
-                >
-                  <Ionicons
-                    name="create-outline"
-                    size={30}
-                    color={theme.dark ? '#fff' : '#000'}
-                  />
-                </Pressable>
-              )}
-            </View>
+            <Pressable
+              onPress={() => router.push(`/expense/settle?id=${id}` as any)}
+            >
+              <Ionicons
+                name="create-outline"
+                size={30}
+                color={theme.dark ? '#fff' : '#000'}
+              />
+            </Pressable>
           )}
         </View>
         <Text className="text-base font-medium dark:text-text-800">

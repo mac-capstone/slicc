@@ -29,7 +29,6 @@ import Animated, {
 import { v4 as uuidv4 } from 'uuid';
 
 import { useEvent } from '@/api/events/use-events';
-import { useExpense } from '@/api/expenses/use-expenses';
 import { useUser, useUsersAsPeople } from '@/api/people/use-users';
 import ExpenseCreationFooter from '@/components/expense-creation-footer';
 import {
@@ -42,17 +41,12 @@ import {
   View,
 } from '@/components/ui';
 import { useAuth, useDefaultTaxRate, useUserSettings } from '@/lib';
-import { fetchIsOnline } from '@/lib/network-status';
 import {
   resolveDefaultTaxRate,
   resolveDefaultTipRate,
 } from '@/lib/resolve-user-default-rates';
 import { storage } from '@/lib/storage';
-import {
-  clearTempExpense,
-  initializeFromExistingExpense,
-  useExpenseCreation,
-} from '@/lib/store';
+import { clearTempExpense, useExpenseCreation } from '@/lib/store';
 import {
   normalizeStoredTipPercent,
   TIP_PERCENT_OPTIONS,
@@ -62,7 +56,6 @@ import {
 import { useThemeConfig } from '@/lib/use-theme-config';
 import {
   type EventIdT,
-  type ExpenseIdT,
   type ItemIdT,
   type ItemWithId,
   type PersonWithId,
@@ -168,17 +161,13 @@ function useMainPayerOptions({
 export default function AddExpense() {
   const theme = useThemeConfig();
   const userId = useAuth.use.userId();
-  const { eventId, expenseId } = useLocalSearchParams<{
-    eventId?: EventIdT;
-    expenseId?: string;
-  }>();
-  const isEditMode = !!expenseId;
-
-  // Fetch existing expense data when editing
-  const { data: existingExpenseData } = useExpense({
-    variables: expenseId as ExpenseIdT,
-    enabled: isEditMode,
+  const viewerUserId = userId ?? null;
+  const { data: signedInUser } = useUser({
+    variables: { userId: userId as UserIdT, viewerUserId },
+    enabled: Boolean(userId),
   });
+  const { defaultTipPercent } = useUserSettings();
+  const { eventId } = useLocalSearchParams<{ eventId?: EventIdT }>();
   const pathname = usePathname();
   const tempExpense = useExpenseCreation.use.tempExpense();
   const [expenseName, setExpenseName] = useState<string>('');
@@ -193,17 +182,9 @@ export default function AddExpense() {
     hydrate,
     removeItem,
     addItem,
-    updateItem,
   } = useExpenseCreation();
   const addPerson = useExpenseCreation.use.addPerson();
   const avatarColors = useMemo(() => Object.keys(colors.avatar ?? {}), []);
-
-  const viewerUserId = userId ?? null;
-  const { data: signedInUser } = useUser({
-    variables: { userId: userId as UserIdT, viewerUserId },
-    enabled: Boolean(userId),
-  });
-  const { defaultTipPercent } = useUserSettings();
 
   const currentPayerId = tempExpense?.payerUserId;
   const resolvedDefaultTipRate = resolveDefaultTipRate(
@@ -262,64 +243,22 @@ export default function AddExpense() {
   }, [hydrate]);
 
   useEffect(() => {
-    if (isEditMode) {
-      const alreadyLoaded =
-        tempExpense?.originalExpenseId === (expenseId as ExpenseIdT);
-
-      if (!alreadyLoaded && existingExpenseData) {
-        // If the user has an in-progress new-expense draft, warn before overwriting
-        const hasDraft =
-          tempExpense &&
-          !tempExpense.originalExpenseId &&
-          (tempExpense.items?.length ?? 0) > 0;
-
-        if (hasDraft) {
-          Alert.alert(
-            'Discard Draft?',
-            'You have an unsaved expense in progress. Starting an edit will discard it.',
-            [
-              { text: 'Cancel', style: 'cancel', onPress: () => router.back() },
-              {
-                text: 'Discard & Edit',
-                style: 'destructive',
-                onPress: () => {
-                  initializeFromExistingExpense(existingExpenseData);
-                  setExpenseName(existingExpenseData.name);
-                },
-              },
-            ]
-          );
-        } else {
-          // First load: initialise store from Firestore data and sync name input
-          initializeFromExistingExpense(existingExpenseData);
-          setExpenseName(existingExpenseData.name);
-        }
-      } else if (alreadyLoaded && expenseName === '') {
-        // Store already hydrated from MMKV but name input is still empty — sync it
-        setExpenseName(tempExpense!.name);
-      }
-    } else {
-      if (userId && (!tempExpense || tempExpense.originalExpenseId)) {
-        initializeTempExpense(userId);
-      }
+    if (userId && !tempExpense) {
+      initializeTempExpense(userId);
     }
-  }, [
-    userId,
-    tempExpense,
-    initializeTempExpense,
-    isEditMode,
-    existingExpenseData,
-    expenseId,
-    expenseName,
-  ]);
+  }, [userId, tempExpense, initializeTempExpense]);
+
+  useEffect(() => {
+    if (tempExpense?.name !== undefined) {
+      setExpenseName(tempExpense.name);
+    }
+  }, [tempExpense?.id, tempExpense?.name]);
 
   // For standalone (non-event) expenses, auto-add the signed-in user as a person
   // so they appear in the split view as the default payer.
-  const hasAddedSelfRef = useRef(false);
   useEffect(() => {
     if (eventId) return;
     if (!tempExpense || !userId || !signedInUser?.displayName) return;
-    if (hasAddedSelfRef.current) return;
     const alreadyAdded = tempExpense.people.some((p) => p.id === userId);
     if (!alreadyAdded) {
       const color =
@@ -334,12 +273,11 @@ export default function AddExpense() {
         paid: 0,
       } as PersonWithId);
     }
-    hasAddedSelfRef.current = true;
   }, [
     eventId,
+    tempExpense,
     userId,
     signedInUser?.displayName,
-    tempExpense,
     addPerson,
     avatarColors,
   ]);
@@ -414,7 +352,7 @@ export default function AddExpense() {
       />
       <View className="flex-1 px-4">
         <Text className="font-futuraBold text-4xl dark:text-text-50">
-          {isEditMode ? 'Edit Expense' : 'Create an expense'}
+          Create an expense
         </Text>
         <View className="pb-2 pt-5">
           <Input
@@ -451,7 +389,6 @@ export default function AddExpense() {
               <TempItemCard
                 item={item}
                 onDelete={removeItem}
-                onUpdate={updateItem}
                 isFirstItem={index === 0}
                 nudgeTriggerRef={
                   index === 0 ? firstItemNudgeTriggerRef : undefined
@@ -504,13 +441,11 @@ export default function AddExpense() {
 const TempItemCard = React.memo(function TempItemCard({
   item,
   onDelete,
-  onUpdate,
   isFirstItem = false,
   nudgeTriggerRef,
 }: {
   item: ItemWithId;
   onDelete: (itemId: ItemIdT) => void;
-  onUpdate: (itemId: ItemIdT, updates: Partial<ItemWithId>) => void;
   isFirstItem?: boolean;
   nudgeTriggerRef?: ReturnType<typeof React.useRef<(() => void) | null>>;
 }) {
@@ -522,41 +457,10 @@ const TempItemCard = React.memo(function TempItemCard({
     storage
   );
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName] = useState('');
-  const [editAmount, setEditAmount] = useState('');
-  const [editTax, setEditTax] = useState('');
-
   const handleDelete = useCallback(() => {
     if (!item) return;
     onDelete(item.id);
   }, [item, onDelete]);
-
-  const handleEditPress = useCallback(() => {
-    // `item.amount` is pre-tax base (same as add-item and store totals)
-    const taxRate = item.taxRate ?? 0;
-    const base = item.amount;
-    setEditName(item.isTip ? '' : item.name);
-    setEditAmount(base.toFixed(2));
-    setEditTax(taxRate > 0 ? taxRate.toString() : '');
-    translateX.value = withSpring(0);
-    setIsEditing(true);
-  }, [item, translateX]);
-
-  const handleSave = useCallback(() => {
-    const base = parseFloat(editAmount) || 0;
-    const tax = parseFloat(editTax) || 0;
-    onUpdate(item.id, {
-      name: editName.trim() || item.name,
-      amount: base,
-      taxRate: tax,
-    });
-    setIsEditing(false);
-  }, [item, editName, editAmount, editTax, onUpdate]);
-
-  const handleCancelEdit = useCallback(() => {
-    setIsEditing(false);
-  }, []);
 
   const triggerNudge = useCallback(() => {
     translateX.value = withSequence(
@@ -594,7 +498,6 @@ const TempItemCard = React.memo(function TempItemCard({
   }, [isFirstItem, hasShownNudge, triggerNudge, setHasShownNudge]);
 
   const panGesture = Gesture.Pan()
-    .enabled(!isEditing)
     .onUpdate((e) => {
       // only allow swiping left (negative translation)
       if (e.translationX < 0) {
@@ -617,87 +520,11 @@ const TempItemCard = React.memo(function TempItemCard({
 
   if (!item) return null;
 
-  // Preview values for the edit form
-  const editBase = parseFloat(editAmount) || 0;
-  const editTaxRate = parseFloat(editTax) || 0;
-  const editTotal = Math.round(editBase * (1 + editTaxRate / 100) * 100) / 100;
+  const gross = item.amount;
+  const rate = item.taxRate ?? 0;
+  const baseAmount = !item.isTip && rate > 0 ? gross / (1 + rate / 100) : gross;
+  const taxAmount = !item.isTip && rate > 0 ? gross - baseAmount : 0;
 
-  if (isEditing) {
-    return (
-      <View className="flex flex-col gap-2 rounded-xl bg-background-900 p-4">
-        <Input
-          placeholder="Item name"
-          value={editName}
-          onChangeText={setEditName}
-          containerClassName="mb-0"
-        />
-        <View className="flex flex-row items-center gap-2">
-          <Text className="pb-2 text-base font-bold text-neutral-400">$</Text>
-          <Input
-            placeholder="Amount"
-            keyboardType="decimal-pad"
-            containerClassName="mb-0 flex-1"
-            value={editAmount}
-            onChangeText={(t) => setEditAmount(sanitizeNumeric(t))}
-          />
-          <Text className="pb-2 text-base font-bold text-neutral-400">+</Text>
-          <Input
-            placeholder="0"
-            keyboardType="numeric"
-            containerClassName="mb-0 w-16"
-            inputClassName="text-center"
-            value={editTax}
-            onChangeText={(t) => setEditTax(sanitizeNumeric(t))}
-          />
-          <Text className="pb-2 text-base font-bold text-neutral-400">
-            % Tax
-          </Text>
-        </View>
-        {editBase > 0 && (
-          <View className="rounded-lg bg-background-925 px-3 py-2">
-            <View className="flex-row justify-between">
-              <Text className="text-sm text-neutral-400">Base</Text>
-              <Text className="text-sm text-neutral-400">
-                ${editBase.toFixed(2)}
-              </Text>
-            </View>
-            {editTaxRate > 0 && (
-              <View className="flex-row justify-between">
-                <Text className="text-sm text-neutral-400">
-                  Tax ({editTaxRate}%)
-                </Text>
-                <Text className="text-sm text-neutral-400">
-                  +${(editTotal - editBase).toFixed(2)}
-                </Text>
-              </View>
-            )}
-            <View className="mt-1 flex-row justify-between border-t border-neutral-700 pt-1">
-              <Text className="text-sm font-bold dark:text-text-50">Total</Text>
-              <Text className="text-sm font-bold dark:text-text-50">
-                ${editTotal.toFixed(2)}
-              </Text>
-            </View>
-          </View>
-        )}
-        <View className="flex-row gap-2">
-          <Button
-            label="Save"
-            className="flex-1"
-            disabled={!editName.trim() || editBase <= 0}
-            onPress={handleSave}
-          />
-          <Button
-            label="Cancel"
-            variant="outline"
-            className="flex-1"
-            onPress={handleCancelEdit}
-          />
-        </View>
-      </View>
-    );
-  }
-  const taxAmount = item.amount * ((item.taxRate ? item.taxRate : 0) / 100);
-  const totalWithTax = item.amount + taxAmount;
   return (
     <View className="overflow-hidden rounded-xl">
       <View
@@ -720,24 +547,21 @@ const TempItemCard = React.memo(function TempItemCard({
               <Text className="font-futuraBold text-lg dark:text-text-50">
                 {item.isTip ? `Tip` : item.name}
               </Text>
-              <View className="flex-row items-center gap-3">
-                <Text className="font-futuraDemi text-xl dark:text-text-50">
-                  ${totalWithTax.toFixed(2)}
-                </Text>
-                {!item.isTip && (
-                  <Pressable onPress={handleEditPress} hitSlop={8}>
-                    <Ionicons name="pencil-outline" size={18} color="#A4A4A4" />
-                  </Pressable>
-                )}
-              </View>
+              <Text className="font-futuraDemi text-xl dark:text-text-50">
+                ${item.amount.toFixed(2)}
+              </Text>
             </View>
-            {!item.isTip && item.taxRate !== undefined && item.taxRate > 0 && (
-              <View className="mt-1 flex flex-row justify-between">
-                <Text className="text-xs text-neutral-400">
-                  Tax ({item.taxRate}%) included
-                </Text>
-              </View>
-            )}
+            {!item.isTip &&
+              item.taxRate !== undefined &&
+              item.taxRate > 0 &&
+              item.amount !== undefined && (
+                <View className="mt-1 flex flex-row justify-between">
+                  <Text className="text-xs text-neutral-400">
+                    Base: ${baseAmount.toFixed(2)} + Tax ({item.taxRate}%): $
+                    {taxAmount.toFixed(2)}
+                  </Text>
+                </View>
+              )}
           </View>
         </Animated.View>
       </GestureDetector>
@@ -898,12 +722,11 @@ function CreateItemCard() {
       console.warn('Permissions not granted', result);
       return;
     }
-    const online = await fetchIsOnline();
+    // Start speech recognition
     ExpoSpeechRecognitionModule.start({
       lang: 'en-US',
       interimResults: true,
       continuous: false,
-      requiresOnDeviceRecognition: !online,
     });
   };
 
@@ -911,7 +734,7 @@ function CreateItemCard() {
     addItem({
       id: uuidv4() as ItemIdT,
       name: tempItemName,
-      amount: baseAmount,
+      amount: totalWithTax,
       taxRate: taxRate,
       isTip: false,
       split: {
@@ -1063,7 +886,6 @@ function AddTipButton({
       id: uuidv4() as ItemIdT,
       name: 'Tip',
       amount: calculatedTipAmount,
-      taxRate: 0,
       isTip: true,
       split: {
         mode: 'equal',

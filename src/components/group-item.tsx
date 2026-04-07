@@ -110,7 +110,7 @@ export function GroupItem({ group, onPinToggle, onPress }: Props) {
     if (onPress) {
       onPress(group.id);
     } else {
-      router.push(`/chat/${group.id}` as const);
+      router.push(`/group/${group.id}` as const);
     }
   };
 
@@ -122,8 +122,8 @@ export function GroupItem({ group, onPinToggle, onPress }: Props) {
         accessibilityRole="button"
         accessibilityLabel={
           group.title?.trim()
-            ? `Open chat for ${group.title.trim()}`
-            : 'Open group chat'
+            ? `Open group details for ${group.title.trim()}`
+            : 'Open group details'
         }
         accessibilityHint="Swipe left to reveal pin options"
       >
@@ -152,6 +152,7 @@ export function GroupItem({ group, onPinToggle, onPress }: Props) {
       onPress={handlePress}
       accessibilityRole="button"
       accessibilityLabel={group.title || 'Group'}
+      accessibilityHint="Opens group details"
     >
       <View className="border-b border-neutral-700">{content}</View>
     </Pressable>

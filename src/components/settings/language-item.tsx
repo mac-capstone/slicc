@@ -37,7 +37,6 @@ export const LanguageItem = () => {
         text="settings.language"
         value={selectedLanguage?.label}
         onPress={modal.present}
-        compactPadding
         testID="settings-language-trigger"
       />
       <Options
