@@ -39,10 +39,10 @@ export function PendingExpenseItem({ expenseId, userId }: Props) {
 
   if (!hasYouOwe && !hasOwedToYou) return null;
 
-  const label = hasYouOwe
-    ? `$${youOwe.toFixed(2)}`
-    : `$${owedToYou.toFixed(2)}`;
-  const labelColor = hasYouOwe ? colors.danger[400] : colors.accent[100];
+  const label = hasOwedToYou
+    ? `$${owedToYou.toFixed(2)}`
+    : `$${youOwe.toFixed(2)}`;
+  const labelColor = hasOwedToYou ? colors.accent[100] : colors.danger[400];
 
   return (
     <Pressable

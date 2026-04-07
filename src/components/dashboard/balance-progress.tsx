@@ -1,6 +1,5 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
-import CircularProgress from 'react-native-circular-progress-indicator';
+import React, { useEffect, useRef } from 'react';
+import { Animated, View } from 'react-native';
 
 import { colors, Text } from '@/components/ui';
 
@@ -9,80 +8,100 @@ type Props = {
   owedToYou: number;
 };
 
-export function BalanceProgress({ youOwe, owedToYou }: Props) {
+const BAR_HEIGHT = 32;
+const BORDER = 2;
+const RADIUS = 9999;
+
+export function BalanceProgress({
+  youOwe,
+  owedToYou,
+}: Props): React.JSX.Element {
   const total = youOwe + owedToYou || 1;
-  const youOwePercent = total > 0 ? (youOwe / total) * 100 : 0;
-  const owedToYouPercent = total > 0 ? (owedToYou / total) * 100 : 0;
+  const owePercent = (youOwe / total) * 100;
+
+  const anim = useRef(new Animated.Value(50)).current;
+
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: owePercent,
+      duration: 800,
+      useNativeDriver: false,
+    }).start();
+  }, [owePercent, anim]);
+
+  const leftWidth = anim.interpolate({
+    inputRange: [0, 100],
+    outputRange: ['0%', '100%'],
+  });
 
   return (
-    <View className="flex-row items-center justify-around gap-4">
-      <View className="items-center">
-        <View style={styles.circleWrapper}>
-          <CircularProgress
-            value={youOwePercent}
-            radius={48}
-            duration={800}
-            activeStrokeColor={colors.danger[400]}
-            inActiveStrokeColor={colors.charcoal[700]}
-            inActiveStrokeOpacity={0.5}
-            activeStrokeWidth={8}
-            inActiveStrokeWidth={8}
-            showProgressValue={false}
-          />
-          <View style={styles.centerContent}>
-            <Text
-              className="font-futuraDemi text-base"
-              style={{ color: colors.danger[400] }}
-            >
-              ${youOwe.toFixed(0)}
-            </Text>
-          </View>
+    <View>
+      <View className="mb-3 flex-row justify-between">
+        <View>
+          <Text className="text-xs" style={{ color: colors.text[800] }}>
+            You owe
+          </Text>
+          <Text
+            className="font-futuraDemi text-base"
+            style={{ color: colors.danger[400] }}
+          >
+            ${youOwe.toFixed(2)}
+          </Text>
         </View>
-        <Text className="mt-2 text-xs" style={{ color: colors.text[800] }}>
-          You owe
-        </Text>
+        <View className="items-end">
+          <Text className="text-xs" style={{ color: colors.text[800] }}>
+            Owed to you
+          </Text>
+          <Text
+            className="font-futuraDemi text-base"
+            style={{ color: colors.accent[100] }}
+          >
+            ${owedToYou.toFixed(2)}
+          </Text>
+        </View>
       </View>
-      <View className="items-center">
-        <View style={styles.circleWrapper}>
-          <CircularProgress
-            value={owedToYouPercent}
-            radius={48}
-            duration={800}
-            activeStrokeColor={colors.accent[100]}
-            inActiveStrokeColor={colors.charcoal[700]}
-            inActiveStrokeOpacity={0.5}
-            activeStrokeWidth={8}
-            inActiveStrokeWidth={8}
-            showProgressValue={false}
-          />
-          <View style={styles.centerContent}>
-            <Text
-              className="font-futuraDemi text-base"
-              style={{ color: colors.accent[100] }}
-            >
-              ${owedToYou.toFixed(0)}
-            </Text>
-          </View>
-        </View>
-        <Text className="mt-2 text-xs" style={{ color: colors.text[800] }}>
-          Owed to you
-        </Text>
+
+      <View
+        style={{
+          height: BAR_HEIGHT,
+          flexDirection: 'row',
+          backgroundColor: colors.background[900],
+          borderRadius: RADIUS,
+          overflow: 'hidden',
+        }}
+      >
+        {/* Left segment — you owe (red outline, grows from left) */}
+        <Animated.View
+          style={{
+            height: '100%',
+            width: leftWidth,
+            backgroundColor: '#F8717130',
+            borderTopWidth: BORDER,
+            borderBottomWidth: BORDER,
+            borderLeftWidth: BORDER,
+            borderRightWidth: 0,
+            borderColor: colors.danger[400],
+            borderTopLeftRadius: RADIUS,
+            borderBottomLeftRadius: RADIUS,
+          }}
+        />
+
+        {/* Right segment — owed to you (teal outline, fills remainder) */}
+        <View
+          style={{
+            flex: 1,
+            height: '100%',
+            backgroundColor: '#00DBC52E',
+            borderTopWidth: BORDER,
+            borderBottomWidth: BORDER,
+            borderRightWidth: BORDER,
+            borderLeftWidth: 0,
+            borderColor: colors.accent[100],
+            borderTopRightRadius: RADIUS,
+            borderBottomRightRadius: RADIUS,
+          }}
+        />
       </View>
     </View>
   );
 }
-
-const CIRCLE_SIZE = 96;
-
-const styles = StyleSheet.create({
-  circleWrapper: {
-    position: 'relative',
-    width: CIRCLE_SIZE,
-    height: CIRCLE_SIZE,
-  },
-  centerContent: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
