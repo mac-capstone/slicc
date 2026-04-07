@@ -1,14 +1,9 @@
 import { Linking } from 'react-native';
 
-import { mockData } from '@/lib/mock-data';
 import {
   calculatePersonShare,
   cn,
   encodeIdBase64Url,
-  mapMockExpenseToExpenseWithId,
-  mapMockItemToItemWithId,
-  mapMockPersonToPerson,
-  mapMockPersonToPersonWithId,
   openLinkInBrowser,
   parseReceiptInfo,
 } from '@/lib/utils';
@@ -36,6 +31,7 @@ describe('utils (business / shared helpers)', () => {
       id: 'i1' as ItemWithId['id'],
       name: 'Pizza',
       amount: 30,
+      taxRate: 0,
       split: { mode: 'equal', shares: { a: 1, b: 2, c: 1 } },
       assignedPersonIds: [],
     };
@@ -76,22 +72,6 @@ describe('utils (business / shared helpers)', () => {
     it('encodes UTF-8 strings without padding', () => {
       expect(encodeIdBase64Url('abc')).toBe('YWJj');
       expect(encodeIdBase64Url('€')).toMatch(/^[A-Za-z0-9_-]+$/);
-    });
-  });
-
-  describe('mock-data mappers', () => {
-    const expense = mockData.expenses[0];
-    const person = expense.people[0];
-    const item = expense.items[0];
-
-    it('maps mock person to Person / PersonWithId', () => {
-      expect(mapMockPersonToPerson(person).name).toBe(person.doc.name);
-      expect(mapMockPersonToPersonWithId(person).id).toBe(person.id);
-    });
-
-    it('maps mock expense and item shapes', () => {
-      expect(mapMockExpenseToExpenseWithId(expense).id).toBe(expense.id);
-      expect(mapMockItemToItemWithId(item).name).toBe(item.doc.name);
     });
   });
 

@@ -10,6 +10,7 @@ describe('V&V business-layer performance (§6.2.2)', () => {
     id: 'i1' as ItemWithId['id'],
     name: 'Shared item',
     amount: 99.99,
+    taxRate: 0,
     split: {
       mode: 'custom',
       shares: Object.fromEntries(
