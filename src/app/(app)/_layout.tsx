@@ -114,6 +114,16 @@ export default function TabLayout() {
             <Text style={{ fontSize: 24, fontWeight: 'bold', color }}>$</Text>
           ),
           tabBarButtonTestID: 'expenses-tab',
+          headerRight: () => (
+            <TouchableOpacity
+              onPress={() => router.push('/expense/graph')}
+              style={{ marginRight: 16 }}
+              accessibilityLabel="Open Expense Flow Graph"
+              accessibilityRole="button"
+            >
+              <Octicons name="git-branch" size={24} color={colors.text[800]} />
+            </TouchableOpacity>
+          ),
         }}
       />
       <Tabs.Screen
