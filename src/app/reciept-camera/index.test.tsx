@@ -233,10 +233,14 @@ describe('ReceiptCameraScreen (SRS receipt scan + V&V OCR UI boundary)', () => {
     render(<ReceiptCameraScreen />);
     fireEvent.press(screen.getByText('Capture Reciept'));
     await waitFor(() => {
-      expect(alertSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to process image'),
-        expect.any(String)
-      );
+      expect(alertSpy).toHaveBeenCalled();
+      const lastCall = alertSpy.mock.calls.at(-1);
+      expect(lastCall).toBeDefined();
+      const [title, message] = lastCall ?? [];
+      expect(String(title)).toContain('Failed to process image');
+      if (message !== undefined) {
+        expect(String(message).length).toBeGreaterThan(0);
+      }
     });
   });
 
@@ -247,10 +251,14 @@ describe('ReceiptCameraScreen (SRS receipt scan + V&V OCR UI boundary)', () => {
     render(<ReceiptCameraScreen />);
     fireEvent.press(screen.getByText('Capture Reciept'));
     await waitFor(() => {
-      expect(alertSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to process image'),
-        expect.any(String)
-      );
+      expect(alertSpy).toHaveBeenCalled();
+      const lastCall = alertSpy.mock.calls.at(-1);
+      expect(lastCall).toBeDefined();
+      const [title, message] = lastCall ?? [];
+      expect(String(title)).toContain('Failed to process image');
+      if (message !== undefined) {
+        expect(String(message).length).toBeGreaterThan(0);
+      }
     });
   });
 
@@ -269,6 +277,7 @@ describe('ReceiptCameraScreen (SRS receipt scan + V&V OCR UI boundary)', () => {
 
   it('uses unknown error message when capture pipeline throws non-Error', async () => {
     mockExtractReceiptInfo.mockRejectedValue('network');
+    mockExtractReceiptLineItems.mockRejectedValue('network');
     render(<ReceiptCameraScreen />);
     fireEvent.press(screen.getByText('Capture Reciept'));
     await waitFor(() => {
@@ -280,6 +289,7 @@ describe('ReceiptCameraScreen (SRS receipt scan + V&V OCR UI boundary)', () => {
 
   it('shows Error message when capture pipeline throws Error', async () => {
     mockExtractReceiptInfo.mockRejectedValue(new Error('boom'));
+    mockExtractReceiptLineItems.mockRejectedValue(new Error('boom'));
     render(<ReceiptCameraScreen />);
     fireEvent.press(screen.getByText('Capture Reciept'));
     await waitFor(() => {

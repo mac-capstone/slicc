@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-08T02:23:02.141Z",
+  "generatedAt": "2026-04-08T02:27:14.840Z",
   "environment": "node v24.11.0",
   "ocr": {
     "sampleCount": 10,
@@ -10,8 +10,8 @@
     "lineF1": 1,
     "meanTotalAmountAccuracy": 0.9949999999999999,
     "meanPriceApe": 0.0029411764705882353,
-    "avgLatencyMs": 1.1,
-    "p95LatencyMs": 6,
+    "avgLatencyMs": 1.2,
+    "p95LatencyMs": 10,
     "budgetMs": 5000,
     "goals": {
       "meanTotalAmountAccuracyMin": 0.9,
@@ -51,7 +51,7 @@
           "transcript": "burger $9.99",
           "goldName": "burger",
           "goldAmount": 9.99,
-          "latencyMs": 351,
+          "latencyMs": 336,
           "werVsGoldName": 0,
           "relativePriceError": 0
         },
@@ -59,7 +59,7 @@
           "transcript": "large fries cost $3.50",
           "goldName": "large fries",
           "goldAmount": 3.5,
-          "latencyMs": 1,
+          "latencyMs": 2,
           "werVsGoldName": 0.5,
           "relativePriceError": 0
         }
