@@ -38,6 +38,13 @@ jest.mock('expo-router', () => ({
 jest.mock('@/api/camera-receipt/extract-receipt-info', () => ({
   extractReceiptInfo: (...args: unknown[]) => mockExtractReceiptInfo(...args),
 }));
+jest.mock(
+  '@infinitered/react-native-mlkit-text-recognition',
+  () => ({
+    recognizeText: jest.fn(async () => ''),
+  }),
+  { virtual: true }
+);
 
 jest.mock('@/lib/utils', () => {
   const actual = jest.requireActual('@/lib/utils');
