@@ -2,7 +2,15 @@
 <img alt="logo" src="./assets/icon.png" width="124px" style="border-radius:10px"/><br/>
 slicc </h1>
 
-slicc is a cross-platform mobile app (iOS & Android) built with React Native and Expo that helps groups of people organize shared events and split expenses. Users can create and join groups, schedule one-time or recurring events, and track costs with fine-grained bill splitting, assigning individual line items to specific participants with flexible split modes. A built-in notification system keeps members in the loop with group invites, event invites, and upcoming-event reminders.
+slicc is a cross-platform mobile app (iOS & Android) built with React Native and Expo that helps groups of people organize shared events and split expenses. Users can create and join groups, schedule one-time or recurring events, and track costs with fine-grained bill splitting, assigning individual line items to specific participants with flexible split modes. A built-in notification system keeps members in the loop with group invites, event invites, and upcoming-event reminders. 
+
+## Instructions to download and install APK:
+**Important: APK only work on android phone**
+- Donwload the apk submitted to Avenue
+- Allow installation of unknown apps in android settings
+- Install apk by clicking on it in files
+- Login using existing google account
+- Friends and social functionality can be accessed using a separate google account
 
 ## Prerequiste
 
