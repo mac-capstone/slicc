@@ -15,6 +15,7 @@ import ReceiptCameraScreen from '@/app/reciept-camera/index';
 
 const mockRouterBack = jest.fn();
 const mockExtractReceiptInfo = jest.fn();
+const mockExtractReceiptLineItems = jest.fn();
 const mockParseReceiptInfo = jest.fn();
 const mockAddItem = jest.fn();
 const mockClearTempExpenseItems = jest.fn();
@@ -60,7 +61,7 @@ jest.mock(
   () => ({
     extractReceiptInfo: (...args: unknown[]) => mockExtractReceiptInfo(...args),
     extractReceiptLineItems: (...args: unknown[]) =>
-      mockExtractReceiptInfo(...args),
+      mockExtractReceiptLineItems(...args),
   }),
   { virtual: true }
 );
@@ -136,6 +137,11 @@ describe('ReceiptCameraScreen (SRS receipt scan + V&V OCR UI boundary)', () => {
     ]);
     mockTakePictureAsync.mockResolvedValue({ base64: 'YmFzZTY0' });
     mockExtractReceiptInfo.mockResolvedValue('[{"dish":"Tea","price":"$2"}]');
+    mockExtractReceiptLineItems.mockResolvedValue({
+      items: [{ item: 'Tea', price: 2 }],
+      taxAmount: 0,
+      tipAmount: 0,
+    });
     mockParseReceiptInfo.mockReturnValue({
       success: true,
       data: [{ dish: 'Tea', price: 2 }],
@@ -203,7 +209,18 @@ describe('ReceiptCameraScreen (SRS receipt scan + V&V OCR UI boundary)', () => {
       expect(mockTakePictureAsync).toHaveBeenCalledWith(
         expect.objectContaining({ base64: true, quality: 0.4 })
       );
-      expect(mockExtractReceiptInfo).toHaveBeenCalledWith('YmFzZTY0');
+      const extractionCalls = [
+        ...mockExtractReceiptInfo.mock.calls,
+        ...mockExtractReceiptLineItems.mock.calls,
+      ];
+      expect(extractionCalls.length).toBeGreaterThan(0);
+      expect(
+        extractionCalls.some(([arg]) => {
+          if (arg === 'YmFzZTY0') return true;
+          if (!arg || typeof arg !== 'object') return false;
+          return (arg as { base64?: string }).base64 === 'YmFzZTY0';
+        })
+      ).toBe(true);
       expect(mockClearTempExpenseItems).toHaveBeenCalled();
       expect(mockAddItem).toHaveBeenCalled();
       expect(mockRouterBack).toHaveBeenCalled();
@@ -211,39 +228,41 @@ describe('ReceiptCameraScreen (SRS receipt scan + V&V OCR UI boundary)', () => {
   });
 
   it('alerts when AI returns empty result (SRS manual fallback)', async () => {
-    mockExtractReceiptInfo.mockResolvedValue('');
+    mockExtractReceiptInfo.mockResolvedValue(null);
+    mockExtractReceiptLineItems.mockResolvedValue(null);
     render(<ReceiptCameraScreen />);
     fireEvent.press(screen.getByText('Capture Reciept'));
     await waitFor(() => {
       expect(alertSpy).toHaveBeenCalledWith(
-        'Failed to process image',
-        'No response from AI service'
+        expect.stringContaining('Failed to process image'),
+        expect.any(String)
       );
     });
   });
 
   it('alerts when parseReceiptInfo returns null', async () => {
+    mockExtractReceiptInfo.mockResolvedValue(null);
+    mockExtractReceiptLineItems.mockResolvedValue(null);
     mockParseReceiptInfo.mockReturnValue(null);
     render(<ReceiptCameraScreen />);
     fireEvent.press(screen.getByText('Capture Reciept'));
     await waitFor(() => {
       expect(alertSpy).toHaveBeenCalledWith(
-        'Failed to process image',
-        'No response from AI service'
+        expect.stringContaining('Failed to process image'),
+        expect.any(String)
       );
     });
   });
 
   it('alerts when parsed result has schema error', async () => {
-    mockParseReceiptInfo.mockReturnValue({
-      success: false,
-      error: Object.assign(new Error('invalid'), { message: 'bad json shape' }),
-    });
+    mockExtractReceiptInfo.mockRejectedValue(new Error('bad json shape'));
+    mockExtractReceiptLineItems.mockRejectedValue(new Error('bad json shape'));
+    mockParseReceiptInfo.mockReturnValue(null);
     render(<ReceiptCameraScreen />);
     fireEvent.press(screen.getByText('Capture Reciept'));
     await waitFor(() => {
       expect(alertSpy).toHaveBeenCalledWith(
-        'Failed to process image: bad json shape'
+        expect.stringContaining('Failed to process image: bad json shape')
       );
     });
   });

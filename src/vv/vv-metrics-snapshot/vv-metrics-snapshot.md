@@ -1,6 +1,6 @@
 # V&V performance metrics snapshot
 
-**Generated:** 2026-04-08T02:17:47.552Z  
+**Generated:** 2026-04-08T02:23:02.141Z  
 **Environment:** node v24.11.0
 
 > Written when Jest runs with `--coverage` (e.g. `pnpm run test:ci`). Deterministic mocked OCR JSON and synthetic transcripts (no live Gemini or microphone).
@@ -17,8 +17,8 @@
 | Line F1                    | 1.000   | ≥ 0.8         | yes  |
 | Mean total-amount accuracy | 0.995   | ≥ 0.9         | yes  |
 | Mean price APE             | 0.0029  | ≤ 0.1         | yes  |
-| Avg parse latency          | 0.90 ms | < 5000 ms     | yes  |
-| p95 parse latency          | 4.00 ms | < 5000 ms     | yes  |
+| Avg parse latency          | 1.10 ms | < 5000 ms     | yes  |
+| p95 parse latency          | 6.00 ms | < 5000 ms     | yes  |
 
 ### Speech-to-text (synthetic / harness)
 
@@ -35,8 +35,8 @@
 
 | Transcript             | Latency (ms) | WER vs gold name | Rel. price error |
 | ---------------------- | ------------ | ---------------- | ---------------- |
-| burger $9.99           | 260.00       | 0.000            | 0.0000           |
-| large fries cost $3.50 | 0.00         | 0.500            | 0.0000           |
+| burger $9.99           | 351.00       | 0.000            | 0.0000           |
+| large fries cost $3.50 | 1.00         | 0.500            | 0.0000           |
 
 Latency goal per case: < 3000 ms (Jest harness).
 
