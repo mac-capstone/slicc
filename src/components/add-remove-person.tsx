@@ -428,8 +428,8 @@ export const AddRemovePerson = ({ itemID, expenseId, eventId }: Props) => {
     isLoading: isSearchPoolLoading,
     isError: isSearchPoolError,
   } = useQuery({
-    queryKey: ['users', 'batch', searchPoolUserIds, currentUserId ?? null],
-    queryFn: () => fetchUsersBatch(searchPoolUserIds, currentUserId ?? null),
+    queryKey: ['users', 'batch', searchPoolUserIds],
+    queryFn: () => fetchUsersBatch(searchPoolUserIds),
     staleTime: 5 * 60 * 1000,
     enabled: needsSearchPoolProfiles,
   });

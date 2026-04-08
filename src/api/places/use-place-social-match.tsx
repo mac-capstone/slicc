@@ -71,7 +71,7 @@ async function fetchFriendPlaceMatch(params: {
   let displayName = 'Unknown';
   let subjectDietaryPreferenceIds: string[] = [];
   try {
-    const user = await fetchUser(friendId, viewerUserId);
+    const user = await fetchUser(friendId);
     displayName = user.displayName?.trim() || 'Unknown';
     subjectDietaryPreferenceIds = normalizeDietaryPreferenceIds(
       user.dietaryPreferences ?? []

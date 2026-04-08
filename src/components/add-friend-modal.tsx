@@ -39,7 +39,7 @@ export function AddFriendModal({
 
   const { data: searchPoolUsers = [], isPending: isBatchPending } = useQuery({
     queryKey: ['users', 'batch', 'addFriendSearch', allUserIds, userId],
-    queryFn: () => fetchUsersBatch(allUserIds as UserIdT[], userId ?? null),
+    queryFn: () => fetchUsersBatch(allUserIds as UserIdT[]),
     enabled:
       isOpen &&
       Boolean(userId) &&
