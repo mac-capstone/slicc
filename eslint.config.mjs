@@ -85,7 +85,7 @@ export default defineConfig([
     languageOptions: {
       parser: parser,
       parserOptions: {
-        project: './tsconfig.json',
+        project: ['./tsconfig.json'],
         sourceType: 'module',
       },
     },

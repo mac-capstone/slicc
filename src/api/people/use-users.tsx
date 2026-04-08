@@ -15,7 +15,7 @@ import {
 import { createQuery } from 'react-query-kit';
 
 import { db } from '@/api/common/firebase';
-import { getAuthUserId, useAuth } from '@/lib/auth';
+import { useAuth } from '@/lib/auth';
 import {
   type EventPerson,
   userConverter,
@@ -61,25 +61,13 @@ function toUserWithId(
   };
 }
 
-/**
- * Loads `users/{userId}/settings/private` only when `viewerUserId === userId`.
- * Callers must not use this for arbitrary users (social/search/batch for others).
- */
-async function loadPrivateSettingsWhenSelf(
-  userId: string,
-  viewerUserId: string | null
-): Promise<Partial<UserSettings>> {
-  if (viewerUserId == null || viewerUserId !== userId) return {};
-
+async function loadSettings(userId: string): Promise<Partial<UserSettings>> {
   const snap = await getDoc(privateSettingsDocRef(userId));
   if (!snap.exists()) return {};
   return snap.data();
 }
 
-export async function fetchUser(
-  userId: string,
-  viewerUserId: string | null = getAuthUserId()
-): Promise<UserWithId> {
+export async function fetchUser(userId: string): Promise<UserWithId> {
   const userSnap = await getDoc(userDocRef(userId));
 
   if (!userSnap.exists()) {
@@ -87,7 +75,7 @@ export async function fetchUser(
   }
 
   const profile = userSnap.data();
-  const settings = await loadPrivateSettingsWhenSelf(userId, viewerUserId);
+  const settings = await loadSettings(userId);
   return toUserWithId(userSnap.id, profile, settings);
 }
 
@@ -125,7 +113,7 @@ export const useUserIds = createQuery<UserIdT[], void, Error>({
 
 export const useUser = createQuery<UserWithId, UseUserVariables, Error>({
   queryKey: ['users', 'userId'],
-  fetcher: async ({ userId, viewerUserId }) => fetchUser(userId, viewerUserId),
+  fetcher: async ({ userId }) => fetchUser(userId),
 });
 
 export const useSearchUsers = createQuery<UserWithId[], string, Error>({
@@ -148,8 +136,7 @@ function chunkUserIds(userIds: UserIdT[]): UserIdT[][] {
 }
 
 export async function fetchUsersBatch(
-  userIds: UserIdT[],
-  viewerUserId: string | null
+  userIds: UserIdT[]
 ): Promise<UserWithId[]> {
   if (userIds.length === 0) return [];
 
@@ -178,18 +165,19 @@ export async function fetchUsersBatch(
     throw new Error('User not found');
   }
 
-  let selfPrivate: Partial<UserSettings> = {};
-  if (viewerUserId != null && userIds.some((id) => id === viewerUserId)) {
-    selfPrivate = await loadPrivateSettingsWhenSelf(viewerUserId, viewerUserId);
-  }
+  const settingsById = new Map<string, Partial<UserSettings>>();
+  await Promise.all(
+    userIds.map(async (uid) => {
+      settingsById.set(uid, await loadSettings(uid));
+    })
+  );
 
   return userIds.map((userId) => {
     const profile = profileById.get(userId);
     if (!profile) {
       throw new Error('User not found');
     }
-    const settings = viewerUserId === userId ? selfPrivate : {};
-    return toUserWithId(userId, profile, settings);
+    return toUserWithId(userId, profile, settingsById.get(userId) ?? {});
   });
 }
 
@@ -211,7 +199,7 @@ export function useUsersAsPeople(
     isError,
   } = useQuery({
     queryKey: ['users', 'batch', userIds, viewerUserId],
-    queryFn: () => fetchUsersBatch(userIds, viewerUserId),
+    queryFn: () => fetchUsersBatch(userIds),
     staleTime: 5 * 60 * 1000,
     enabled: queryEnabled,
   });

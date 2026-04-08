@@ -14,11 +14,13 @@ import {
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 
 import { db, storage } from '@/api/common/firebase';
+import { normalizeDietaryPreferenceIds } from '@/lib/dietary-preference-options';
 import type {
   UpdateUserSettingsData,
   UserProfile,
   UserSettings,
 } from '@/types';
+import { userSettingsConverter } from '@/types/schema';
 
 const MIME_TYPE_BY_EXTENSION: Record<string, string> = {
   heic: 'image/heic',
@@ -216,9 +218,42 @@ export async function updateUserSettingsInFirestore(
   const userSettingsRef = doc(db, 'users', userId, 'settings', 'private');
   const now = Timestamp.now();
 
-  await setDoc(userSettingsRef, buildUserSettingsPatch(data, now), {
-    merge: true,
-  });
+  const patch = buildUserSettingsPatch(data, now);
+
+  await setDoc(userSettingsRef, patch, { merge: true });
+}
+
+/**
+ * Batch-load dietary preference IDs from each user's settings subcollection.
+ */
+export async function fetchDietaryPreferencesByUserIds(
+  userIds: string[]
+): Promise<Map<string, string[]>> {
+  const out = new Map<string, string[]>();
+  if (userIds.length === 0) return out;
+
+  const unique = [...new Set(userIds)];
+  const results = await Promise.all(
+    unique.map(async (uid) => {
+      const settingsRef = doc(
+        db,
+        'users',
+        uid,
+        'settings',
+        'private'
+      ).withConverter(userSettingsConverter);
+      const snap = await getDoc(settingsRef);
+      const prefs = snap.exists()
+        ? normalizeDietaryPreferenceIds(snap.data().dietaryPreferences ?? [])
+        : [];
+      return [uid, prefs] as const;
+    })
+  );
+
+  for (const [uid, prefs] of results) {
+    out.set(uid, prefs);
+  }
+  return out;
 }
 
 export async function updateDefaultRatesInFirestore(

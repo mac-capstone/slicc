@@ -1,7 +1,7 @@
 import Octicons from '@expo/vector-icons/Octicons';
 import { Redirect, router, SplashScreen, Tabs } from 'expo-router';
 import React, { useCallback, useEffect } from 'react';
-import { Text, TouchableOpacity } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 
 import { colors } from '@/components/ui';
 import {
@@ -9,11 +9,13 @@ import {
   useEnsureE2EIdentityKey,
   useIncomingFriendRequestsLiveSync,
   useIsFirstTime,
+  usePlaceLikesFirestoreSync,
   useUserExistsInFirestore,
 } from '@/lib';
 import { usePendingExpenseSync } from '@/lib/hooks/use-pending-expense-sync';
 
 export default function TabLayout() {
+  usePlaceLikesFirestoreSync();
   const status = useAuth.use.status();
   const userId = useAuth.use.userId();
   const [isFirstTime] = useIsFirstTime();
@@ -132,6 +134,52 @@ export default function TabLayout() {
             <Octicons name="search" size={24} color={color} />
           ),
           tabBarButtonTestID: 'explore-tab',
+          headerRight: () => (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginRight: 16,
+                gap: 16,
+              }}
+            >
+              <TouchableOpacity
+                onPress={() => router.push('/explore-rated')}
+                accessibilityLabel="Rated places"
+                accessibilityRole="button"
+              >
+                <Octicons name="thumbsup" size={22} color={colors.text[800]} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push('/explore-bookmarked')}
+                accessibilityLabel="Bookmarked places"
+                accessibilityRole="button"
+              >
+                <Octicons name="bookmark" size={24} color={colors.text[800]} />
+              </TouchableOpacity>
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="explore-bookmarked"
+        options={{
+          title: 'Bookmarked',
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="explore-rated"
+        options={{
+          title: 'Rated Places',
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="place/[place-id]"
+        options={{
+          href: null,
+          title: 'Place Details',
         }}
       />
       <Tabs.Screen
