@@ -6,7 +6,7 @@ slicc is a cross-platform mobile app (iOS & Android) built with React Native and
 
 ## Instructions to download and install APK:
 **Important: APK only works on Android phones**
-- Download the APK submitted to Avenue
+- Download the APK from github Release
 - Allow installation of unknown apps in Android settings
 - Install the APK by opening it from the Files app
 - Log in using an existing Google account
