@@ -48,7 +48,7 @@ jest.mock('@expo/vector-icons/Ionicons', () => {
     ReactNs.createElement(Text, { testID: `ion-${name}` }, name);
 });
 
-jest.mock('expo-router', () => ({
+jest.mock('@/lib/guarded-router', () => ({
   router: { back: (...args: unknown[]) => mockRouterBack(...args) },
   Stack: { Screen: () => null },
 }));

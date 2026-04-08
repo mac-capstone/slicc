@@ -98,7 +98,7 @@ function receiptLineItemMetrics(
               }),
             }),
             expect.objectContaining({
-              text: expect.stringContaining('JSON array'),
+              text: expect.stringContaining('{"items"'),
             }),
           ]),
         })

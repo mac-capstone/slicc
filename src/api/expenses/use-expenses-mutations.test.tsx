@@ -33,6 +33,7 @@ jest.mock('firebase/firestore', () => ({
     return { id: String(last), path: `nested/${String(last)}` };
   }),
   serverTimestamp: jest.fn(() => ({})),
+  deleteField: jest.fn(() => ({ __deleteField: true })),
 }));
 
 function wrapperWithClient(client: QueryClient) {
