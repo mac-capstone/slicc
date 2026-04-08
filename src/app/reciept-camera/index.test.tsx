@@ -20,6 +20,23 @@ const mockAddItem = jest.fn();
 const mockClearTempExpenseItems = jest.fn();
 const mockTakePictureAsync = jest.fn();
 
+jest.mock('@env', () => ({
+  Env: {
+    EXPO_PUBLIC_GEMINI_API_KEY: 'jest-gemini-api-key',
+  },
+}));
+
+jest.mock(
+  '@react-native-community/netinfo',
+  () => ({
+    fetch: jest.fn().mockResolvedValue({
+      isConnected: true,
+      isInternetReachable: true,
+    }),
+  }),
+  { virtual: true }
+);
+
 jest.mock('@expo/vector-icons', () => ({
   Octicons: () => null,
 }));
@@ -38,6 +55,15 @@ jest.mock('expo-router', () => ({
 jest.mock('@/api/camera-receipt/extract-receipt-info', () => ({
   extractReceiptInfo: (...args: unknown[]) => mockExtractReceiptInfo(...args),
 }));
+jest.mock(
+  '@/api/camera-receipt/extract-receipt-line-items',
+  () => ({
+    extractReceiptInfo: (...args: unknown[]) => mockExtractReceiptInfo(...args),
+    extractReceiptLineItems: (...args: unknown[]) =>
+      mockExtractReceiptInfo(...args),
+  }),
+  { virtual: true }
+);
 jest.mock(
   '@infinitered/react-native-mlkit-text-recognition',
   () => ({

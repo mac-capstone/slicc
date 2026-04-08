@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-08T02:04:48.868Z",
+  "generatedAt": "2026-04-08T02:17:47.552Z",
   "environment": "node v24.11.0",
   "ocr": {
     "sampleCount": 10,
@@ -10,7 +10,7 @@
     "lineF1": 1,
     "meanTotalAmountAccuracy": 0.9949999999999999,
     "meanPriceApe": 0.0029411764705882353,
-    "avgLatencyMs": 1,
+    "avgLatencyMs": 0.9,
     "p95LatencyMs": 4,
     "budgetMs": 5000,
     "goals": {
@@ -51,7 +51,7 @@
           "transcript": "burger $9.99",
           "goldName": "burger",
           "goldAmount": 9.99,
-          "latencyMs": 120,
+          "latencyMs": 260,
           "werVsGoldName": 0,
           "relativePriceError": 0
         },
