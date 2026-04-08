@@ -11,7 +11,7 @@ slicc is a cross-platform mobile app (iOS & Android) built with React Native and
 - Install the APK by opening it from the Files app
 - Log in using an existing Google account
 - For testing Friends and Social features, use a separate Google account
-- To use the explore page functionality, please contact Asad with the IP addresses of the phone(s) your are testing the app on.
+- To use the explore page functionality, please contact Asad with the IP addresses of the phone(s) you are testing the app on.
 
 ## Prerequiste
 
