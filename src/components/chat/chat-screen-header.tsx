@@ -1,12 +1,12 @@
 import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Octicons from '@expo/vector-icons/Octicons';
-import { router } from 'expo-router';
 import * as React from 'react';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, Text } from '@/components/ui';
+import { router } from '@/lib/guarded-router';
 import type { GroupIdT } from '@/types';
 
 type Props = {

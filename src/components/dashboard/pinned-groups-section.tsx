@@ -1,5 +1,4 @@
 import { useQueries } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo } from 'react';
 import { Pressable } from 'react-native';
 
@@ -10,6 +9,7 @@ import { ActivityIndicator, colors, Text, View } from '@/components/ui';
 import { formatCreationDate, formatEventDescription } from '@/lib/date-utils';
 import { getMostRelevantEventId } from '@/lib/event-utils';
 import { useGroupPreferences } from '@/lib/group-preferences';
+import { useRouter } from '@/lib/guarded-router';
 import type { EventIdT, EventWithId, GroupIdT, UserIdT } from '@/types';
 
 export function PinnedGroupsSection() {

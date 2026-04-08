@@ -1,6 +1,5 @@
 import Feather from '@expo/vector-icons/Feather';
 import Octicons from '@expo/vector-icons/Octicons';
-import { router } from 'expo-router';
 import * as React from 'react';
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -8,6 +7,7 @@ import { Pressable, View } from 'react-native';
 import { eventToCardData, GroupEventCard } from '@/components/group-event-card';
 import { colors, Text } from '@/components/ui';
 import { categorizeEvents } from '@/lib/event-utils';
+import { router } from '@/lib/guarded-router';
 import type { EventWithId } from '@/types';
 
 type Props = {

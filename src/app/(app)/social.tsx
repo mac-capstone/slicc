@@ -2,7 +2,6 @@ import Octicons from '@expo/vector-icons/Octicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { FlashList } from '@shopify/flash-list';
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, View } from 'react-native';
 import Animated, { LinearTransition } from 'react-native-reanimated';
@@ -28,6 +27,7 @@ import { useAuth } from '@/lib/auth';
 import { formatCreationDate, formatEventDescription } from '@/lib/date-utils';
 import { getMostRelevantEventId } from '@/lib/event-utils';
 import { useGroupPreferences } from '@/lib/group-preferences';
+import { router, Stack, useLocalSearchParams } from '@/lib/guarded-router';
 import { useIncomingFriendRequestRows } from '@/lib/hooks/use-incoming-friend-request-rows';
 import type { EventIdT, EventWithId, UserIdT } from '@/types';
 

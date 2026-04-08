@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import Octicons from '@expo/vector-icons/Octicons';
 import { FlashList } from '@shopify/flash-list';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
@@ -16,6 +15,7 @@ import { PersonCard } from '@/components/person-card';
 import { SegmentToggle } from '@/components/segment-toggle';
 import { ActivityIndicator, Pressable, Text, View } from '@/components/ui';
 import { useAuth } from '@/lib';
+import { Stack, useLocalSearchParams, useRouter } from '@/lib/guarded-router';
 import { fetchIsOnline } from '@/lib/network-status';
 import { enqueuePendingExpense } from '@/lib/offline/pending-expense-queue';
 import { clearTempExpense, getTempExpenseState } from '@/lib/store';
@@ -78,6 +78,8 @@ export default function ExpenseView() {
           originalExpenseId: tempExpenseState.originalExpenseId,
           originalItemIds: tempExpenseState.originalItemIds ?? [],
           originalPersonIds: tempExpenseState.originalPersonIds ?? [],
+          createdBy: tempExpenseState.createdBy,
+          payerUserId: tempExpenseState.payerUserId,
           name: tempExpenseState.name,
           totalAmount: tempExpenseState.totalAmount,
           remainingAmount: tempExpenseState.remainingAmount ?? 0,
@@ -106,7 +108,7 @@ export default function ExpenseView() {
             Alert.alert('Saved locally', message);
           }
           if (eventId) {
-            router.replace(`/event/${eventId}/expenses` as any);
+            router.dismissTo(`/event/${eventId}/expenses` as any);
           } else {
             router.replace('/(app)/expenses' as any);
           }
@@ -132,7 +134,7 @@ export default function ExpenseView() {
           clearTempExpense();
           await queryClient.invalidateQueries({ queryKey: ['expenses'] });
           if (eventId) {
-            router.replace(`/event/${eventId}/expenses` as any);
+            router.dismissTo(`/event/${eventId}/expenses` as any);
           } else {
             router.replace(`/expense/${expenseDocId}` as any);
           }
@@ -189,7 +191,9 @@ export default function ExpenseView() {
                             queryKey: ['expenses', 'expenseId', id],
                           });
                           if (eventId) {
-                            router.replace(`/event/${eventId}/expenses` as any);
+                            router.dismissTo(
+                              `/event/${eventId}/expenses` as any
+                            );
                           } else {
                             router.replace('/expenses' as any);
                           }
@@ -199,7 +203,7 @@ export default function ExpenseView() {
                   );
                 } else {
                   if (eventId) {
-                    router.replace(`/event/${eventId}/expenses` as any);
+                    router.dismissTo(`/event/${eventId}/expenses` as any);
                   } else {
                     router.replace('/expenses' as any);
                   }

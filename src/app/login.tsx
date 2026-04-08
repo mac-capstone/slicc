@@ -1,5 +1,3 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { Redirect, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 
@@ -15,6 +13,7 @@ import {
 } from '@/components/ui';
 import { useAuth } from '@/lib';
 import { getGoogleSignInErrorMessage } from '@/lib/auth/google-auth';
+import { Redirect, useRouter } from '@/lib/guarded-router';
 
 type AuthButtonProps = {
   label: string;
@@ -113,17 +112,6 @@ export default function Login() {
                     <GoogleIcon />
                   )
                 }
-              />
-
-              <AuthButton
-                label="Log in with Apple"
-                onPress={() =>
-                  Alert.alert(
-                    'Coming soon',
-                    'Apple sign-in is not yet available.'
-                  )
-                }
-                icon={<Ionicons name="logo-apple" size={29} color="#D9D9D9" />}
               />
             </View>
           </View>

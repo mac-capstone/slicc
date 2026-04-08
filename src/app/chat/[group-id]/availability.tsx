@@ -1,7 +1,6 @@
 import Feather from '@expo/vector-icons/Feather';
 import Octicons from '@expo/vector-icons/Octicons';
 import { useQueries } from '@tanstack/react-query';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
 import * as React from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, TouchableOpacity, View } from 'react-native';
@@ -21,6 +20,7 @@ import {
 } from '@/components/chat/scheduler-grid';
 import { colors, Text } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
+import { router, Stack, useLocalSearchParams } from '@/lib/guarded-router';
 import type { GroupIdT, UserIdT } from '@/types';
 
 function startOfWeek(offset: number): Date {

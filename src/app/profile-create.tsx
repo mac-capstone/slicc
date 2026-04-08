@@ -2,7 +2,6 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
-import { Stack, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import {
@@ -30,6 +29,7 @@ import {
 } from '@/components/ui';
 import { ControlledInput } from '@/components/ui/input';
 import { useAuth } from '@/lib';
+import { Stack, useRouter } from '@/lib/guarded-router';
 
 const profileFormSchema = z.object({
   displayName: z.string().min(1, 'Display name is required'),

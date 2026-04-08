@@ -3,7 +3,6 @@ import 'react-native-get-random-values';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Octicons from '@expo/vector-icons/Octicons';
 import { FlashList } from '@shopify/flash-list';
-import { router, Stack, useLocalSearchParams, usePathname } from 'expo-router';
 import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
@@ -42,6 +41,12 @@ import {
   View,
 } from '@/components/ui';
 import { useAuth, useDefaultTaxRate, useUserSettings } from '@/lib';
+import {
+  router,
+  Stack,
+  useLocalSearchParams,
+  usePathname,
+} from '@/lib/guarded-router';
 import { fetchIsOnline } from '@/lib/network-status';
 import {
   resolveDefaultTaxRate,
@@ -595,6 +600,9 @@ const TempItemCard = React.memo(function TempItemCard({
 
   const panGesture = Gesture.Pan()
     .enabled(!isEditing)
+    // Keep vertical list scrolling responsive; only engage swipe on clear horizontal intent.
+    .activeOffsetX([-14, 14])
+    .failOffsetY([-12, 12])
     .onUpdate((e) => {
       // only allow swiping left (negative translation)
       if (e.translationX < 0) {

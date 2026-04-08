@@ -2,7 +2,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useQueries } from '@tanstack/react-query';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { deleteField, Timestamp } from 'firebase/firestore';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -25,6 +24,7 @@ import { DateTimePick } from '@/components/date-time-pick';
 import { EventParticipantsSection } from '@/components/event-participants-section';
 import { Button, Input, Pressable, Select, Text, View } from '@/components/ui';
 import { getUserId } from '@/lib';
+import { router, Stack, useLocalSearchParams } from '@/lib/guarded-router';
 import { useThemeConfig } from '@/lib/use-theme-config';
 import type { EventIdT, GroupIdT, UserIdT, UserWithId } from '@/types';
 

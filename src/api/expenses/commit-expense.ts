@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteField,
   doc,
   serverTimestamp,
   type WriteBatch,
@@ -21,6 +22,11 @@ export type CommitExpenseInput = {
   items: ItemWithId[] | undefined;
 };
 
+function getPayerUserIdFieldValue(payerUserId: string | undefined) {
+  const trimmedPayerUserId = payerUserId?.trim();
+  return trimmedPayerUserId ? trimmedPayerUserId : deleteField();
+}
+
 /**
  * Writes a new expense document and subcollections (same shape as expense confirm flow).
  */
@@ -35,7 +41,7 @@ export function applyExpenseCommitToBatch(
     name: expense.name,
     date: expense.date,
     createdBy: expense.createdBy,
-    ...(expense.payerUserId ? { payerUserId: expense.payerUserId } : {}),
+    payerUserId: getPayerUserIdFieldValue(expense.payerUserId),
     ...(eventId ? { eventId } : {}),
     totalAmount: expense.totalAmount,
     remainingAmount: expense.remainingAmount ?? 0,

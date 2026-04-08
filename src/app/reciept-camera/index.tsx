@@ -7,7 +7,6 @@ import {
   type PermissionResponse,
   useCameraPermissions,
 } from 'expo-camera';
-import { router, Stack } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -27,6 +26,7 @@ import {
   View as CustomView,
 } from '@/components/ui';
 import { white } from '@/components/ui/colors';
+import { router, Stack } from '@/lib/guarded-router';
 import { useDefaultTaxRate } from '@/lib/hooks/use-default-tax-rate';
 import { useExpenseCreation } from '@/lib/store';
 import { useThemeConfig } from '@/lib/use-theme-config';

@@ -1,7 +1,7 @@
 import Octicons from '@expo/vector-icons/Octicons';
-import { type Href, useRouter } from 'expo-router';
 
 import { colors, Pressable, Text, View } from '@/components/ui';
+import { type Href, useRouter } from '@/lib/guarded-router';
 import { useThemeConfig } from '@/lib/use-theme-config';
 
 export const DottedAddButton = ({

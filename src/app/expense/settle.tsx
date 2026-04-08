@@ -1,6 +1,5 @@
 import Octicons from '@expo/vector-icons/Octicons';
 import * as Clipboard from 'expo-clipboard';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { doc, updateDoc, writeBatch } from 'firebase/firestore';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, FlatList, Modal } from 'react-native';
@@ -21,6 +20,7 @@ import {
   View,
 } from '@/components/ui';
 import { useAuth } from '@/lib';
+import { Stack, useLocalSearchParams, useRouter } from '@/lib/guarded-router';
 import { getBankLabel, openBankFlow } from '@/lib/payment-utils';
 import { useThemeConfig } from '@/lib/use-theme-config';
 import { type ExpenseIdT, type UserIdT } from '@/types';

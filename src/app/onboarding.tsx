@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import React from 'react';
 
 import { Cover } from '@/components/cover';
@@ -9,6 +8,7 @@ import {
   Text,
   View,
 } from '@/components/ui';
+import { useRouter } from '@/lib/guarded-router';
 import { useIsFirstTime } from '@/lib/hooks';
 export default function Onboarding() {
   const [_, setIsFirstTime] = useIsFirstTime();
