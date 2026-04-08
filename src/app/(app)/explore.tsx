@@ -7,7 +7,14 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Keyboard, Platform, Pressable, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Keyboard,
+  Platform,
+  Pressable,
+  Text,
+  View,
+} from 'react-native';
 import Animated, { FadeInUp, FadeOutDown } from 'react-native-reanimated';
 
 import type { Place } from '@/api/places/places-api';
@@ -20,45 +27,83 @@ import { useRecommendations } from '@/api/places/use-recommendations';
 import { colors, Input } from '@/components/ui';
 import { useAuth, useLikedPlaces, useRatedPlaceIds } from '@/lib';
 import { useUserLocation } from '@/lib/hooks/use-user-location';
-import { getDietaryPreferenceIds } from '@/lib/hooks/use-user-settings';
+import { useUserSettings } from '@/lib/hooks/use-user-settings';
+import { usePlacePreferences } from '@/lib/place-preferences';
 
 import { ExploreContent } from './explore-content';
 import { ExploreEmptyMessage } from './explore-empty-message';
 import { type CategoryFilter, ExploreFilters } from './explore-filters';
-import type { SectionFilter } from './explore-types';
+
+function sortedIdsKey(ids: Set<string>): string {
+  return Array.from(ids).sort().join(',');
+}
+
+const ENTERTAINMENT_TYPES = new Set([
+  'amusement_center',
+  'amusement_park',
+  'aquarium',
+  'casino',
+  'comedy_club',
+  'concert_hall',
+  'dance_hall',
+  'event_venue',
+  'karaoke',
+  'live_music_venue',
+  'movie_theater',
+  'night_club',
+  'opera_house',
+  'performing_arts_theater',
+  'roller_coaster',
+  'video_arcade',
+  'water_park',
+  'zoo',
+]);
+
+const SPORTS_TYPES = new Set([
+  'arena',
+  'athletic_field',
+  'bowling_alley',
+  'fitness_center',
+  'go_karting_venue',
+  'golf_course',
+  'gym',
+  'ice_skating_rink',
+  'miniature_golf_course',
+  'paintball_center',
+  'playground',
+  'skateboard_park',
+  'sports_activity_location',
+  'sports_club',
+  'sports_complex',
+  'stadium',
+  'swimming_pool',
+  'tennis_court',
+]);
+
+const CATEGORY_TYPE_SETS: Partial<Record<CategoryFilter, Set<string>>> = {
+  entertainment: ENTERTAINMENT_TYPES,
+  sports: SPORTS_TYPES,
+};
 
 function placeMatchesCategory(place: Place, category: CategoryFilter): boolean {
   if (category === 'all') return true;
   const types = [place.primaryType, ...(place.types ?? [])].filter(
     (t): t is string => !!t
   );
-  return types.some(
-    (t) =>
-      t === category || (typeof t === 'string' && t.startsWith(`${category}_`))
-  );
-}
-
-function placeMatchesSearch(place: Place, query: string): boolean {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
-  const name = (place.displayName ?? '').toLowerCase();
-  const address = (place.formattedAddress ?? '').toLowerCase();
-  return name.includes(q) || address.includes(q);
-}
-
-function filterPlacesByCategoryAndSearch(
-  places: Place[],
-  categoryFilter: CategoryFilter,
-  searchQuery: string
-): Place[] {
-  let data = places;
-  if (categoryFilter !== 'all') {
-    data = data.filter((p) => placeMatchesCategory(p, categoryFilter));
+  const typeSet = CATEGORY_TYPE_SETS[category];
+  if (typeSet) {
+    return types.some((t) => typeSet.has(t));
   }
-  return data.filter((p) => placeMatchesSearch(p, searchQuery));
+  return types.some((t) => t === category || t.startsWith(`${category}_`));
 }
 
-const LOADING_PLACEHOLDER_ID = '__loading__';
+function filterPlacesByCategory(
+  places: Place[],
+  categoryFilter: CategoryFilter
+): Place[] {
+  if (categoryFilter === 'all') return places;
+  return places.filter((p) => placeMatchesCategory(p, categoryFilter));
+}
 
 function sortedPlaceIdsKey(places: Place[]): string {
   return places
@@ -67,87 +112,97 @@ function sortedPlaceIdsKey(places: Place[]): string {
     .join(',');
 }
 
-type ExploreSection = {
-  id: string;
-  title: string;
-  data: (Place | { id: string })[];
-  isLoading?: boolean;
-};
-
 export default function Explore() {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
-  const [sectionFilter, setSectionFilter] = useState<SectionFilter>('all');
+  const [showMap, setShowMap] = useState(false);
+  const [mapRefreshKey, setMapRefreshKey] = useState(0);
+  const isFirstFocus = useRef(true);
   const userId = useAuth.use.userId();
-  const viewerDietaryPreferenceIds = useMemo(
-    () => getDietaryPreferenceIds(userId ?? null),
-    [userId]
-  );
+  const { dietaryPreferenceIds: viewerDietaryPreferenceIds } =
+    useUserSettings();
   const { location: userLocation, status: locationStatus } = useUserLocation();
   const likedPlaces = useLikedPlaces();
   const ratedPlaceIds = useRatedPlaceIds();
+  const placeRatings = usePlacePreferences.use.placeRatings();
   const likedPlacesRef = useRef(likedPlaces);
   likedPlacesRef.current = likedPlaces;
+  const ratedPlaceIdsRef = useRef(ratedPlaceIds);
+  ratedPlaceIdsRef.current = ratedPlaceIds;
 
-  /** Snapshot for the recommendations query — avoids refetch on every like while on Recommended. */
   const [recommendationLikesBasis, setRecommendationLikesBasis] = useState<
     Place[]
   >([]);
+  const [ratedIdsBasis, setRatedIdsBasis] = useState<Set<string>>(
+    new Set<string>()
+  );
 
   useEffect(() => {
-    if (sectionFilter !== 'recommended') {
-      setRecommendationLikesBasis(likedPlaces);
-      return;
-    }
     setRecommendationLikesBasis((prev) => {
-      if (prev.length === 0 && likedPlaces.length > 0) {
-        return likedPlaces;
-      }
+      if (prev.length === 0 && likedPlaces.length > 0) return likedPlaces;
       return prev;
     });
-  }, [sectionFilter, likedPlaces]);
+  }, [likedPlaces]);
+
+  useEffect(() => {
+    setRatedIdsBasis((prev) => {
+      if (prev.size === 0 && ratedPlaceIds.size > 0) return ratedPlaceIds;
+      return prev;
+    });
+  }, [ratedPlaceIds]);
+
+  const refreshBasis = useCallback(() => {
+    setRecommendationLikesBasis(likedPlacesRef.current);
+    setRatedIdsBasis(ratedPlaceIdsRef.current);
+  }, []);
+
+  useFocusEffect(refreshBasis);
 
   useFocusEffect(
     useCallback(() => {
-      if (sectionFilter === 'recommended') {
-        setRecommendationLikesBasis(likedPlacesRef.current);
+      if (isFirstFocus.current) {
+        isFirstFocus.current = false;
+        return;
       }
-    }, [sectionFilter])
+      setMapRefreshKey((prev) => prev + 1);
+    }, [])
   );
 
-  const likesForRecommendationsQuery = useMemo((): Place[] => {
-    if (sectionFilter !== 'recommended') {
-      return likedPlaces;
-    }
+  const likesForQuery = useMemo((): Place[] => {
     if (recommendationLikesBasis.length === 0 && likedPlaces.length > 0) {
       return likedPlaces;
     }
     return recommendationLikesBasis.length > 0
       ? recommendationLikesBasis
       : likedPlaces;
-  }, [sectionFilter, likedPlaces, recommendationLikesBasis]);
+  }, [likedPlaces, recommendationLikesBasis]);
+
+  const ratedIdsForQuery = useMemo((): Set<string> => {
+    if (ratedIdsBasis.size === 0 && ratedPlaceIds.size > 0) {
+      return ratedPlaceIds;
+    }
+    return ratedIdsBasis.size > 0 ? ratedIdsBasis : ratedPlaceIds;
+  }, [ratedPlaceIds, ratedIdsBasis]);
 
   const handleRefreshRecommendations = useCallback((): void => {
-    setRecommendationLikesBasis(likedPlaces);
-  }, [likedPlaces]);
+    refreshBasis();
+  }, [refreshBasis]);
 
   const isSearching = searchQuery.trim().length >= 2;
   const hasLikes = likedPlaces.length > 0;
   const hasLocation = !!userLocation;
 
-  const recommendationsOutOfDate =
-    sectionFilter === 'recommended' &&
+  const likesChanged =
     hasLikes &&
     sortedPlaceIdsKey(recommendationLikesBasis) !==
       sortedPlaceIdsKey(likedPlaces) &&
     !(recommendationLikesBasis.length === 0 && likedPlaces.length > 0);
 
-  const includedTypesForNearby =
-    categoryFilter === 'all' ? undefined : [categoryFilter];
+  const ratedIdsChanged =
+    sortedIdsKey(ratedIdsBasis) !== sortedIdsKey(ratedPlaceIds) &&
+    !(ratedIdsBasis.size === 0 && ratedPlaceIds.size > 0);
 
-  const usesApiSearch =
-    isSearching &&
-    (sectionFilter === 'all' || (sectionFilter === 'nearby' && hasLocation));
+  const recommendationsOutOfDate = likesChanged || ratedIdsChanged;
 
   const {
     data: searchResults,
@@ -157,108 +212,32 @@ export default function Explore() {
   } = usePlaces({
     searchQuery,
     userLocation,
-    enabled: usesApiSearch,
+    enabled: isSearching,
   });
 
   const {
-    data: recommendations,
+    data: recommendationResult,
     isPending: recsPending,
     isError: recsError,
     error: recsErrorDetail,
   } = useRecommendations({
-    likedPlaces: likesForRecommendationsQuery,
+    likedPlaces: likesForQuery,
     userLocation,
-    ratedPlaceIds,
+    ratedPlaceIds: ratedIdsForQuery,
     userId,
     viewerDietaryPreferenceIds,
-    enabled: hasLikes && (sectionFilter === 'recommended' || !isSearching),
+    placeRatings,
+    enabled: hasLikes && hasLocation && !isSearching,
   });
 
-  const {
-    data: nearbyPlaces,
-    isPending: nearbyPending,
-    isError: nearbyError,
-    error: nearbyErrorDetail,
-  } = usePlaces({
-    searchQuery: '',
-    userLocation,
-    enabled: !isSearching && hasLocation,
-    includedTypes: includedTypesForNearby,
-  });
-
-  const sections = useMemo((): ExploreSection[] => {
-    if (isSearching) return [];
-
-    const filteredFavorites =
-      categoryFilter === 'all'
-        ? likedPlaces
-        : likedPlaces.filter((p) => placeMatchesCategory(p, categoryFilter));
-
-    const forYouData = recommendations ?? [];
-    const filteredRecommendations =
-      categoryFilter === 'all'
-        ? forYouData
-        : forYouData.filter((p) => placeMatchesCategory(p, categoryFilter));
-
-    const result: ExploreSection[] = [];
-
-    const showFavorites =
-      sectionFilter === 'all' || sectionFilter === 'favorites';
-    const showRecommended =
-      sectionFilter === 'all' || sectionFilter === 'recommended';
-    const showNearby = sectionFilter === 'all' || sectionFilter === 'nearby';
-
-    if (showFavorites) {
-      result.push({
-        id: 'favorites',
-        title: 'Your favorites',
-        data: filteredFavorites,
-      });
-    }
-
-    if (showRecommended) {
-      result.push({
-        id: 'for-you',
-        title: 'For you',
-        data:
-          recsPending && filteredRecommendations.length === 0
-            ? [{ id: `${LOADING_PLACEHOLDER_ID}-for-you` }]
-            : filteredRecommendations,
-        isLoading: recsPending,
-      });
-    }
-
-    if (showNearby) {
-      const nearbyData = nearbyPlaces ?? [];
-      result.push({
-        id: 'nearby',
-        title: 'Nearby',
-        data:
-          nearbyPending && nearbyData.length === 0
-            ? [{ id: `${LOADING_PLACEHOLDER_ID}-nearby` }]
-            : nearbyData,
-        isLoading: nearbyPending,
-      });
-    }
-
-    return result;
-  }, [
-    isSearching,
-    likedPlaces,
-    recommendations,
-    recsPending,
-    nearbyPlaces,
-    nearbyPending,
-    categoryFilter,
-    sectionFilter,
-  ]);
+  const recommendations = recommendationResult?.places;
+  const scoreById = recommendationResult?.scoreById;
 
   const hasApiKey = hasPlacesApiKey();
 
   const activeError =
-    (usesApiSearch && searchError ? searchErrorDetail : null) ??
-    (!isSearching && hasLikes && recsError ? recsErrorDetail : null) ??
-    (!isSearching && hasLocation && nearbyError ? nearbyErrorDetail : null);
+    (isSearching && searchError ? searchErrorDetail : null) ??
+    (!isSearching && hasLikes && recsError ? recsErrorDetail : null);
 
   const isApiKeyError = useMemo(() => {
     if (!activeError) return false;
@@ -284,78 +263,49 @@ export default function Explore() {
     });
   }, []);
 
+  const handleToggleMap = useCallback((): void => {
+    refreshBasis();
+    setShowMap((prev) => !prev);
+  }, [refreshBasis]);
+
+  const handleCategoryFilterChange = useCallback(
+    (filter: CategoryFilter): void => {
+      setCategoryFilter(filter);
+    },
+    []
+  );
+
   const searchViewData = useMemo((): Place[] | null => {
     if (!isSearching) return null;
+    return filterPlacesByCategory(searchResults ?? [], categoryFilter);
+  }, [isSearching, searchResults, categoryFilter]);
 
-    if (sectionFilter === 'all') {
-      return filterPlacesByCategoryAndSearch(
-        searchResults ?? [],
-        categoryFilter,
-        searchQuery
-      );
-    }
-    if (sectionFilter === 'favorites') {
-      return filterPlacesByCategoryAndSearch(
-        likedPlaces,
-        categoryFilter,
-        searchQuery
-      );
-    }
-    if (sectionFilter === 'recommended') {
-      return filterPlacesByCategoryAndSearch(
-        recommendations ?? [],
-        categoryFilter,
-        searchQuery
-      );
-    }
-    if (sectionFilter === 'nearby') {
-      if (!hasLocation) return [];
-      return filterPlacesByCategoryAndSearch(
-        searchResults ?? [],
-        categoryFilter,
-        searchQuery
-      );
-    }
-    return [];
-  }, [
-    isSearching,
-    searchQuery,
-    sectionFilter,
-    categoryFilter,
-    likedPlaces,
-    recommendations,
-    searchResults,
-    hasLocation,
-  ]);
-
-  const searchViewLoading =
-    isSearching &&
-    ((sectionFilter === 'all' && searchPending) ||
-      (sectionFilter === 'recommended' && recsPending) ||
-      (sectionFilter === 'nearby' && hasLocation && searchPending));
-
+  const searchViewLoading = isSearching && searchPending;
   const searchViewEmpty =
     isSearching && !searchViewLoading && (searchViewData?.length ?? 0) === 0;
-
   const showSearchView = isSearching;
 
-  const hasContent = isSearching
-    ? (searchViewData?.length ?? 0) > 0
-    : sections.some((s) => s.data.length > 0);
-  const isLoading =
-    (isSearching && searchViewLoading) ||
-    (!isSearching &&
-      sectionFilter === 'recommended' &&
-      hasLikes &&
-      recsPending) ||
-    (!isSearching && hasLocation && nearbyPending);
-  const initialLoad = !isSearching && isLoading && !hasContent;
+  const browseData = useMemo(
+    (): Place[] =>
+      filterPlacesByCategory(recommendations ?? [], categoryFilter),
+    [recommendations, categoryFilter]
+  );
 
-  const currentPlaces: Place[] = showSearchView
-    ? (searchViewData ?? [])
-    : sections.flatMap((s) =>
-        s.data.filter((item): item is Place => 'displayName' in item)
-      );
+  const mapPlaces = useMemo(
+    (): Place[] =>
+      isSearching
+        ? filterPlacesByCategory(searchResults ?? [], categoryFilter)
+        : filterPlacesByCategory(recommendations ?? [], categoryFilter),
+    [isSearching, searchResults, recommendations, categoryFilter]
+  );
+
+  if (locationStatus === null) {
+    return (
+      <View className="flex-1 items-center justify-center">
+        <ActivityIndicator color={colors.accent[100]} />
+      </View>
+    );
+  }
 
   if (!hasApiKey || isApiKeyError) {
     return (
@@ -364,7 +314,7 @@ export default function Explore() {
           <Input
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder="Search restaurants, cafes..."
+            placeholder="Search places..."
             placeholderTextColor={colors.neutral[400]}
             style={{ color: colors.white, borderColor: colors.neutral[600] }}
             containerClassName="mb-0"
@@ -375,10 +325,10 @@ export default function Explore() {
           <ExploreEmptyMessage
             hasApiKey={hasApiKey}
             isApiKeyError={isApiKeyError}
-            sectionFilter={sectionFilter}
             hasLocation={hasLocation}
             hasLikes={hasLikes}
             isSearching={isSearching}
+            showMap={showMap}
             locationStatus={locationStatus}
           />
         </View>
@@ -391,32 +341,35 @@ export default function Explore() {
       <ExploreFilters
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        sectionFilter={sectionFilter}
-        onSectionFilterChange={setSectionFilter}
         categoryFilter={categoryFilter}
-        onCategoryFilterChange={setCategoryFilter}
+        onCategoryFilterChange={handleCategoryFilterChange}
+        showMap={showMap}
+        onToggleMap={handleToggleMap}
+        hasLocation={hasLocation}
       />
       <ExploreContent
-        sectionFilter={sectionFilter}
-        hasContent={hasContent}
-        currentPlaces={currentPlaces}
+        showMap={showMap && hasLocation}
+        mapPlaces={mapPlaces}
         showSearchView={showSearchView}
         searchViewLoading={searchViewLoading}
         searchViewEmpty={searchViewEmpty}
         searchViewData={searchViewData}
         searchQuery={searchQuery}
-        sections={sections}
-        initialLoad={initialLoad}
+        browseData={browseData}
+        browseLoading={recsPending}
         userLocation={userLocation}
         hasApiKey={hasApiKey}
         isApiKeyError={isApiKeyError}
         hasLocation={hasLocation}
         hasLikes={hasLikes}
         isSearching={isSearching}
+        showMapToggle={showMap}
         locationStatus={locationStatus}
         onPlacePress={handlePlacePress}
+        mapRefreshKey={mapRefreshKey}
+        scoreById={scoreById}
       />
-      {recommendationsOutOfDate ? (
+      {recommendationsOutOfDate && !isSearching ? (
         <Animated.View
           entering={FadeInUp.springify().damping(40).stiffness(220)}
           exiting={FadeOutDown.duration(200)}

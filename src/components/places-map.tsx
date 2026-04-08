@@ -1,4 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
@@ -14,7 +21,12 @@ type UserLocation = {
 type Props = {
   places: Place[];
   userLocation: UserLocation | null;
-  onPlacePress?: (place: Place) => void;
+  highlightedPlaceId?: string | null;
+  onMarkerPress?: (place: Place) => void;
+};
+
+export type PlacesMapHandle = {
+  fitAllMarkers: () => void;
 };
 
 const DEFAULT_DELTA = { latitudeDelta: 0.05, longitudeDelta: 0.05 };
@@ -30,98 +42,157 @@ function PlacesMapWebFallback(): React.ReactElement {
   );
 }
 
-export function PlacesMap({
-  places,
-  userLocation,
-  onPlacePress,
-}: Props): React.ReactElement {
-  const mapRef = useRef<MapView>(null);
-  const isWeb = Platform.OS === 'web';
+export const PlacesMap = React.forwardRef<PlacesMapHandle, Props>(
+  function PlacesMap(
+    { places, userLocation, highlightedPlaceId, onMarkerPress },
+    ref
+  ) {
+    const mapRef = useRef<MapView>(null);
+    const mapReadyRef = useRef(false);
+    const isWeb = Platform.OS === 'web';
+    const [pressedId, setPressedId] = useState<string | null>(null);
 
-  const placesWithLocation = places.filter(
-    (p): p is Place & { location: NonNullable<Place['location']> } =>
-      !!p.location
-  );
+    const activeHighlight = pressedId ?? highlightedPlaceId ?? null;
 
-  useEffect(() => {
-    if (isWeb || !mapRef.current) return;
+    useEffect(() => {
+      setPressedId(null);
+    }, [highlightedPlaceId]);
 
-    const coordinates = placesWithLocation.map((p) => ({
-      latitude: p.location!.latitude,
-      longitude: p.location!.longitude,
-    }));
+    const handleMarkerPress = useCallback(
+      (place: Place) => {
+        setPressedId(place.id);
+        onMarkerPress?.(place);
+      },
+      [onMarkerPress]
+    );
 
-    if (userLocation) {
-      coordinates.push({
-        latitude: userLocation.latitude,
-        longitude: userLocation.longitude,
+    const placesWithLocation = useMemo(
+      () =>
+        places.filter(
+          (p): p is Place & { location: NonNullable<Place['location']> } =>
+            !!p.location
+        ),
+      [places]
+    );
+
+    const fitMap = React.useCallback(() => {
+      if (isWeb || !mapRef.current) return;
+
+      const coordinates = placesWithLocation.map((p) => ({
+        latitude: p.location!.latitude,
+        longitude: p.location!.longitude,
+      }));
+
+      if (userLocation) {
+        coordinates.push({
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude,
+        });
+      }
+
+      if (coordinates.length === 0) return;
+
+      if (coordinates.length === 1) {
+        mapRef.current.animateToRegion(
+          {
+            latitude: coordinates[0].latitude,
+            longitude: coordinates[0].longitude,
+            latitudeDelta: 0.02,
+            longitudeDelta: 0.02,
+          },
+          300
+        );
+        return;
+      }
+
+      mapRef.current.fitToCoordinates(coordinates, {
+        edgePadding: { top: 60, right: 30, bottom: 60, left: 30 },
+        animated: true,
       });
+    }, [isWeb, placesWithLocation, userLocation]);
+
+    useImperativeHandle(ref, () => ({ fitAllMarkers: fitMap }), [fitMap]);
+
+    const handleMapReady = React.useCallback(() => {
+      mapReadyRef.current = true;
+      fitMap();
+    }, [fitMap]);
+
+    useEffect(() => {
+      if (!mapReadyRef.current) return;
+      fitMap();
+    }, [placesWithLocation, userLocation, fitMap]);
+
+    if (isWeb) {
+      return <PlacesMapWebFallback />;
     }
 
-    if (coordinates.length < 2) return;
+    const initialRegion = {
+      latitude: userLocation?.latitude ?? DEFAULT_LOCATION.latitude,
+      longitude: userLocation?.longitude ?? DEFAULT_LOCATION.longitude,
+      ...DEFAULT_DELTA,
+    };
 
-    mapRef.current.fitToCoordinates(coordinates, {
-      edgePadding: { top: 80, right: 40, bottom: 80, left: 40 },
-      animated: true,
-    });
-  }, [isWeb, placesWithLocation, userLocation]);
-
-  if (isWeb) {
-    return <PlacesMapWebFallback />;
+    return (
+      <View style={styles.container}>
+        <View style={styles.mapWrapper}>
+          <MapView
+            ref={mapRef}
+            provider={PROVIDER_GOOGLE}
+            style={styles.map}
+            initialRegion={initialRegion}
+            onMapReady={handleMapReady}
+            showsUserLocation={false}
+            showsMyLocationButton={false}
+            toolbarEnabled={false}
+            mapType="standard"
+            customMapStyle={Platform.OS !== 'web' ? darkMapStyle : undefined}
+            loadingEnabled
+            loadingIndicatorColor={colors.accent[100]}
+            loadingBackgroundColor={colors.neutral[900]}
+          >
+            {userLocation ? (
+              <Marker
+                key="__user_location__"
+                coordinate={userLocation}
+                title="You"
+                pinColor={colors.avatar.blue}
+              />
+            ) : null}
+            {placesWithLocation.map((place) => {
+              const isHighlighted = place.id === activeHighlight;
+              return (
+                <Marker
+                  key={`${place.id}-${isHighlighted}`}
+                  coordinate={{
+                    latitude: place.location!.latitude,
+                    longitude: place.location!.longitude,
+                  }}
+                  pinColor={isHighlighted ? colors.accent[100] : colors.black}
+                  zIndex={isHighlighted ? 999 : undefined}
+                  onPress={() => handleMarkerPress(place)}
+                />
+              );
+            })}
+          </MapView>
+        </View>
+      </View>
+    );
   }
-
-  const initialRegion = {
-    latitude: userLocation?.latitude ?? DEFAULT_LOCATION.latitude,
-    longitude: userLocation?.longitude ?? DEFAULT_LOCATION.longitude,
-    ...DEFAULT_DELTA,
-  };
-
-  return (
-    <View style={styles.container}>
-      <MapView
-        ref={mapRef}
-        provider={PROVIDER_GOOGLE}
-        style={styles.map}
-        initialRegion={initialRegion}
-        // Avoid showsUserLocation on Fabric: native dispatches topUserLocationChange
-        // but RN has no handler → crash. We draw the user with a Marker instead.
-        showsUserLocation={false}
-        showsMyLocationButton={false}
-        mapType="standard"
-        customMapStyle={Platform.OS !== 'web' ? darkMapStyle : undefined}
-        loadingEnabled
-        loadingIndicatorColor={colors.accent[100]}
-        loadingBackgroundColor={colors.neutral[900]}
-      >
-        {userLocation ? (
-          <Marker
-            key="__user_location__"
-            coordinate={userLocation}
-            title="You"
-            pinColor={colors.avatar.blue}
-          />
-        ) : null}
-        {placesWithLocation.map((place) => (
-          <Marker
-            key={place.id}
-            coordinate={{
-              latitude: place.location!.latitude,
-              longitude: place.location!.longitude,
-            }}
-            title={place.displayName}
-            description={place.formattedAddress}
-            pinColor={colors.accent[100]}
-            onCalloutPress={() => onPlacePress?.(place)}
-          />
-        ))}
-      </MapView>
-    </View>
-  );
-}
+);
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  mapWrapper: {
+    flex: 1,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.neutral[700],
+    overflow: 'hidden',
   },
   map: {
     width: '100%',

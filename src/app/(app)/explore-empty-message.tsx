@@ -1,27 +1,26 @@
+import Octicons from '@expo/vector-icons/Octicons';
 import React from 'react';
-import { Text } from 'react-native';
+import { Linking, Pressable, Text, View } from 'react-native';
 
 import { colors } from '@/components/ui';
-
-import type { SectionFilter } from './explore-types';
 
 type Props = {
   hasApiKey: boolean;
   isApiKeyError: boolean;
-  sectionFilter: SectionFilter;
   hasLocation: boolean;
   hasLikes: boolean;
   isSearching: boolean;
+  showMap: boolean;
   locationStatus: string | null;
 };
 
 export function ExploreEmptyMessage({
   hasApiKey,
   isApiKeyError,
-  sectionFilter,
   hasLocation,
   hasLikes,
   isSearching,
+  showMap,
   locationStatus,
 }: Props): React.ReactElement {
   if (!hasApiKey) {
@@ -45,144 +44,59 @@ export function ExploreEmptyMessage({
       </Text>
     );
   }
-  if (sectionFilter === 'nearby' && !hasLocation) {
-    const message =
-      locationStatus === 'granted'
-        ? 'Location unavailable. On the emulator, set a mock location (⋮ → Location → Set location).'
-        : 'Enable location to find places near you.';
+  if (!hasLocation && !isSearching) {
     return (
-      <Text
-        className="px-4 text-center text-base"
-        style={{ color: colors.text[800] }}
-      >
-        {message}
-      </Text>
-    );
-  }
-  if (
-    locationStatus === 'denied' &&
-    (sectionFilter === 'all' || sectionFilter === 'nearby')
-  ) {
-    return (
-      <Text
-        className="px-4 text-center text-base"
-        style={{ color: colors.text[800] }}
-      >
-        Enable location to find places near you.
-      </Text>
-    );
-  }
-  if (sectionFilter === 'favorites' && !hasLikes) {
-    return (
-      <Text
-        className="px-4 text-center text-base"
-        style={{ color: colors.text[800] }}
-      >
-        Like some places to see your favorites here.
-      </Text>
-    );
-  }
-  if (sectionFilter === 'favorites' && hasLikes) {
-    return (
-      <Text
-        className="px-4 text-center text-base"
-        style={{ color: colors.text[800] }}
-      >
-        No favorites match this category. Try a different filter.
-      </Text>
-    );
-  }
-  if (sectionFilter === 'recommended' && !hasLikes) {
-    return (
-      <Text
-        className="px-4 text-center text-base"
-        style={{ color: colors.text[800] }}
-      >
-        Like some places to get personalized recommendations.
-      </Text>
-    );
-  }
-  if (sectionFilter === 'recommended' && hasLikes) {
-    return (
-      <Text
-        className="px-4 text-center text-base"
-        style={{ color: colors.text[800] }}
-      >
-        No new recommendations right now. Like more places to improve results.
-      </Text>
-    );
-  }
-  if (sectionFilter === 'nearby' && hasLocation) {
-    return (
-      <Text
-        className="px-4 text-center text-base"
-        style={{ color: colors.text[800] }}
-      >
-        No places found nearby. Try a different category.
-      </Text>
-    );
-  }
-  if (sectionFilter === 'all' && !isSearching) {
-    return (
-      <Text
-        className="px-4 text-center text-base"
-        style={{ color: colors.text[800] }}
-      >
-        Search to discover places, or select Favorites, Recommended, or Nearby.
-      </Text>
-    );
-  }
-  if (isSearching && sectionFilter === 'favorites') {
-    if (!hasLikes) {
-      return (
+      <View className="items-center gap-3 px-4">
+        <Octicons name="location" size={32} color={colors.text[800]} />
         <Text
-          className="px-4 text-center text-base"
+          className="text-center text-base"
           style={{ color: colors.text[800] }}
         >
-          Like some places to see your favorites here.
+          Location is required for recommendations and nearby places.
         </Text>
-      );
-    }
-    return (
-      <Text
-        className="px-4 text-center text-base"
-        style={{ color: colors.text[800] }}
-      >
-        No favorites match your search.
-      </Text>
+        {locationStatus === 'denied' && (
+          <Pressable
+            onPress={() => Linking.openSettings()}
+            accessibilityRole="button"
+          >
+            <Text
+              className="text-sm font-semibold"
+              style={{ color: colors.accent[100] }}
+            >
+              Open Settings
+            </Text>
+          </Pressable>
+        )}
+      </View>
     );
   }
-  if (isSearching && sectionFilter === 'recommended') {
-    if (!hasLikes) {
-      return (
+  if (showMap && !hasLocation) {
+    return (
+      <View className="items-center gap-3 px-4">
+        <Octicons name="location" size={32} color={colors.text[800]} />
         <Text
-          className="px-4 text-center text-base"
+          className="text-center text-base"
           style={{ color: colors.text[800] }}
         >
-          Like some places to get personalized recommendations.
+          Enable location to view the nearby map.
         </Text>
-      );
-    }
-    return (
-      <Text
-        className="px-4 text-center text-base"
-        style={{ color: colors.text[800] }}
-      >
-        No recommendations match your search.
-      </Text>
+        {locationStatus === 'denied' && (
+          <Pressable
+            onPress={() => Linking.openSettings()}
+            accessibilityRole="button"
+          >
+            <Text
+              className="text-sm font-semibold"
+              style={{ color: colors.accent[100] }}
+            >
+              Open Settings
+            </Text>
+          </Pressable>
+        )}
+      </View>
     );
   }
-  if (isSearching && sectionFilter === 'nearby' && !hasLocation) {
-    return (
-      <Text
-        className="px-4 text-center text-base"
-        style={{ color: colors.text[800] }}
-      >
-        Enable location to search nearby places.
-      </Text>
-    );
-  }
-  if (isSearching && (sectionFilter === 'all' || sectionFilter === 'nearby')) {
+  if (isSearching) {
     return (
       <Text
         className="px-4 text-center text-base"
@@ -192,12 +106,22 @@ export function ExploreEmptyMessage({
       </Text>
     );
   }
+  if (!hasLikes) {
+    return (
+      <Text
+        className="px-4 text-center text-base"
+        style={{ color: colors.text[800] }}
+      >
+        Like some places to get personalized recommendations.
+      </Text>
+    );
+  }
   return (
     <Text
       className="px-4 text-center text-base"
       style={{ color: colors.text[800] }}
     >
-      Like some places to get personalized recommendations, or search above.
+      No recommendations right now. Like more places to improve results.
     </Text>
   );
 }

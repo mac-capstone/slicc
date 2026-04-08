@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 const PLACES_BASE = 'https://places.googleapis.com/v1/places';
 const FIELD_MASK =
-  'places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.name,places.primaryType,places.types,places.priceLevel';
+  'places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.name,places.primaryType,places.types,places.priceLevel,places.regularOpeningHours';
 
 export type PriceLevel =
   | 'FREE'
@@ -21,6 +21,11 @@ type PlaceDisplayName = {
   text?: string;
 };
 
+export type PlaceOpeningHours = {
+  openNow?: boolean;
+  weekdayDescriptions?: string[];
+};
+
 export type Place = {
   id: string;
   displayName: string;
@@ -31,6 +36,8 @@ export type Place = {
   primaryType?: string;
   types?: string[];
   priceLevel?: PriceLevel;
+  nationalPhoneNumber?: string;
+  regularOpeningHours?: PlaceOpeningHours;
 };
 
 type PlacesApiPlace = {
@@ -44,6 +51,8 @@ type PlacesApiPlace = {
   types?: string[];
   /** API may return `MODERATE` or `PRICE_LEVEL_MODERATE` */
   priceLevel?: string;
+  nationalPhoneNumber?: string;
+  regularOpeningHours?: { openNow?: boolean; weekdayDescriptions?: string[] };
 };
 
 function normalizePriceLevel(raw: unknown): PriceLevel | undefined {
@@ -128,6 +137,8 @@ function mapPlace(raw: PlacesApiPlace): Place {
     primaryType: raw.primaryType,
     types: raw.types,
     priceLevel: normalizePriceLevel(raw.priceLevel),
+    nationalPhoneNumber: raw.nationalPhoneNumber,
+    regularOpeningHours: raw.regularOpeningHours,
   };
 }
 
@@ -238,7 +249,7 @@ export async function getPlaceDetails(placeId: string): Promise<Place | null> {
       'Content-Type': 'application/json',
       'X-Goog-Api-Key': getApiKey(),
       'X-Goog-FieldMask':
-        'id,name,displayName,formattedAddress,location,rating,userRatingCount,primaryType,types,priceLevel',
+        'id,name,displayName,formattedAddress,location,rating,userRatingCount,primaryType,types,priceLevel,nationalPhoneNumber,regularOpeningHours',
     },
   });
   if (!res.ok) {

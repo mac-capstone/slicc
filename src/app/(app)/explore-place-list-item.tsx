@@ -7,12 +7,16 @@ type Props = {
   item: Place;
   userLocation: { latitude: number; longitude: number } | null;
   onPress: (place: Place) => void;
+  isHighlighted?: boolean;
+  matchScore?: number;
 };
 
 export function PlaceListItem({
   item,
   userLocation,
   onPress,
+  isHighlighted,
+  matchScore,
 }: Props): React.ReactElement {
   return (
     <PlaceCard
@@ -20,6 +24,8 @@ export function PlaceListItem({
       userLocation={userLocation}
       showRatingButtons={true}
       onPress={() => onPress(item)}
+      isHighlighted={isHighlighted}
+      matchScore={matchScore}
     />
   );
 }

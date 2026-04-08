@@ -1,21 +1,26 @@
+import { Platform } from 'react-native';
+
 import type { Place } from '@/api/places/places-api';
 
 /**
- * Opens Google Maps for a place. Prefers Place ID when available, then
- * coordinates, then a text search.
+ * Build a platform-native maps URL for a place.
+ * Android: `geo:` URI triggers the system maps chooser (Google Maps, Waze, etc.).
+ * iOS: Apple Maps URL.
  */
 export function buildGoogleMapsPlaceUrl(place: Place): string {
-  const id = place.id?.trim() ?? '';
-  const isLikelyGooglePlaceId = id.length > 0 && !/^[0-9a-f-]{36}$/i.test(id);
+  const label = place.displayName;
 
-  if (isLikelyGooglePlaceId) {
-    return `https://www.google.com/maps/search/?api=1&query_place_id=${encodeURIComponent(id)}`;
+  if (Platform.OS === 'ios') {
+    if (place.location) {
+      const { latitude, longitude } = place.location;
+      return `maps:0,0?q=${encodeURIComponent(label)}&ll=${latitude},${longitude}`;
+    }
+    return `maps:0,0?q=${encodeURIComponent(label)}`;
   }
 
   if (place.location) {
-    const q = `${place.location.latitude},${place.location.longitude}`;
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+    const { latitude, longitude } = place.location;
+    return `geo:${latitude},${longitude}?q=${latitude},${longitude}(${encodeURIComponent(label)})`;
   }
-
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.displayName)}`;
+  return `geo:0,0?q=${encodeURIComponent(label)}`;
 }

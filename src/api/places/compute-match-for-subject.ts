@@ -1,4 +1,4 @@
-import { fetchPublicDietaryPreferencesByUserIds } from '@/api/people/user-api';
+import { fetchDietaryPreferencesByUserIds } from '@/api/people/user-api';
 import {
   getUsersWhoLikedPlace,
   type UserPlaceLikesDoc,
@@ -116,8 +116,7 @@ export async function fetchPlaceMatchSignals(
     const peerIds = [...new Set(uniqueByUserId.map((d) => d.id))].filter(
       (id) => id !== userId
     );
-    const dietaryByUserId =
-      await fetchPublicDietaryPreferencesByUserIds(peerIds);
+    const dietaryByUserId = await fetchDietaryPreferencesByUserIds(peerIds);
     const peerMap = computeDietaryPeerScoresByPlaceId({
       placeToUsers,
       viewerUserId: userId,
@@ -135,7 +134,7 @@ export type ComputeMatchForSubjectParams = {
   place: Place;
   subjectUserId: string;
   likedPlaces: Place[];
-  userLocation: { latitude: number; longitude: number };
+  userLocation: { latitude: number; longitude: number } | null;
   ratedPlaceIds: Set<string>;
   subjectDietaryPreferenceIds: string[];
 };
@@ -182,6 +181,7 @@ export async function computeMatchForSubject(
     collabScoreById: collabMap,
     viewerDietaryActive: subjectDiet.length > 0,
     dietaryScoreById: subjectDiet.length > 0 ? dietaryMap : undefined,
+    viewerDietaryIds: subjectDiet.length > 0 ? subjectDiet : undefined,
   };
 
   const breakdown = getPlaceMatchBreakdown(place, ctx);
@@ -192,7 +192,7 @@ export async function computeMatchForSubject(
 export function computePlaceMatchBreakdownContentOnly(
   place: Place,
   likedPlaces: Place[],
-  userLocation: { latitude: number; longitude: number }
+  userLocation: { latitude: number; longitude: number } | null
 ): PlaceMatchBreakdown | null {
   if (likedPlaces.length === 0) return null;
 

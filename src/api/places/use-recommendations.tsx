@@ -1,20 +1,23 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
-import { fetchPublicDietaryPreferencesByUserIds } from '@/api/people/user-api';
+import { fetchDietaryPreferencesByUserIds } from '@/api/people/user-api';
 import {
   getUsersWhoLikedPlace,
   type UserPlaceLikesDoc,
 } from '@/api/places/place-likes-api';
 import { normalizeDietaryPreferenceIds } from '@/lib/dietary-preference-options';
 import { DEFAULT_LOCATION } from '@/lib/geo';
+import type { PlaceRating } from '@/lib/place-preferences';
 import {
   buildPlaceToUsersMap,
   type CompositeRankingContext,
   computeDietaryPeerScoresByPlaceId,
+  deduplicateByName,
   inferPlaceTypes,
   inferPriceRange,
   mergeWithRrf,
+  type RankedPlacesResult,
   rankPlacesByCompositeScore,
   rankPlacesByContentRelevance,
   RECOMMENDATION_FALLBACK_TYPES,
@@ -42,6 +45,8 @@ const MERGE_WITH_CONTENT_BELOW = 12;
 /** Places API (New) allows maxResultCount 1–20 only */
 const CONTENT_SEARCH_MAX_RESULTS = 20;
 const COLLAB_CANDIDATE_TOP_N = 24;
+/** Accumulate candidates across tiers until at least this many unique places. */
+const MIN_CONTENT_CANDIDATES = 10;
 
 const REC_DEBUG = '[recommendations:debug]';
 
@@ -66,6 +71,8 @@ type UseRecommendationsParams = {
   userId: string | null;
   /** Normalized dietary IDs for peer affinity (local settings / public profile). */
   viewerDietaryPreferenceIds: string[];
+  /** Viewer’s ratings (up/neutral/down) — adjusts composite via self-rating multipliers. */
+  placeRatings: Record<string, PlaceRating>;
   enabled?: boolean;
 };
 
@@ -81,26 +88,25 @@ function buildContentSearchTiers(likedPlaces: Place[]): ContentSearchTier[] {
   const usePrice = !!(priceRange?.length && priceRange.length < 4);
 
   return [
-    { types: inferred, usePriceFilter: usePrice, radiusMeters: 5000 },
-    { types: inferred, usePriceFilter: false, radiusMeters: 5000 },
+    { types: inferred, usePriceFilter: usePrice, radiusMeters: 10000 },
+    { types: inferred, usePriceFilter: false, radiusMeters: 10000 },
     {
       types: [...RECOMMENDATION_FALLBACK_TYPES],
       usePriceFilter: usePrice,
-      radiusMeters: 5000,
+      radiusMeters: 10000,
     },
     {
       types: [...RECOMMENDATION_FALLBACK_TYPES],
       usePriceFilter: false,
-      radiusMeters: 5000,
+      radiusMeters: 10000,
     },
-    { types: inferred, usePriceFilter: false, radiusMeters: 15000 },
+    { types: inferred, usePriceFilter: false, radiusMeters: 25000 },
     {
       types: [...RECOMMENDATION_FALLBACK_TYPES],
       usePriceFilter: false,
-      radiusMeters: 15000,
+      radiusMeters: 25000,
     },
-    /** No type filter — supported Nearby types from likes can still return 0 rows. */
-    { types: [], usePriceFilter: false, radiusMeters: 15000 },
+    { types: [], usePriceFilter: false, radiusMeters: 25000 },
     { types: [], usePriceFilter: false, radiusMeters: 50000 },
   ];
 }
@@ -129,6 +135,8 @@ async function contentBasedRecommendations(
     tierCount: tiers.length,
     hasPlacesApiKey: hasPlacesApiKey(),
   });
+
+  const accumulated = new Map<string, Place>();
 
   for (let tierIndex = 0; tierIndex < tiers.length; tierIndex++) {
     const tier = tiers[tierIndex];
@@ -173,6 +181,9 @@ async function contentBasedRecommendations(
     if (tier.usePriceFilter) {
       filtered = applyPriceFilter(filtered, likedPlaces);
     }
+    for (const p of filtered) {
+      if (!accumulated.has(p.id)) accumulated.set(p.id, p);
+    }
     recDebug('content tier', {
       tierIndex,
       radiusMeters: tier.radiusMeters,
@@ -182,15 +193,32 @@ async function contentBasedRecommendations(
       afterExcludingRated: afterRated.length,
       ratedPlaceIdsSize: ratedPlaceIds.size,
       afterPriceFilterIfApplied: filtered.length,
+      accumulatedTotal: accumulated.size,
     });
-    if (filtered.length > 0) {
-      recDebug('content branch hit', { tierIndex });
-      const { ranked, contentScoreById } = rankPlacesByContentRelevance(
-        likedPlaces,
-        filtered
-      );
-      return { places: ranked, contentScoreById };
+    if (accumulated.size >= MIN_CONTENT_CANDIDATES) {
+      recDebug('content branch hit min candidates', {
+        tierIndex,
+        accumulatedTotal: accumulated.size,
+      });
+      break;
     }
+  }
+
+  const candidates = deduplicateByName(
+    [...accumulated.values()],
+    searchLocation
+  );
+
+  if (candidates.length > 0) {
+    recDebug('content branch ranking', {
+      beforeDedup: accumulated.size,
+      afterDedup: candidates.length,
+    });
+    const { ranked, contentScoreById } = rankPlacesByContentRelevance(
+      likedPlaces,
+      candidates
+    );
+    return { places: ranked, contentScoreById };
   }
 
   recDebug('content branch exhausted all tiers — no candidates', {
@@ -204,24 +232,34 @@ type RunPipelineParams = {
   contentBranch: ContentBranchResult;
   likedPlaces: Place[];
   searchLocation: { latitude: number; longitude: number };
+  /** Actual user location (null when denied); used for distance scoring only. */
+  rankingLocation: { latitude: number; longitude: number } | null;
   userId: string | null;
   useCollaborative: boolean;
   ratedPlaceIds: Set<string>;
   viewerDietaryPreferenceIds: string[];
+  selfRatingById: Map<string, PlaceRating>;
+};
+
+export type RecommendationResult = {
+  places: Place[];
+  scoreById: Map<string, number>;
 };
 
 async function runRecommendationPipeline(
   params: RunPipelineParams
-): Promise<Place[]> {
+): Promise<RecommendationResult> {
   const {
     runId,
     contentBranch,
     likedPlaces,
     searchLocation,
+    rankingLocation,
     userId,
     useCollaborative,
     ratedPlaceIds,
     viewerDietaryPreferenceIds,
+    selfRatingById,
   } = params;
 
   const viewerDiet = normalizeDietaryPreferenceIds(viewerDietaryPreferenceIds);
@@ -231,22 +269,34 @@ async function runRecommendationPipeline(
     contentScoreById: Map<string, number>,
     collabScoreById: Map<string, number>
   ): CompositeRankingContext => ({
-    userLocation: searchLocation,
+    userLocation: rankingLocation,
     contentScoreById,
     collabScoreById,
     viewerDietaryActive: viewerDiet.length > 0,
     dietaryScoreById: viewerDiet.length > 0 ? dietaryScoreById : undefined,
+    viewerDietaryIds: viewerDiet.length > 0 ? viewerDiet : undefined,
+    selfRatingById: selfRatingById.size > 0 ? selfRatingById : undefined,
   });
 
   const finalize = (
     places: Place[],
     contentScoreById: Map<string, number>,
     collabScoreById: Map<string, number>
-  ): Place[] =>
-    rankPlacesByCompositeScore(
+  ): RecommendationResult => {
+    const result: RankedPlacesResult = rankPlacesByCompositeScore(
       places,
       makeRankingCtx(contentScoreById, collabScoreById)
-    ).slice(0, MAX_RECOMMENDATION_RESULTS);
+    );
+    return {
+      places: result.ranked.slice(0, MAX_RECOMMENDATION_RESULTS),
+      scoreById: result.scoreById,
+    };
+  };
+
+  const EMPTY_RESULT: RecommendationResult = {
+    places: [],
+    scoreById: new Map(),
+  };
 
   if (!useCollaborative) {
     if (contentBranch.places.length === 0) {
@@ -254,7 +304,7 @@ async function runRecommendationPipeline(
         runId,
         reason: 'guest_user or missing userId',
       });
-      return [];
+      return EMPTY_RESULT;
     }
     const out = finalize(
       contentBranch.places,
@@ -263,7 +313,7 @@ async function runRecommendationPipeline(
     );
     recDebug('return (content-only / no collab)', {
       runId,
-      resultCount: out.length,
+      resultCount: out.places.length,
     });
     return out;
   }
@@ -290,8 +340,7 @@ async function runRecommendationPipeline(
     const peerIds = [...new Set(uniqueByUserId.map((d) => d.id))].filter(
       (id) => id !== userId
     );
-    const dietaryByUserId =
-      await fetchPublicDietaryPreferencesByUserIds(peerIds);
+    const dietaryByUserId = await fetchDietaryPreferencesByUserIds(peerIds);
     dietaryScoreById = computeDietaryPeerScoresByPlaceId({
       placeToUsers,
       viewerUserId: userId,
@@ -328,7 +377,7 @@ async function runRecommendationPipeline(
     });
     if (contentBranch.places.length === 0) {
       recDebug('return [] — no collab candidates and content empty', { runId });
-      return [];
+      return EMPTY_RESULT;
     }
     const out = finalize(
       contentBranch.places,
@@ -337,7 +386,7 @@ async function runRecommendationPipeline(
     );
     recDebug('return (fallback: collab empty, content only)', {
       runId,
-      resultCount: out.length,
+      resultCount: out.places.length,
     });
     return out;
   }
@@ -372,6 +421,12 @@ async function runRecommendationPipeline(
     });
   }
 
+  collaborativePlaces = deduplicateByName(collaborativePlaces, searchLocation);
+  recDebug('collab dedup', {
+    runId,
+    afterDedup: collaborativePlaces.length,
+  });
+
   if (collaborativePlaces.length === 0) {
     recDebug('collaborative list empty after details/price', {
       runId,
@@ -384,7 +439,7 @@ async function runRecommendationPipeline(
           runId,
         }
       );
-      return [];
+      return EMPTY_RESULT;
     }
     const out = finalize(
       contentBranch.places,
@@ -393,7 +448,7 @@ async function runRecommendationPipeline(
     );
     recDebug('return (fallback: collab places empty after API)', {
       runId,
-      resultCount: out.length,
+      resultCount: out.places.length,
     });
     return out;
   }
@@ -413,7 +468,10 @@ async function runRecommendationPipeline(
       contentBranch.contentScoreById,
       collabScoreById
     );
-    recDebug('return (collaborative only)', { runId, resultCount: out.length });
+    recDebug('return (collaborative only)', {
+      runId,
+      resultCount: out.places.length,
+    });
     return out;
   }
 
@@ -432,8 +490,19 @@ async function runRecommendationPipeline(
     contentBranch.contentScoreById,
     collabScoreById
   );
-  recDebug('return (after RRF)', { runId, resultCount: out.length });
+  recDebug('return (after RRF)', { runId, resultCount: out.places.length });
   return out;
+}
+
+function selfRatingRecordToMap(
+  record: Record<string, PlaceRating>
+): Map<string, PlaceRating> {
+  const m = new Map<string, PlaceRating>();
+  for (const id of Object.keys(record)) {
+    const r = record[id];
+    if (r !== undefined) m.set(id, r);
+  }
+  return m;
 }
 
 export function useRecommendations({
@@ -442,6 +511,7 @@ export function useRecommendations({
   ratedPlaceIds,
   userId,
   viewerDietaryPreferenceIds,
+  placeRatings,
   enabled = true,
 }: UseRecommendationsParams) {
   const hasLikes = likedPlaces.length > 0;
@@ -459,6 +529,15 @@ export function useRecommendations({
     [viewerDietaryPreferenceIds]
   );
 
+  const placeRatingsKey = useMemo(
+    () =>
+      Object.keys(placeRatings)
+        .sort()
+        .map((id) => `${id}:${placeRatings[id]}`)
+        .join(','),
+    [placeRatings]
+  );
+
   return useQuery({
     queryKey: [
       'recommendations',
@@ -468,12 +547,13 @@ export function useRecommendations({
         .join(','),
       ratedIdsKey,
       dietaryIdsKey,
+      placeRatingsKey,
       searchLocation.latitude,
       searchLocation.longitude,
       userId ?? 'guest',
     ],
-    queryFn: async (): Promise<Place[]> => {
-      if (!hasLikes) return [];
+    queryFn: async (): Promise<RecommendationResult> => {
+      if (!hasLikes) return { places: [], scoreById: new Map() };
 
       const runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
       recDebug('queryFn start', {
@@ -502,10 +582,12 @@ export function useRecommendations({
           contentBranch,
           likedPlaces,
           searchLocation,
+          rankingLocation: userLocation ?? null,
           userId,
           useCollaborative,
           ratedPlaceIds,
           viewerDietaryPreferenceIds,
+          selfRatingById: selfRatingRecordToMap(placeRatings),
         });
       } catch (err) {
         if (isPlacesApiConfigError(err)) {

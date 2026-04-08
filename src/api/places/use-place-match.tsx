@@ -2,17 +2,15 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
 import { fetchPlaceMatchSignals } from '@/api/places/compute-match-for-subject';
-import { DEFAULT_LOCATION } from '@/lib/geo';
-import { getDietaryPreferenceIds } from '@/lib/hooks/use-user-settings';
+import type { Place } from '@/api/places/places-api';
+import { useUserSettings } from '@/lib/hooks/use-user-settings';
+import type { PlaceRating } from '@/lib/place-preferences';
 import {
   type CompositeRankingContext,
   getPlaceMatchBreakdown,
   type PlaceMatchBreakdown,
   rankPlacesByContentRelevance,
 } from '@/lib/recommendation-utils';
-import type { UserIdT } from '@/types';
-
-import type { Place } from './places-api';
 
 const STALE_TIME = 60 * 60 * 1000;
 const GC_TIME = 24 * 60 * 60 * 1000;
@@ -23,6 +21,7 @@ export type UsePlaceMatchParams = {
   userLocation: { latitude: number; longitude: number } | null;
   userId: string | null;
   ratedPlaceIds: Set<string>;
+  placeRating?: PlaceRating;
   enabled?: boolean;
 };
 
@@ -32,6 +31,8 @@ export type UsePlaceMatchResult = {
   isCollabPending: boolean;
   isCollabEnabled: boolean;
   collabError: boolean;
+  /** True while collaborative signals are fetching or refetching */
+  isMatchSignalsFetching: boolean;
 };
 
 export function usePlaceMatch({
@@ -40,64 +41,81 @@ export function usePlaceMatch({
   userLocation,
   userId,
   ratedPlaceIds,
+  placeRating,
   enabled = true,
 }: UsePlaceMatchParams): UsePlaceMatchResult {
   const hasLikes = likedPlaces.length > 0;
-  const searchLocation = userLocation ?? DEFAULT_LOCATION;
-  const useCollaborative = !!userId && userId !== 'guest_user' && hasLikes;
+
+  const profilePlaces = useMemo(
+    () => likedPlaces.filter((p) => p.id !== place.id),
+    [likedPlaces, place.id]
+  );
+
+  const hasProfile = profilePlaces.length > 0;
+  const useCollaborative = !!userId && userId !== 'guest_user' && hasProfile;
 
   const contentScoreById = useMemo(() => {
-    if (!hasLikes) return new Map<string, number>();
+    if (!hasProfile) return new Map<string, number>();
     const { contentScoreById: map } = rankPlacesByContentRelevance(
-      likedPlaces,
+      profilePlaces,
       [place]
     );
     return map;
-  }, [place, likedPlaces, hasLikes]);
+  }, [place, profilePlaces, hasProfile]);
 
-  const likedIdsKey = useMemo(
+  const profileIdsKey = useMemo(
     () =>
-      likedPlaces
+      profilePlaces
         .map((p) => p.id)
         .sort()
         .join(','),
-    [likedPlaces]
+    [profilePlaces]
   );
+
+  const ratedIdsExcludingSelf = useMemo(() => {
+    const ids = new Set(ratedPlaceIds);
+    ids.delete(place.id);
+    return ids;
+  }, [ratedPlaceIds, place.id]);
 
   const ratedIdsKey = useMemo(
-    () => Array.from(ratedPlaceIds).sort().join(','),
-    [ratedPlaceIds]
+    () => Array.from(ratedIdsExcludingSelf).sort().join(','),
+    [ratedIdsExcludingSelf]
   );
 
-  const viewerDietaryPreferenceIds = useMemo(
-    () => getDietaryPreferenceIds((userId ?? null) as UserIdT | null),
-    [userId]
-  );
+  const { dietaryPreferenceIds: viewerDietaryPreferenceIds } =
+    useUserSettings();
 
   const dietaryIdsKey = useMemo(
     () => [...viewerDietaryPreferenceIds].sort().join(','),
     [viewerDietaryPreferenceIds]
   );
 
+  const selfRatingById = useMemo((): Map<string, PlaceRating> | undefined => {
+    if (placeRating === undefined) return undefined;
+    return new Map([[place.id, placeRating]]);
+  }, [place.id, placeRating]);
+
   const {
     data: matchSignals,
     isPending: isCollabPending,
+    isFetching: isMatchSignalsFetching,
     isError: collabError,
   } = useQuery({
     queryKey: [
       'place-match-signals',
       place.id,
       userId ?? 'guest',
-      likedIdsKey,
+      profileIdsKey,
       ratedIdsKey,
       dietaryIdsKey,
     ],
     queryFn: () =>
       fetchPlaceMatchSignals({
         placeId: place.id,
-        likedPlaces,
+        likedPlaces: profilePlaces,
         userId: userId!,
-        ratedPlaceIds,
+        ratedPlaceIds: ratedIdsExcludingSelf,
         subjectDietaryPreferenceIds: viewerDietaryPreferenceIds,
       }),
     enabled: enabled && useCollaborative && !!userId && userId !== 'guest_user',
@@ -129,25 +147,31 @@ export function usePlaceMatch({
     }
 
     const ctx: CompositeRankingContext = {
-      userLocation: searchLocation,
+      userLocation,
       contentScoreById,
       collabScoreById: collabMap,
       viewerDietaryActive: viewerDietaryPreferenceIds.length > 0,
       dietaryScoreById:
         viewerDietaryPreferenceIds.length > 0 ? dietaryMap : undefined,
+      viewerDietaryIds:
+        viewerDietaryPreferenceIds.length > 0
+          ? viewerDietaryPreferenceIds
+          : undefined,
+      selfRatingById,
     };
 
     return getPlaceMatchBreakdown(place, ctx);
   }, [
     place,
     hasLikes,
-    searchLocation,
+    userLocation,
     contentScoreById,
     useCollaborative,
     isCollabPending,
     collabError,
     matchSignals,
     viewerDietaryPreferenceIds,
+    selfRatingById,
   ]);
 
   return {
@@ -156,5 +180,6 @@ export function usePlaceMatch({
     isCollabPending: useCollaborative && isCollabPending,
     isCollabEnabled: useCollaborative,
     collabError,
+    isMatchSignalsFetching: useCollaborative && isMatchSignalsFetching,
   };
 }

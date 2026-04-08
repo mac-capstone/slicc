@@ -9,7 +9,6 @@ import {
 import { getPlaceLikesForUser } from '@/api/places/place-likes-api';
 import { getPlaceDetailsBatch, hasPlacesApiKey } from '@/api/places/places-api';
 import { normalizeDietaryPreferenceIds } from '@/lib/dietary-preference-options';
-import { DEFAULT_LOCATION } from '@/lib/geo';
 import { meanOfNumbers } from '@/lib/mean-group-score';
 import type { GroupIdT, UserIdT } from '@/types';
 
@@ -55,10 +54,12 @@ export type UsePlaceSocialMatchResult = {
 async function fetchFriendPlaceMatch(params: {
   place: Place;
   friendId: UserIdT;
-  userLocation: { latitude: number; longitude: number };
+  userLocation: { latitude: number; longitude: number } | null;
   viewerUserId: string | null;
 }): Promise<FriendPlaceMatchRow | null> {
   const { place, friendId, userLocation, viewerUserId } = params;
+  if (!userLocation) return null;
+
   const rawIds = await getPlaceLikesForUser(friendId);
   if (rawIds.length === 0) return null;
 
@@ -72,13 +73,17 @@ async function fetchFriendPlaceMatch(params: {
   try {
     const user = await fetchUser(friendId, viewerUserId);
     displayName = user.displayName?.trim() || 'Unknown';
-    const fromPrivate =
-      viewerUserId === friendId && user.dietaryPreferences?.length
-        ? user.dietaryPreferences
-        : (user.dietaryPreferenceIds ?? []);
-    subjectDietaryPreferenceIds = normalizeDietaryPreferenceIds(fromPrivate);
-  } catch {
-    // keep fallback
+    subjectDietaryPreferenceIds = normalizeDietaryPreferenceIds(
+      user.dietaryPreferences ?? []
+    );
+  } catch (err) {
+    if (__DEV__) {
+      console.error('[place-social-match] fetchUser failed', {
+        friendId,
+        viewerUserId,
+        err,
+      });
+    }
   }
 
   const match = await computeMatchForSubject({
@@ -101,9 +106,11 @@ async function fetchFriendPlaceMatch(params: {
 async function fetchGroupPlaceMatch(params: {
   place: Place;
   groupId: GroupIdT;
-  userLocation: { latitude: number; longitude: number };
+  userLocation: { latitude: number; longitude: number } | null;
 }): Promise<GroupPlaceMatchRow | null> {
   const { place, groupId, userLocation } = params;
+  if (!userLocation) return null;
+
   const group = await fetchGroup(groupId);
   const composites: number[] = [];
 
@@ -142,8 +149,8 @@ export function usePlaceSocialMatch({
   userLocation,
   enabled,
 }: UsePlaceSocialMatchParams): UsePlaceSocialMatchResult {
-  const loc = userLocation ?? DEFAULT_LOCATION;
-  const canRun = enabled && hasPlacesApiKey();
+  const loc = userLocation ?? null;
+  const canRun = enabled && hasPlacesApiKey() && loc != null;
 
   const cappedFriendIds = friendUserIds.slice(0, MAX_FRIENDS_TO_SCORE);
   const cappedGroupIds = groupIds.slice(0, MAX_GROUPS_TO_SCORE);
@@ -151,13 +158,15 @@ export function usePlaceSocialMatch({
   const friendQueries = useQueries({
     queries: cappedFriendIds.map((friendId) => ({
       queryKey: ['place-social-match', 'friend', friendId, place.id] as const,
-      queryFn: () =>
-        fetchFriendPlaceMatch({
+      queryFn: () => {
+        if (loc == null) return Promise.resolve(null);
+        return fetchFriendPlaceMatch({
           place,
           friendId,
           userLocation: loc,
           viewerUserId,
-        }),
+        });
+      },
       enabled: canRun && cappedFriendIds.length > 0,
       staleTime: STALE_TIME,
       gcTime: GC_TIME,
@@ -167,8 +176,10 @@ export function usePlaceSocialMatch({
   const groupQueries = useQueries({
     queries: cappedGroupIds.map((groupId) => ({
       queryKey: ['place-social-match', 'group', groupId, place.id] as const,
-      queryFn: () =>
-        fetchGroupPlaceMatch({ place, groupId, userLocation: loc }),
+      queryFn: () => {
+        if (loc == null) return Promise.resolve(null);
+        return fetchGroupPlaceMatch({ place, groupId, userLocation: loc });
+      },
       enabled: canRun && cappedGroupIds.length > 0,
       staleTime: STALE_TIME,
       gcTime: GC_TIME,

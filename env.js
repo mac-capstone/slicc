@@ -70,8 +70,6 @@ const envSchema = z.object({
   EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID: z.string().min(1),
   EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: z.string().min(1),
   EXPO_PUBLIC_GOOGLE_PLACES_API_KEY: z.string().optional(),
-  /** Full URL to POST /api/extract-receipt (see /server). Gemini key stays on the server. */
-  EXPO_PUBLIC_RECEIPT_EXTRACTION_URL: z.string().optional(),
 });
 
 /**
@@ -104,8 +102,6 @@ const _env = {
   EXPO_PUBLIC_GOOGLE_PLACES_API_KEY:
     process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY ??
     process.env.GOOGLE_PLACES_API_KEY,
-  EXPO_PUBLIC_RECEIPT_EXTRACTION_URL:
-    process.env.EXPO_PUBLIC_RECEIPT_EXTRACTION_URL,
 };
 
 /**

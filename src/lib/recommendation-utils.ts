@@ -2,6 +2,7 @@ import type { UserPlaceLikesDoc } from '@/api/places/place-likes-api';
 import type { Place, PriceLevel } from '@/api/places/places-api';
 import { normalizeDietaryPreferenceIds } from '@/lib/dietary-preference-options';
 import { haversineDistance } from '@/lib/geo';
+import type { PlaceRating } from '@/lib/place-preferences';
 
 /**
  * Broad types when inferred types return no nearby results (sparse area) or when
@@ -18,6 +19,37 @@ export const RECOMMENDATION_FALLBACK_TYPES = [
 
 const DEFAULT_TYPES = [...RECOMMENDATION_FALLBACK_TYPES];
 const MAX_TYPES = 3;
+
+/**
+ * Meta / "Table B" types the Places API returns on places but rejects
+ * when used as `includedTypes` in Nearby Search requests.
+ */
+const UNSUPPORTED_INCLUDED_TYPES = new Set([
+  'point_of_interest',
+  'establishment',
+  'food',
+  'store',
+  'health',
+  'political',
+  'locality',
+  'sublocality',
+  'route',
+  'street_address',
+  'premise',
+  'subpremise',
+  'floor',
+  'room',
+  'post_box',
+  'postal_code',
+  'postal_town',
+  'geocode',
+  'natural_feature',
+  'country',
+  'administrative_area_level_1',
+  'administrative_area_level_2',
+  'colloquial_area',
+  'neighborhood',
+]);
 
 /** RRF constant k (rank fusion); common default ~60 */
 export const RRF_K = 60;
@@ -55,12 +87,81 @@ export const COMPOSITE_WEIGHTS_WITH_DIETARY = {
   dietary: W4_DIETARY,
 } as const;
 
+/** Proportional self-rating multipliers applied to the composite score. */
+export const SELF_RATING_MULTIPLIER_UP = 1.1;
+export const SELF_RATING_MULTIPLIER_NEUTRAL = 0.95;
+export const SELF_RATING_MULTIPLIER_DOWN = 0.8;
+
 /** Bayesian prior for star ratings when review count is low */
 const BAYESIAN_PRIOR_RATING = 3.5;
 const BAYESIAN_PRIOR_WEIGHT = 8;
 
 /** Distance decay scale (km); smaller = stronger preference for nearby */
-const DISTANCE_DECAY_KM = 15;
+const DISTANCE_DECAY_KM = 30;
+
+/** Google Place types that directly indicate a dietary category. */
+const PLACE_TYPE_TO_DIETARY: Record<string, string> = {
+  halal_restaurant: 'halal',
+  vegetarian_restaurant: 'vegetarian',
+  vegan_restaurant: 'vegan',
+};
+
+/**
+ * Fraction of the viewer's dietary preferences satisfied by the place's Google types.
+ * Returns 0 when no types match or the viewer has no dietary preferences.
+ */
+export function placeTypeDietaryScore(
+  place: Place,
+  viewerDietaryIds: string[]
+): number {
+  if (viewerDietaryIds.length === 0) return 0;
+  const viewerSet = new Set(viewerDietaryIds);
+  const types = getPlaceTypeTerms(place);
+  let matched = 0;
+  for (const t of types) {
+    const diet = PLACE_TYPE_TO_DIETARY[t];
+    if (diet && viewerSet.has(diet)) matched++;
+  }
+  return matched > 0 ? matched / viewerSet.size : 0;
+}
+
+/**
+ * Keep only one instance per displayName (case-insensitive), preferring the
+ * location closest to the user. Prevents chains from dominating the list.
+ */
+export function deduplicateByName(
+  places: Place[],
+  userLocation: { latitude: number; longitude: number }
+): Place[] {
+  const groups = new Map<string, Place>();
+  const distances = new Map<string, number>();
+  for (const p of places) {
+    const key = p.displayName.trim().toLowerCase();
+    const dist = p.location
+      ? haversineDistance(
+          userLocation.latitude,
+          userLocation.longitude,
+          p.location.latitude,
+          p.location.longitude
+        )
+      : Infinity;
+    const existing = distances.get(key);
+    if (existing === undefined || dist < existing) {
+      groups.set(key, p);
+      distances.set(key, dist);
+    }
+  }
+  return [...groups.values()];
+}
+
+export function getSelfRatingMultiplier(
+  rating: PlaceRating | undefined
+): number {
+  if (rating === 'up') return SELF_RATING_MULTIPLIER_UP;
+  if (rating === 'neutral') return SELF_RATING_MULTIPLIER_NEUTRAL;
+  if (rating === 'down') return SELF_RATING_MULTIPLIER_DOWN;
+  return 1;
+}
 
 /**
  * Extract a usable place type from a Place (primaryType or first from types).
@@ -102,7 +203,7 @@ export function inferPlaceTypes(likedPlaces: Place[]): string[] {
   const counts: Record<string, number> = {};
   for (const place of likedPlaces) {
     const type = extractType(place);
-    if (type) {
+    if (type && !UNSUPPORTED_INCLUDED_TYPES.has(type)) {
       counts[type] = (counts[type] ?? 0) + 1;
     }
   }
@@ -500,9 +601,9 @@ function ratingToUnit(bayes: number): number {
 
 function distanceScoreForPlace(
   place: Place,
-  userLocation: { latitude: number; longitude: number }
+  userLocation: { latitude: number; longitude: number } | null
 ): number {
-  if (!place.location) return 0.5;
+  if (!userLocation || !place.location) return 0.5;
   const km = haversineDistance(
     userLocation.latitude,
     userLocation.longitude,
@@ -525,13 +626,17 @@ function personalizationScore(
 }
 
 export type CompositeRankingContext = {
-  userLocation: { latitude: number; longitude: number };
+  userLocation: { latitude: number; longitude: number } | null;
   contentScoreById: Map<string, number>;
   collabScoreById: Map<string, number>;
   /** When true, viewer has dietary prefs — 4-factor or reweighted 3-factor per place. */
   viewerDietaryActive?: boolean;
   /** Per-place peer dietary affinity; missing key means exclude dietary term for that place. */
   dietaryScoreById?: Map<string, number>;
+  /** Normalized dietary IDs of the viewer, used for type-based dietary scoring. */
+  viewerDietaryIds?: string[];
+  /** Viewer’s own rating per place id; applied via `getSelfRatingMultiplier` to composite. */
+  selfRatingById?: Map<string, PlaceRating>;
 };
 
 export type CompositeWeightsBreakdown = {
@@ -561,6 +666,10 @@ export type PlaceMatchBreakdown = {
   composite: number;
   weights: CompositeWeightsBreakdown;
   dietaryIncludedInComposite: boolean;
+  /** The viewer's own rating for this place, if any. */
+  selfRating?: PlaceRating;
+  /** Multiplier applied to composite based on selfRating (1 when unrated). */
+  selfRatingMultiplier: number;
 };
 
 type CompositeWeightsResolved = {
@@ -573,11 +682,10 @@ type CompositeWeightsResolved = {
 };
 
 function getCompositeWeightsForPlace(
-  placeId: string,
+  place: Place,
   ctx: CompositeRankingContext
 ): CompositeWeightsResolved {
   const viewerActive = ctx.viewerDietaryActive === true;
-  const dietaryVal = ctx.dietaryScoreById?.get(placeId);
 
   if (!viewerActive) {
     return {
@@ -589,13 +697,23 @@ function getCompositeWeightsForPlace(
     };
   }
 
-  if (dietaryVal !== undefined) {
+  const peerVal = ctx.dietaryScoreById?.get(place.id);
+  const typeVal =
+    ctx.viewerDietaryIds && ctx.viewerDietaryIds.length > 0
+      ? placeTypeDietaryScore(place, ctx.viewerDietaryIds)
+      : 0;
+
+  const hasPeer = peerVal !== undefined;
+  const hasType = typeVal > 0;
+
+  if (hasPeer || hasType) {
+    const combined = Math.max(peerVal ?? 0, typeVal);
     return {
       wq: W4_QUALITY,
       wd: W4_DISTANCE,
       wp: W4_PERSONAL,
       wdi: W4_DIETARY,
-      dietaryRaw: dietaryVal,
+      dietaryRaw: combined,
       dietaryInComposite: true,
     };
   }
@@ -633,7 +751,7 @@ export function getPlaceMatchBreakdown(
   const collabRaw = ctx.collabScoreById.get(place.id);
   const contentRaw = ctx.contentScoreById.get(place.id);
   const p = personalizationScore(collabRaw, contentRaw);
-  const w = getCompositeWeightsForPlace(place.id, ctx);
+  const w = getCompositeWeightsForPlace(place, ctx);
 
   let composite: number;
   let weightedDietary: number | null = null;
@@ -646,6 +764,10 @@ export function getPlaceMatchBreakdown(
   } else {
     composite = w.wq * q + w.wd * d + w.wp * p;
   }
+
+  const selfRating = ctx.selfRatingById?.get(place.id);
+  const selfRatingMultiplier = getSelfRatingMultiplier(selfRating);
+  composite = Math.min(1, Math.max(0, composite * selfRatingMultiplier));
 
   const weights: CompositeWeightsBreakdown =
     w.dietaryInComposite && w.wdi !== undefined
@@ -675,8 +797,15 @@ export function getPlaceMatchBreakdown(
     composite,
     weights,
     dietaryIncludedInComposite: w.dietaryInComposite,
+    selfRating,
+    selfRatingMultiplier,
   };
 }
+
+export type RankedPlacesResult = {
+  ranked: Place[];
+  scoreById: Map<string, number>;
+};
 
 /**
  * Final ordering: weighted composite of quality (Bayesian), distance decay, and personalization.
@@ -684,12 +813,15 @@ export function getPlaceMatchBreakdown(
 export function rankPlacesByCompositeScore(
   places: Place[],
   ctx: CompositeRankingContext
-): Place[] {
-  return [...places].sort((a, b) => {
-    const scoreA = placeCompositeScore(a, ctx);
-    const scoreB = placeCompositeScore(b, ctx);
-    return scoreB - scoreA;
-  });
+): RankedPlacesResult {
+  const scoreById = new Map<string, number>();
+  for (const p of places) {
+    scoreById.set(p.id, placeCompositeScore(p, ctx));
+  }
+  const ranked = [...places].sort(
+    (a, b) => (scoreById.get(b.id) ?? 0) - (scoreById.get(a.id) ?? 0)
+  );
+  return { ranked, scoreById };
 }
 
 function placeCompositeScore(
@@ -703,11 +835,15 @@ function placeCompositeScore(
   const collab = ctx.collabScoreById.get(place.id);
   const content = ctx.contentScoreById.get(place.id);
   const p = personalizationScore(collab, content);
-  const w = getCompositeWeightsForPlace(place.id, ctx);
+  const w = getCompositeWeightsForPlace(place, ctx);
+  let base: number;
   if (w.dietaryInComposite && w.wdi !== undefined && w.dietaryRaw !== null) {
-    return w.wq * q + w.wd * d + w.wp * p + w.wdi * w.dietaryRaw;
+    base = w.wq * q + w.wd * d + w.wp * p + w.wdi * w.dietaryRaw;
+  } else {
+    base = w.wq * q + w.wd * d + w.wp * p;
   }
-  return w.wq * q + w.wd * d + w.wp * p;
+  const mult = getSelfRatingMultiplier(ctx.selfRatingById?.get(place.id));
+  return Math.min(1, Math.max(0, base * mult));
 }
 
 /** Legacy helper: sort by raw star rating only */
