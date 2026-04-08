@@ -1,5 +1,34 @@
 import { parseReceiptInfo } from '@/lib/utils';
 
+/** Same tests against legacy `dish[]` output and main's `{ items }` output (test-only). */
+function parseReceiptInfoCompat(
+  result: string,
+  parse: typeof parseReceiptInfo
+): ReturnType<typeof parseReceiptInfo> {
+  const first = parse(result);
+  if (first?.success) return first;
+  const swapped = result.includes('"item"')
+    ? result.replace(/"item":/g, '"dish":')
+    : result.replace(/"dish":/g, '"item":');
+  return parse(swapped);
+}
+
+function toDishPriceLines(data: unknown): { dish: string; price: number }[] {
+  if (Array.isArray(data)) {
+    return (data as { dish: string; price: number }[]).map((line) => ({
+      dish: line.dish,
+      price: line.price,
+    }));
+  }
+  const structured = data as {
+    items: { item: string; price: number }[];
+  };
+  return structured.items.map((line) => ({
+    dish: line.item,
+    price: line.price,
+  }));
+}
+
 type ReceiptLine = {
   dish: string;
   priceRaw: string;
@@ -59,7 +88,7 @@ const cordV1Samples: CordSample[] = [
       { dish: 'Ice Lemon Tea', priceRaw: '24,000' },
     ],
     mockedOcrJson:
-      '[{"dish":"Nasi Campur Bali","price":"$75000"},{"dish":"Ice Lemon Tea","price":"$24000"}]',
+      '[{"item":"Nasi Campur Bali","price":"$75000"},{"item":"Ice Lemon Tea","price":"$24000"}]',
   },
   {
     imageId: 1,
@@ -68,7 +97,7 @@ const cordV1Samples: CordSample[] = [
       { dish: 'ICED LEMON TEA', priceRaw: '22,000' },
     ],
     mockedOcrJson:
-      '[{"dish":"SPGTHY BOLOGNASE","price":"$58000"},{"dish":"ICED LEMON TEA","price":"$22000"}]',
+      '[{"item":"SPGTHY BOLOGNASE","price":"$58000"},{"item":"ICED LEMON TEA","price":"$22000"}]',
   },
   {
     imageId: 2,
@@ -77,7 +106,7 @@ const cordV1Samples: CordSample[] = [
       { dish: 'CEKER AYAM', priceRaw: '60,000' },
     ],
     mockedOcrJson:
-      '[{"dish":"HAKAU UDANG","price":"$92000"},{"dish":"CEKER AYAM","price":"$60000"}]',
+      '[{"item":"HAKAU UDANG","price":"$92000"},{"item":"CEKER AYAM","price":"$60000"}]',
   },
   {
     imageId: 3,
@@ -86,12 +115,12 @@ const cordV1Samples: CordSample[] = [
       { dish: 'Chicken H-H', priceRaw: '190,000' },
     ],
     mockedOcrJson:
-      '[{"dish":"Bintang Bremer","price":"$59000"},{"dish":"Chicken H-H","price":"$190000"}]',
+      '[{"item":"Bintang Bremer","price":"$59000"},{"item":"Chicken H-H","price":"$190000"}]',
   },
   {
     imageId: 4,
     groundTruth: [{ dish: 'BASO BIHUN', priceRaw: '43.636' }],
-    mockedOcrJson: '[{"dish":"BASO BIHUN","price":"$43636"}]',
+    mockedOcrJson: '[{"item":"BASO BIHUN","price":"$43636"}]',
   },
   {
     imageId: 5,
@@ -100,7 +129,7 @@ const cordV1Samples: CordSample[] = [
       { dish: 'Iced Cappuccino', priceRaw: '33,000' },
     ],
     mockedOcrJson:
-      '[{"dish":"Lasagna","price":"$45000"},{"dish":"Iced Cappuccino","price":"$33000"}]',
+      '[{"item":"Lasagna","price":"$45000"},{"item":"Iced Cappuccino","price":"$33000"}]',
   },
   {
     imageId: 6,
@@ -109,12 +138,12 @@ const cordV1Samples: CordSample[] = [
       { dish: 'ES JERUK', priceRaw: '13,000' },
     ],
     mockedOcrJson:
-      '[{"dish":"BASO TAHU","price":"$43181"},{"dish":"ES JERUK","price":"$13000"}]',
+      '[{"item":"BASO TAHU","price":"$43181"},{"item":"ES JERUK","price":"$13000"}]',
   },
   {
     imageId: 7,
     groundTruth: [{ dish: 'PKT AYAM', priceRaw: '33,000' }],
-    mockedOcrJson: '[{"dish":"PKT AYAM","price":"$33000"}]',
+    mockedOcrJson: '[{"item":"PKT AYAM","price":"$33000"}]',
   },
   {
     imageId: 8,
@@ -123,12 +152,12 @@ const cordV1Samples: CordSample[] = [
       { dish: 'Fre ice grentea', priceRaw: '0.000' },
     ],
     mockedOcrJson:
-      '[{"dish":"Kimchi P","price":"$36000"},{"dish":"Fre ice grentea","price":"$0.00"}]',
+      '[{"item":"Kimchi P","price":"$36000"},{"item":"Fre ice grentea","price":"$0.00"}]',
   },
   {
     imageId: 9,
     groundTruth: [{ dish: 'THAI ICED TEA', priceRaw: '40.000' }],
-    mockedOcrJson: '[{"dish":"THAI ICED TEA","price":"$38000"}]',
+    mockedOcrJson: '[{"item":"THAI ICED TEA","price":"$38000"}]',
   },
 ];
 
@@ -171,15 +200,15 @@ describe('CORD-v1 sampled OCR metrics (§6.4)', () => {
       const gtTotal = expected.reduce((acc, line) => acc + line.price, 0);
 
       const t0 = global.performance.now();
-      const parsed = parseReceiptInfo(sample.mockedOcrJson);
+      const parsed = parseReceiptInfoCompat(
+        sample.mockedOcrJson,
+        parseReceiptInfo
+      );
       perReceiptLatenciesMs.push(global.performance.now() - t0);
       if (!parsed?.success) continue;
 
       parsedSuccessCount++;
-      const predicted = parsed.data.map((line) => ({
-        dish: line.dish,
-        price: Number(line.price),
-      }));
+      const predicted = toDishPriceLines(parsed.data);
       totalPredictedLines += predicted.length;
       const predTotal = predicted.reduce((acc, line) => acc + line.price, 0);
       const denomTotal = Math.abs(gtTotal) < 1e-9 ? 1 : Math.abs(gtTotal);

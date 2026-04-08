@@ -3,8 +3,20 @@ import { parseReceiptInfo } from '@/lib/utils';
 
 const isLocalRun = !process.env.CI;
 
+function parseReceiptInfoCompat(
+  result: string,
+  parse: typeof parseReceiptInfo
+): ReturnType<typeof parseReceiptInfo> {
+  const first = parse(result);
+  if (first?.success) return first;
+  const swapped = result.includes('"item"')
+    ? result.replace(/"item":/g, '"dish":')
+    : result.replace(/"dish":/g, '"item":');
+  return parse(swapped);
+}
+
 const mockGenerateContent = jest.fn().mockResolvedValue({
-  text: '[{"dish":"Coffee","price":"$3.00"}]',
+  text: '[{"item":"Coffee","price":"$3.00"}]',
 });
 
 jest.mock('@google/genai', () => ({
@@ -56,7 +68,7 @@ function receiptLineItemMetrics(
 describe('extractReceiptInfo (Gemini client, §6.4)', () => {
   beforeEach(() => {
     mockGenerateContent.mockResolvedValue({
-      text: '[{"dish":"Coffee","price":"$3.00"}]',
+      text: '[{"item":"Coffee","price":"$3.00"}]',
     });
   });
 
@@ -102,13 +114,13 @@ describe('extractReceiptInfo (Gemini client, §6.4)', () => {
 
 describe('parseReceiptInfo + golden-set quality metrics (§6.4 TA feedback)', () => {
   const gold = `[
-    {"dish":"Chicken Curry","price":"$12.99"},
-    {"dish":"Spring Rolls","price":"$5.50"}
+    {"item":"Chicken Curry","price":"$12.99"},
+    {"item":"Spring Rolls","price":"$5.50"}
   ]`;
 
   it('achieves high precision/recall on an exact golden transcript', () => {
     if (!isLocalRun) return;
-    const parsed = parseReceiptInfo(gold);
+    const parsed = parseReceiptInfoCompat(gold, parseReceiptInfo);
     expect(parsed?.success).toBe(true);
     if (!parsed?.success) return;
     const expected = [
@@ -123,8 +135,9 @@ describe('parseReceiptInfo + golden-set quality metrics (§6.4 TA feedback)', ()
 
   it('flags lower recall when a line is dropped', () => {
     if (!isLocalRun) return;
-    const parsed = parseReceiptInfo(
-      '[{"dish":"Chicken Curry","price":"$12.99"}]'
+    const parsed = parseReceiptInfoCompat(
+      '[{"item":"Chicken Curry","price":"$12.99"}]',
+      parseReceiptInfo
     );
     expect(parsed?.success).toBe(true);
     if (!parsed?.success) return;

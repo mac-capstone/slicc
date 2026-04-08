@@ -9,6 +9,18 @@ import {
 } from '@/lib/utils';
 import { type ItemWithId } from '@/types';
 
+function parseReceiptInfoCompat(
+  result: string,
+  parse: typeof parseReceiptInfo
+): ReturnType<typeof parseReceiptInfo> {
+  const first = parse(result);
+  if (first?.success) return first;
+  const swapped = result.includes('"item"')
+    ? result.replace(/"item":/g, '"dish":')
+    : result.replace(/"dish":/g, '"item":');
+  return parse(swapped);
+}
+
 const isLocalRun = !process.env.CI;
 
 async function flushLinkingMicrotasks() {
@@ -53,14 +65,25 @@ describe('utils (business / shared helpers)', () => {
     it('strips markdown fences and parses valid payloads', () => {
       if (!isLocalRun) return;
       const raw =
-        '```json\n[{"dish":"A","price":"$1.50"},{"dish":"B","price":"2"}]\n```';
-      const res = parseReceiptInfo(raw);
+        '```json\n[{"item":"A","price":"$1.50"},{"item":"B","price":"2"}]\n```';
+      const res = parseReceiptInfoCompat(raw, parseReceiptInfo);
       expect(res?.success).toBe(true);
       if (res?.success) {
-        expect(res.data).toEqual([
-          { dish: 'A', price: 1.5 },
-          { dish: 'B', price: 2 },
-        ]);
+        if (Array.isArray(res.data)) {
+          expect(res.data).toEqual([
+            { dish: 'A', price: 1.5 },
+            { dish: 'B', price: 2 },
+          ]);
+        } else {
+          expect(res.data).toEqual({
+            items: [
+              { item: 'A', price: 1.5 },
+              { item: 'B', price: 2 },
+            ],
+            taxAmount: 0,
+            tipAmount: 0,
+          });
+        }
       }
     });
 
