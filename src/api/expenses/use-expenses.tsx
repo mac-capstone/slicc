@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -35,6 +36,11 @@ export type ExpenseResponse = Expense & {
 };
 
 const expensesRef = collection(db, 'expenses').withConverter(expenseConverter);
+
+function getPayerUserIdFieldValue(payerUserId: string | null | undefined) {
+  const trimmedPayerUserId = payerUserId?.trim();
+  return trimmedPayerUserId ? trimmedPayerUserId : deleteField();
+}
 
 export async function fetchExpense(
   expenseId: ExpenseIdT
@@ -109,7 +115,7 @@ type CreateExpenseVariables = {
   name: string;
   date: string | Date;
   createdBy: string;
-  payerUserId?: string;
+  payerUserId?: string | null;
   eventId?: string;
   totalAmount: number;
   remainingAmount: number;
@@ -131,9 +137,7 @@ export function useCreateExpense() {
         name: variables.name,
         date: variables.date,
         createdBy: variables.createdBy,
-        ...(variables.payerUserId
-          ? { payerUserId: variables.payerUserId }
-          : {}),
+        payerUserId: getPayerUserIdFieldValue(variables.payerUserId),
         ...(variables.eventId ? { eventId: variables.eventId } : {}),
         totalAmount: variables.totalAmount,
         remainingAmount: variables.remainingAmount ?? 0,
@@ -180,6 +184,8 @@ type UpdateExpenseVariables = {
   originalExpenseId: string;
   originalItemIds: ItemIdT[];
   originalPersonIds: string[];
+  createdBy: string;
+  payerUserId?: string | null;
   name: string;
   totalAmount: number;
   remainingAmount: number;
@@ -218,6 +224,8 @@ export function useUpdateExpense() {
 
       // Update the expense document
       batch.update(expenseDocRef, {
+        createdBy: variables.createdBy,
+        payerUserId: getPayerUserIdFieldValue(variables.payerUserId),
         name: variables.name,
         totalAmount: variables.totalAmount,
         remainingAmount: variables.remainingAmount ?? 0,

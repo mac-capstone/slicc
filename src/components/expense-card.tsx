@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import React from 'react';
 
 import { useExpense } from '@/api/expenses/use-expenses';
@@ -9,6 +8,7 @@ import {
   Text,
   View,
 } from '@/components/ui';
+import { useRouter } from '@/lib/guarded-router';
 import { type EventIdT, type ExpenseIdT } from '@/types';
 
 type Props = {

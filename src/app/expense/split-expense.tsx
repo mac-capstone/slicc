@@ -1,6 +1,5 @@
 import Octicons from '@expo/vector-icons/Octicons';
 import { FlashList } from '@shopify/flash-list';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 
@@ -9,6 +8,7 @@ import ExpenseCreationFooter from '@/components/expense-creation-footer';
 import { ItemCard } from '@/components/item-card';
 import { ItemCardDetailed } from '@/components/item-card-detailed';
 import { ActivityIndicator, Pressable, Text, View } from '@/components/ui';
+import { router, Stack, useLocalSearchParams } from '@/lib/guarded-router';
 import { clearTempExpense, useExpenseCreation } from '@/lib/store';
 import { useThemeConfig } from '@/lib/use-theme-config';
 import { type EventIdT, type ExpenseIdT, type ItemIdT } from '@/types';

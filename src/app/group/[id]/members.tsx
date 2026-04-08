@@ -1,6 +1,5 @@
 import Feather from '@expo/vector-icons/Feather';
 import { useQueries } from '@tanstack/react-query';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, TextInput, View } from 'react-native';
 
@@ -22,6 +21,7 @@ import {
 import { Button, colors, Pressable, SafeAreaView, Text } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { categorizeEvents } from '@/lib/event-utils';
+import { router, Stack, useLocalSearchParams } from '@/lib/guarded-router';
 import type { GroupIdT, UserIdT, UserWithId } from '@/types';
 
 const EMPTY_USER_IDS: UserIdT[] = [];

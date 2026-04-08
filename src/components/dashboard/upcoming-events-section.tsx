@@ -1,11 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { Pressable } from 'react-native';
 
 import { eventToCardData, GroupEventCard } from '@/components/group-event-card';
 import { ActivityIndicator, colors, Text, View } from '@/components/ui';
 import type { CategorizedEvents } from '@/lib/event-utils';
+import { useRouter } from '@/lib/guarded-router';
 import type { EventWithId } from '@/types';
 
 type Props = {

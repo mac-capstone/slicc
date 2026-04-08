@@ -1,24 +1,23 @@
 import Octicons from '@expo/vector-icons/Octicons';
-import { Redirect, router, SplashScreen, Tabs } from 'expo-router';
 import React, { useCallback, useEffect } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 
 import { colors } from '@/components/ui';
 import {
   useAuth,
-  useEnsureE2EIdentityKey,
   useIncomingFriendRequestsLiveSync,
   useIsFirstTime,
   usePlaceLikesFirestoreSync,
   useUserExistsInFirestore,
 } from '@/lib';
+import { Redirect, router, SplashScreen, Tabs } from '@/lib/guarded-router';
+import { useEnsureE2EIdentityKey } from '@/lib/hooks/use-ensure-e2e-identity-key';
 import { usePendingExpenseSync } from '@/lib/hooks/use-pending-expense-sync';
 
 export default function TabLayout() {
   usePlaceLikesFirestoreSync();
   const status = useAuth.use.status();
   const userId = useAuth.use.userId();
-  const [isFirstTime] = useIsFirstTime();
   const {
     exists: userExistsInFirestore,
     isChecking: isUserCheckRunning,
@@ -44,9 +43,6 @@ export default function TabLayout() {
     }
   }, [hideSplash, status]);
 
-  if (isFirstTime) {
-    return <Redirect href="/onboarding" />;
-  }
   if (status === 'signOut') {
     return <Redirect href="/login" />;
   }

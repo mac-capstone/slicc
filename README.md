@@ -118,6 +118,7 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
   [userId: UserId]: {
     username: string; // unique
     displayName: string;
+    eTransferEmail?: string;
     friends: UserId[];
     createdAt?: Date;
     updatedAt?: Date;
@@ -191,6 +192,7 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
     totalAmount: number;
     remainingAmount?: number;
     participantCount?: number;
+    payerUserId?: UserId;
     createdAt?: Date;
     updatedAt?: Date;
 

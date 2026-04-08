@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { FlashList } from '@shopify/flash-list';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import { Pressable } from 'react-native';
 
@@ -9,6 +8,7 @@ import { useExpenseIdsByEvent } from '@/api/expenses/use-expenses';
 import { DottedAddButton } from '@/components/dotted-add-button';
 import { ExpenseCard } from '@/components/expense-card';
 import { ActivityIndicator, Text, View } from '@/components/ui';
+import { router, Stack, useLocalSearchParams } from '@/lib/guarded-router';
 import { useThemeConfig } from '@/lib/use-theme-config';
 import { type EventIdT } from '@/types';
 
@@ -36,8 +36,27 @@ export default function EventExpenses() {
   });
 
   const handleClose = (): void => {
-    if (!eventId) router.back();
-    router.replace(`/event/${eventId}` as const);
+    if (!eventId) {
+      router.back();
+      return;
+    }
+
+    const eventPath = `/event/${eventId}` as const;
+
+    if (!router.canGoBack()) {
+      router.replace(eventPath);
+      return;
+    }
+
+    try {
+      router.dismissTo(eventPath);
+    } catch {
+      try {
+        router.replace(eventPath);
+      } catch {
+        router.back();
+      }
+    }
   };
 
   if (!eventId) {

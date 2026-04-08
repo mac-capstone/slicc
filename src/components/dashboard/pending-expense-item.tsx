@@ -1,9 +1,9 @@
-import { useRouter } from 'expo-router';
 import React from 'react';
 import { Pressable } from 'react-native';
 
 import { useExpense } from '@/api/expenses/use-expenses';
 import { ActivityIndicator, colors, Text } from '@/components/ui';
+import { useRouter } from '@/lib/guarded-router';
 import type { ExpenseIdT, UserIdT } from '@/types';
 
 type Props = {

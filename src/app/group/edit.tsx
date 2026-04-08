@@ -1,7 +1,6 @@
 // src/app/group/edit.tsx — create new group only. Existing groups: `/group/[id]/members`.
 import Feather from '@expo/vector-icons/Feather';
 import { useQueries } from '@tanstack/react-query';
-import { Redirect, router, Stack, useLocalSearchParams } from 'expo-router';
 import { Timestamp } from 'firebase/firestore';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, TextInput } from 'react-native';
@@ -24,6 +23,12 @@ import {
   View,
 } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
+import {
+  Redirect,
+  router,
+  Stack,
+  useLocalSearchParams,
+} from '@/lib/guarded-router';
 import type { GroupIdT, UserIdT, UserWithId } from '@/types';
 
 const EMPTY_USER_IDS: UserIdT[] = [];

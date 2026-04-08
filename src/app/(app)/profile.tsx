@@ -2,7 +2,6 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import Octicons from '@expo/vector-icons/Octicons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
-import { Stack, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert } from 'react-native';
 
@@ -24,6 +23,7 @@ import {
 import { useAuth } from '@/lib';
 import { DIETARY_LABEL_KEYS } from '@/lib/dietary-preference-label-keys';
 import { type DietaryPreferenceId } from '@/lib/dietary-preference-options';
+import { Stack, useRouter } from '@/lib/guarded-router';
 import { translate } from '@/lib/i18n';
 import { type UserIdT } from '@/types';
 

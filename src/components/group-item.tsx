@@ -1,6 +1,5 @@
 import Feather from '@expo/vector-icons/Feather';
 import Octicons from '@expo/vector-icons/Octicons';
-import { router } from 'expo-router';
 import React from 'react';
 import { Pressable } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -13,6 +12,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 
 import { StackedAvatars } from '@/components/stacked-avatars';
 import { colors, Text, View } from '@/components/ui';
+import { router } from '@/lib/guarded-router';
 import type { EventIdT, UserIdT } from '@/types';
 
 export type GroupItemData = {

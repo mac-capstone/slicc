@@ -1,6 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, Linking, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEvent } from '@/api/events/use-events';
 import { PersonAvatar } from '@/components/person-avatar';
 import { Button, colors, Pressable, Text, View } from '@/components/ui';
+import { router, Stack, useLocalSearchParams } from '@/lib/guarded-router';
 import { useThemeConfig } from '@/lib/use-theme-config';
 import type { EventIdT, UserIdT } from '@/types';
 
@@ -187,7 +187,7 @@ export default function EventDetails() {
 
   const handleHeaderClose = (): void => {
     if (event?.groupId) {
-      router.replace(`/chat/${event.groupId}` as const);
+      router.dismissTo(`/chat/${event.groupId}` as const);
       return;
     }
     router.back();
