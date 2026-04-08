@@ -131,4 +131,77 @@ describe('useBalances (data + business aggregation, §6.2 / §6.3)', () => {
     expect(result.current.youOwe).toBe(20);
     expect(result.current.owedToYou).toBe(0);
   });
+
+  it('uses createdBy when payerUserId is absent', async () => {
+    const payer = 'payer-1' as UserIdT;
+    const guest = 'guest-1' as UserIdT;
+    mockFetchExpense.mockResolvedValue(
+      makeExpense({
+        id: 'e1' as ExpenseIdT,
+        payerUserId: undefined,
+        createdBy: payer,
+        people: [
+          { id: payer, subtotal: 0, paid: 0, name: 'P' },
+          { id: guest, subtotal: 10, paid: 0, name: 'G' },
+        ],
+      })
+    );
+
+    const { result } = renderHook(() => useBalances(payer), {
+      wrapper: wrapperForTest(),
+    });
+
+    await waitFor(() => expect(result.current.isPending).toBe(false));
+    expect(result.current.owedToYou).toBe(10);
+  });
+
+  it('ignores expenses where the user is neither payer nor participant', async () => {
+    mockFetchExpense.mockResolvedValue(
+      makeExpense({
+        id: 'e1' as ExpenseIdT,
+        payerUserId: 'other-payer' as UserIdT,
+        people: [
+          { id: 'stranger' as UserIdT, subtotal: 99, paid: 0, name: 'X' },
+        ],
+      })
+    );
+
+    const { result } = renderHook(() => useBalances('nobody' as UserIdT), {
+      wrapper: wrapperForTest(),
+    });
+
+    await waitFor(() => expect(result.current.isPending).toBe(false));
+    expect(result.current.youOwe).toBe(0);
+    expect(result.current.owedToYou).toBe(0);
+  });
+
+  it('reflects pending state while expense ids are loading', () => {
+    mockUseExpenseIds.mockReturnValue({
+      data: ['e1' as ExpenseIdT],
+      isPending: true,
+      isError: false,
+    } as unknown as ReturnType<typeof useExpenseIds>);
+    mockFetchExpense.mockResolvedValue(
+      makeExpense({
+        id: 'e1' as ExpenseIdT,
+        people: [{ id: 'u1' as UserIdT, subtotal: 1, paid: 0, name: 'x' }],
+        payerUserId: 'u1' as UserIdT,
+      })
+    );
+
+    const { result } = renderHook(() => useBalances('u1' as UserIdT), {
+      wrapper: wrapperForTest(),
+    });
+
+    expect(result.current.isPending).toBe(true);
+  });
+
+  it('sets isError when a sub-query errors', async () => {
+    mockFetchExpense.mockRejectedValue(new Error('network'));
+    const { result } = renderHook(() => useBalances('u1' as UserIdT), {
+      wrapper: wrapperForTest(),
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+  });
 });

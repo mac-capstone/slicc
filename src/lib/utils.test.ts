@@ -1,8 +1,11 @@
+import { renderHook } from '@testing-library/react-native';
 import { Linking } from 'react-native';
+import { create } from 'zustand';
 
 import {
   calculatePersonShare,
   cn,
+  createSelectors,
   encodeIdBase64Url,
   openLinkInBrowser,
   parseReceiptInfo,
@@ -20,8 +23,6 @@ function parseReceiptInfoCompat(
     : result.replace(/"dish":/g, '"item":');
   return parse(swapped);
 }
-
-const isLocalRun = !process.env.CI;
 
 async function flushLinkingMicrotasks() {
   await Promise.resolve();
@@ -61,9 +62,8 @@ describe('utils (business / shared helpers)', () => {
     });
   });
 
-  describe('parseReceiptInfo (Gemini JSON → structured lines)', () => {
+  describe('parseReceiptInfo (Gemini JSON → structured lines, V&V OCR line items)', () => {
     it('strips markdown fences and parses valid payloads', () => {
-      if (!isLocalRun) return;
       const raw =
         '```json\n[{"item":"A","price":"$1.50"},{"item":"B","price":"2"}]\n```';
       const res = parseReceiptInfoCompat(raw, parseReceiptInfo);
@@ -92,12 +92,46 @@ describe('utils (business / shared helpers)', () => {
       expect(parseReceiptInfo('not json')).toBeNull();
       log.mockRestore();
     });
+
+    it('returns zod safeParse failure when JSON parses but shape is wrong', () => {
+      const res = parseReceiptInfo('[{"notDish":"x","price":"$1"}]');
+      expect(res).not.toBeNull();
+      expect(res && 'success' in res && res.success === false).toBe(true);
+    });
+  });
+
+  describe('createSelectors (Zustand helper)', () => {
+    it('adds a use.* hook per state key', () => {
+      const useStore = create(() => ({ alpha: 10, beta: 20 }));
+      const store = createSelectors(useStore);
+      const { result: alpha } = renderHook(() => store.use.alpha());
+      const { result: beta } = renderHook(() => store.use.beta());
+      expect(alpha.current).toBe(10);
+      expect(beta.current).toBe(20);
+    });
   });
 
   describe('encodeIdBase64Url', () => {
+    const origEncoder = globalThis.TextEncoder;
+
+    afterEach(() => {
+      globalThis.TextEncoder = origEncoder;
+    });
+
     it('encodes UTF-8 strings without padding', () => {
       expect(encodeIdBase64Url('abc')).toBe('YWJj');
       expect(encodeIdBase64Url('€')).toMatch(/^[A-Za-z0-9_-]+$/);
+    });
+
+    it('uses UTF-8 fallback when TextEncoder is unavailable (surrogate pairs)', () => {
+      delete (globalThis as any).TextEncoder;
+      expect(encodeIdBase64Url('😀')).toMatch(/^[A-Za-z0-9_-]+$/);
+    });
+
+    it('pads the last group for 1- and 2-byte remainders', () => {
+      globalThis.TextEncoder = origEncoder;
+      expect(encodeIdBase64Url('a')).toMatch(/^[A-Za-z0-9_-]+$/);
+      expect(encodeIdBase64Url('é')).toMatch(/^[A-Za-z0-9_-]+$/);
     });
   });
 

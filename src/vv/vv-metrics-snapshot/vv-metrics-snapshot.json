@@ -1,0 +1,70 @@
+{
+  "generatedAt": "2026-04-08T01:38:13.729Z",
+  "environment": "node v24.11.0",
+  "ocr": {
+    "sampleCount": 10,
+    "parseSuccessRate": 1,
+    "ocrFailureRate": 0,
+    "linePrecision": 1,
+    "lineRecall": 1,
+    "lineF1": 1,
+    "meanTotalAmountAccuracy": 0.9949999999999999,
+    "meanPriceApe": 0.0029411764705882353,
+    "avgLatencyMs": 0.9,
+    "p95LatencyMs": 5,
+    "budgetMs": 5000,
+    "goals": {
+      "meanTotalAmountAccuracyMin": 0.9,
+      "lineF1Min": 0.8,
+      "ocrFailureRateMax": 0.1,
+      "latencyBudgetMs": 5000
+    },
+    "passesGoals": {
+      "meanTotalAmountAccuracy": true,
+      "lineF1": true,
+      "ocrFailureRate": true,
+      "p95Latency": true,
+      "avgLatency": true,
+      "meanPriceApe": true
+    }
+  },
+  "speech": {
+    "product": {
+      "meanWer": 0.1111111111111111,
+      "werMaxGoal": 0.15,
+      "intentPrecision": 1,
+      "intentRecall": 1,
+      "intentPrecisionGoal": 0.85,
+      "intentRecallGoal": 0.8,
+      "syntheticVoiceFailureRate": 0.1,
+      "voiceFailureRateGoal": 0.1,
+      "passesGoals": {
+        "meanWer": true,
+        "intentPrecision": true,
+        "intentRecall": true,
+        "syntheticFailureRate": true
+      }
+    },
+    "slotExtraction": {
+      "cases": [
+        {
+          "transcript": "burger $9.99",
+          "goldName": "burger",
+          "goldAmount": 9.99,
+          "latencyMs": 273,
+          "werVsGoldName": 0,
+          "relativePriceError": 0
+        },
+        {
+          "transcript": "large fries cost $3.50",
+          "goldName": "large fries",
+          "goldAmount": 3.5,
+          "latencyMs": 0,
+          "werVsGoldName": 0.5,
+          "relativePriceError": 0
+        }
+      ],
+      "maxLatencyMsGoal": 3000
+    }
+  }
+}
