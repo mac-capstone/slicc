@@ -14,12 +14,12 @@ function extractInitials(name: string): string {
 
 export async function fetchDebtGraphLabels(
   nodeIds: UserIdT[],
-  viewerUserId: string | null
+  _viewerUserId: string | null
 ): Promise<Record<string, NodeLabel>> {
   const entries = await Promise.all(
     nodeIds.map(async (id) => {
       try {
-        const u = await fetchUser(id, viewerUserId);
+        const u = await fetchUser(id);
         const name = u.displayName || 'User';
         return [
           id,

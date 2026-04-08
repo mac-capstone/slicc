@@ -96,6 +96,15 @@ export function useCycleNetting() {
         list.push(op);
         byExpense.set(op.expenseId, list);
       }
+
+      await Promise.all(
+        [...byExpense.keys()].map((id) =>
+          queryClient.cancelQueries({
+            queryKey: ['expenses', 'expenseId', id] as const,
+          })
+        )
+      );
+
       const previous: Record<string, ExpenseResponse | undefined> = {};
       for (const [expenseId, expenseOps] of byExpense) {
         const key = ['expenses', 'expenseId', expenseId] as const;
@@ -124,12 +133,8 @@ export function useCycleNetting() {
         }
       }
     },
-    onSuccess: (result) => {
-      for (const id of result.affectedExpenseIds) {
-        void queryClient.invalidateQueries({
-          queryKey: ['expenses', 'expenseId', id] as const,
-        });
-      }
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['expenses'] });
     },
   });
 }
