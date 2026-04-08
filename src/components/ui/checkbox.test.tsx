@@ -1,3 +1,6 @@
+/**
+ * V&V §6.1.1 — toggles and selection controls (checkbox / radio / switch).
+ */
 import 'react-native';
 
 import React from 'react';

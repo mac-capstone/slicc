@@ -1,3 +1,6 @@
+/**
+ * V&V §6.1.1 — option lists (e.g. pickers for splits and settings).
+ */
 import React from 'react';
 
 import type { OptionType } from '@/components/ui';

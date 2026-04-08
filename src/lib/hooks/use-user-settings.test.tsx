@@ -1,3 +1,6 @@
+/**
+ * V&V §6.3.1 — client-side settings persistence (MMKV-scoped reads; complements schema tests).
+ */
 import React from 'react';
 import { Text } from 'react-native';
 import { useMMKVString } from 'react-native-mmkv';

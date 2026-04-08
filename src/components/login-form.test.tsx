@@ -1,3 +1,6 @@
+/**
+ * V&V §6.1.1 — form validation and user interactions (auth entry).
+ */
 import React from 'react';
 
 import { cleanup, screen, setup, waitFor } from '@/lib/test-utils';

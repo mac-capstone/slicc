@@ -1,0 +1,21 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Title (presentation) matches snapshot 1`] = `
+<View
+  className="flex-row items-center justify-center  py-4 pb-2"
+>
+  <Text
+    className="text-black dark:text-white font-inter font-normal pr-2 text-2xl"
+    style={
+      {
+        "writingDirection": "ltr",
+      }
+    }
+  >
+    Snapshot
+  </Text>
+  <View
+    className="h-[2px] flex-1 bg-neutral-300"
+  />
+</View>
+`;
