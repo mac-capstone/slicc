@@ -37,8 +37,8 @@ require('dotenv').config({
 const BUNDLE_ID = 'com.slicc.app'; // ios bundle id
 const PACKAGE = 'com.slicc.app'; // android package name
 const NAME = 'slicc'; // app name
-const EXPO_ACCOUNT_OWNER = 'expo-owner'; // expo account owner
-const EAS_PROJECT_ID = 'c3e1075b-6fe7-4686-aa49-35b46a229044'; // eas project id
+const EXPO_ACCOUNT_OWNER = 'slicc-capstone'; //'expo-owner'; // expo account owner
+const EAS_PROJECT_ID = 'a9455287-faee-496b-ab4d-b9a6fc1ef834'; //'c3e1075b-6fe7-4686-aa49-35b46a229044'; // eas project id
 const SCHEME = 'app'; // app scheme
 
 /**
@@ -69,6 +69,7 @@ const envSchema = z.object({
   EXPO_PUBLIC_FIREBASE_APP_ID: z.string().min(1),
   EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID: z.string().min(1),
   EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: z.string().min(1),
+  EXPO_PUBLIC_GEMINI_API_KEY: z.string().optional(),
   EXPO_PUBLIC_GOOGLE_PLACES_API_KEY: z.string().optional(),
 });
 
@@ -99,6 +100,7 @@ const _env = {
     process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
   EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID:
     process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+  EXPO_PUBLIC_GEMINI_API_KEY: process.env.EXPO_PUBLIC_GEMINI_API_KEY,
   EXPO_PUBLIC_GOOGLE_PLACES_API_KEY:
     process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY ??
     process.env.GOOGLE_PLACES_API_KEY,

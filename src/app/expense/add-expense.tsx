@@ -42,6 +42,7 @@ import {
   View,
 } from '@/components/ui';
 import { useAuth, useDefaultTaxRate, useUserSettings } from '@/lib';
+import { fetchIsOnline } from '@/lib/network-status';
 import {
   resolveDefaultTaxRate,
   resolveDefaultTipRate,
@@ -897,11 +898,12 @@ function CreateItemCard() {
       console.warn('Permissions not granted', result);
       return;
     }
-    // Start speech recognition
+    const online = await fetchIsOnline();
     ExpoSpeechRecognitionModule.start({
       lang: 'en-US',
       interimResults: true,
       continuous: false,
+      requiresOnDeviceRecognition: !online,
     });
   };
 

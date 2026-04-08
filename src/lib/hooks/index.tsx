@@ -1,4 +1,5 @@
 export * from './use-default-tax-rate';
+export * from './use-ensure-e2e-identity-key';
 export * from './use-incoming-friend-request-rows';
 export * from './use-incoming-friend-requests-live-sync';
 export * from './use-is-first-time';

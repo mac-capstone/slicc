@@ -6,11 +6,13 @@ import { Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '@/components/ui';
 import {
   useAuth,
+  useEnsureE2EIdentityKey,
   useIncomingFriendRequestsLiveSync,
   useIsFirstTime,
   usePlaceLikesFirestoreSync,
   useUserExistsInFirestore,
 } from '@/lib';
+import { usePendingExpenseSync } from '@/lib/hooks/use-pending-expense-sync';
 
 export default function TabLayout() {
   usePlaceLikesFirestoreSync();
@@ -24,7 +26,11 @@ export default function TabLayout() {
   } = useUserExistsInFirestore(userId);
 
   const liveSyncUserId = status === 'signIn' ? userId : null;
+  useEnsureE2EIdentityKey(liveSyncUserId);
   useIncomingFriendRequestsLiveSync(liveSyncUserId);
+  usePendingExpenseSync(
+    status === 'signIn' && Boolean(userId && userId !== 'guest_user')
+  );
 
   const hideSplash = useCallback(async () => {
     await SplashScreen.hideAsync();

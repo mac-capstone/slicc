@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -179,6 +180,30 @@ export const useLeaveGroup = () => {
         queryKey: ['groups', 'groupId', variables.groupId],
       });
       queryClient.invalidateQueries({ queryKey: ['groups'] });
+    },
+  });
+};
+
+type DeleteGroupVariables = {
+  groupId: GroupIdT;
+};
+
+export const useDeleteGroup = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<void, Error, DeleteGroupVariables>({
+    mutationFn: async ({ groupId }: DeleteGroupVariables) => {
+      const groupRef = doc(groupsRef, groupId);
+      await deleteDoc(groupRef);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.removeQueries({
+        queryKey: ['groups', 'groupId', variables.groupId],
+      });
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
+      queryClient.invalidateQueries({
+        queryKey: ['events', 'groupId', variables.groupId],
+      });
     },
   });
 };
