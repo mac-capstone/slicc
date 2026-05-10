@@ -6,7 +6,6 @@ import { colors } from '@/components/ui';
 import {
   useAuth,
   useIncomingFriendRequestsLiveSync,
-  useIsFirstTime,
   usePlaceLikesFirestoreSync,
   useUserExistsInFirestore,
 } from '@/lib';
@@ -178,6 +177,30 @@ export default function TabLayout() {
         name="explore-rated"
         options={{
           title: 'Rated Places',
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="explore-content"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="explore-empty-message"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="explore-filters"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="explore-place-list-item"
+        options={{
           href: null,
         }}
       />

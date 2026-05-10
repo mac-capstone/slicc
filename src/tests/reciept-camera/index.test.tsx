@@ -21,6 +21,14 @@ const mockAddItem = jest.fn();
 const mockClearTempExpenseItems = jest.fn();
 const mockTakePictureAsync = jest.fn();
 
+const hasBase64Field = (value: unknown): value is { base64: string } => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  return 'base64' in value && typeof value.base64 === 'string';
+};
+
 jest.mock('@env', () => ({
   Env: {
     EXPO_PUBLIC_GEMINI_API_KEY: 'jest-gemini-api-key',
@@ -217,8 +225,8 @@ describe('ReceiptCameraScreen (SRS receipt scan + V&V OCR UI boundary)', () => {
       expect(
         extractionCalls.some(([arg]) => {
           if (arg === 'YmFzZTY0') return true;
-          if (!arg || typeof arg !== 'object') return false;
-          return (arg as { base64?: string }).base64 === 'YmFzZTY0';
+
+          return hasBase64Field(arg) && arg.base64 === 'YmFzZTY0';
         })
       ).toBe(true);
       expect(mockClearTempExpenseItems).toHaveBeenCalled();

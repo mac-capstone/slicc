@@ -1,0 +1,144 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Users
+    // Note: reads remain auth-only (not owner-only) to keep current username lookup and user listing behavior working.
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSelf(userId);
+      allow delete: if false;
+
+      // Strictly private settings document.
+      match /settings/private {
+        allow read, create, update, delete: if isSelf(userId);
+      }
+
+      // E2E public identity keys are readable by authenticated users.
+      match /e2eKeys/identity {
+        allow read: if isSignedIn();
+        allow create, update, delete: if isSelf(userId);
+      }
+
+      // Deny any other unknown user subcollections by default.
+      match /{subPath=**} {
+        allow read, write: if false;
+      }
+    }
+
+    // Friend requests
+    match /friendRequests/{requestId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.fromUserId == request.auth.uid
+        && request.resource.data.toUserId is string
+        && request.resource.data.toUserId != request.auth.uid;
+      allow update, delete: if isSignedIn()
+        && (
+          resource.data.fromUserId == request.auth.uid
+          || resource.data.toUserId == request.auth.uid
+        );
+    }
+
+    // Friendships
+    match /friendships/{friendshipId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.userIds is list
+        && request.resource.data.userIds.size() == 2
+        && request.resource.data.userIds.hasAny([request.auth.uid]);
+      allow update: if false;
+      allow delete: if isSignedIn();
+    }
+
+    // Groups
+    // Read is auth-only to preserve current queries; writes are member/admin/owner constrained.
+    match /groups/{groupId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.owner == request.auth.uid;
+      allow update: if isSignedIn()
+        && (
+          (resource.data.members is list && resource.data.members.hasAny([request.auth.uid]))
+          || resource.data.owner == request.auth.uid
+          || (resource.data.admins is list && resource.data.admins.hasAny([request.auth.uid]))
+        );
+      allow delete: if isSignedIn()
+        && (
+          resource.data.owner == request.auth.uid
+          || (resource.data.admins is list && resource.data.admins.hasAny([request.auth.uid]))
+        );
+    }
+
+    // Events
+    match /events/{eventId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isSignedIn()
+        && (
+          resource.data.createdBy == request.auth.uid
+          || (resource.data.participants is list && resource.data.participants.hasAny([request.auth.uid]))
+        );
+    }
+
+    // Expenses + subcollections
+    match /expenses/{expenseId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isSignedIn()
+        && (
+          resource.data.createdBy == request.auth.uid
+          || (
+            resource.data.payerUserId is string
+            && resource.data.payerUserId == request.auth.uid
+          )
+        );
+
+      match /people/{personId} {
+        allow read: if isSignedIn();
+        allow create, update, delete: if isSignedIn()
+          && (
+            get(/databases/$(database)/documents/expenses/$(expenseId)).data.createdBy == request.auth.uid
+            || (
+              get(/databases/$(database)/documents/expenses/$(expenseId)).data.payerUserId is string
+              && get(/databases/$(database)/documents/expenses/$(expenseId)).data.payerUserId == request.auth.uid
+            )
+          );
+      }
+
+      match /items/{itemId} {
+        allow read: if isSignedIn();
+        allow create, update, delete: if isSignedIn()
+          && (
+            get(/databases/$(database)/documents/expenses/$(expenseId)).data.createdBy == request.auth.uid
+            || (
+              get(/databases/$(database)/documents/expenses/$(expenseId)).data.payerUserId is string
+              && get(/databases/$(database)/documents/expenses/$(expenseId)).data.payerUserId == request.auth.uid
+            )
+          );
+      }
+    }
+
+    // Place likes (doc id == user id)
+    match /placeLikes/{userId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSelf(userId);
+    }
+
+    // Optional local test collection support for signed-in dev sessions.
+    match /_test/{docId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Default deny for everything not explicitly allowed above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
