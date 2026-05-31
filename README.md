@@ -1,11 +1,14 @@
-<h1 align="center">
-<img alt="logo" src="./assets/icon.png" width="124px" style="border-radius:10px"/><br/>
-slicc </h1>
+<div align="center">
+  <img alt="logo" src="./assets/icon.png" width="224px" style="border-radius:10px; margin-bottom:-130px"/>
+  <h1>slicc </h1>
+</div>
 
-slicc is a cross-platform mobile app (iOS & Android) built with React Native and Expo that helps groups of people organize shared events and split expenses. Users can create and join groups, schedule one-time or recurring events, and track costs with fine-grained bill splitting, assigning individual line items to specific participants with flexible split modes. A built-in notification system keeps members in the loop with group invites, event invites, and upcoming-event reminders. 
+slicc is a cross-platform mobile app (iOS & Android) built with React Native and Expo that helps groups of people organize shared events and split expenses. Users can create and join groups, schedule one-time or recurring events, and track costs with fine-grained bill splitting, assigning individual line items to specific participants with flexible split modes. A built-in notification system keeps members in the loop with group invites, event invites, and upcoming-event reminders.
 
 ## Instructions to download and install APK:
+
 **Important: APK only works on Android phones**
+
 - Download the APK from github Release
 - Allow installation of unknown apps in Android settings
 - Install the APK by opening it from the Files app
@@ -16,6 +19,7 @@ slicc is a cross-platform mobile app (iOS & Android) built with React Native and
 ## Prerequiste
 
 - [Expo dev environment](https://docs.expo.dev/get-started/set-up-your-environment/?mode=development-build&platform=android&device=simulated&buildEnv=local)
+  - till before **Running your app on an Android Emulator**
 - [Node.js LTS release](https://nodejs.org/en/)
 - [Pnpm](https://pnpm.io/installation)
 - Android Studio SDK Tools NDK Version 27.1.12297006
@@ -34,6 +38,10 @@ Clone the repo to your machine and install deps :
 
 ```sh
 pnpm install
+```
+
+```sh
+npx expo install expo-dev-client
 ```
 
 To run the app on ios
@@ -337,4 +345,4 @@ Paths are rooted at the default RTDB URL (`databaseURL` in Firebase config). Mes
 
 ## 📄 License
 
-MIT © 2025
+MIT © 2026
