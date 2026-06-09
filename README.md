@@ -23,14 +23,13 @@ slicc is a cross-platform mobile app (iOS & Android) built with React Native and
 - [Node.js LTS release](https://nodejs.org/en/)
 - [Pnpm](https://pnpm.io/installation)
 - Android Studio SDK Tools NDK Version 27.1.12297006
+- Get the `.env` and `google-services.json` from someone in the team.
 
 ### Windows only
 
 - Download the latest ninja release from [here](https://github.com/ninja-build/ninja/releases/latest)
 - Save the folder path where ninja.exe is as `NINJA_HOME` env variable or follow the steps below
 - Unzip and place the ninja.exe file in "C:\ninja\ninja.exe" (same path as `-DCMAKE_MAKE_PROGRAM=${path}` in `android\app\build.gradle`)
-
-## Env variables (wip)
 
 ## Run the app
 
@@ -123,7 +122,7 @@ Branch Name should be of the form `name/title`.example - `ankush/user-login`
 - `refactor:` - for code refactoring
 - `test:`- for adding missing tests
 - `chore:` - for maintenance tasks
-  Use lowercase for commit messages. example - `feat: add login`
+  Use lowercase for commit messages. example `feat: add login`
 
 ## Schema
 
