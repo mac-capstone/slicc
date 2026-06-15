@@ -1,5 +1,5 @@
 <div align="center">
-  <img alt="logo" src="./assets/icon.png" width="224px" style="border-radius:10px; margin-bottom:-130px"/>
+  <img alt="logo" src="./assets/icon.png" width="150px" style="border-radius:10px; margin-bottom:10px"/>
   <h1>slicc </h1>
 </div>
 
