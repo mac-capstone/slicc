@@ -1,7 +1,47 @@
 import type { ConfigContext, ExpoConfig } from '@expo/config';
+import type { ConfigPlugin } from '@expo/config-plugins';
+import { withAppBuildGradle } from '@expo/config-plugins';
 import type { AppIconBadgeConfig } from 'app-icon-badge/types';
 
 import { Env } from './env.js';
+
+const WINDOWS_NINJA_CMAKE_BLOCK = [
+  '',
+  '        def isWindows = System.getProperty("os.name").toLowerCase().contains("windows")',
+  '        if (isWindows) {',
+  '            def ninjaPath = System.getenv("NINJA_HOME") ?: "C:\\\\ninja"',
+  '            externalNativeBuild {',
+  '                cmake {',
+  '                    arguments "-DCMAKE_MAKE_PROGRAM=${ninjaPath}\\\\ninja.exe", "-DCMAKE_OBJECT_PATH_MAX=1024"',
+  '                }',
+  '            }',
+  '        }',
+].join('\n');
+
+const withWindowsNinjaCMake: ConfigPlugin = (config) =>
+  withAppBuildGradle(config, (buildGradleConfig) => {
+    const { contents } = buildGradleConfig.modResults;
+
+    if (contents.includes('CMAKE_MAKE_PROGRAM')) {
+      return buildGradleConfig;
+    }
+
+    const marker =
+      '        buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\\"${findProperty(\'reactNativeReleaseLevel\') ?: \'stable\'}\\""';
+
+    if (!contents.includes(marker)) {
+      throw new Error(
+        'Unable to apply Windows Ninja CMake workaround: buildConfigField marker was not found.'
+      );
+    }
+
+    buildGradleConfig.modResults.contents = contents.replace(
+      marker,
+      `${marker}${WINDOWS_NINJA_CMAKE_BLOCK}`
+    );
+
+    return buildGradleConfig;
+  });
 
 const appIconBadgeConfig: AppIconBadgeConfig = {
   enabled: Env.APP_ENV !== 'production',
@@ -135,6 +175,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           'Allow $(PRODUCT_NAME) to access your photos for your profile picture.',
       },
     ],
+    withWindowsNinjaCMake,
   ],
   extra: {
     ...Env,

@@ -88,10 +88,10 @@ export default function Login() {
         <View className="flex-1 px-[21px] pb-[34px] pt-28">
           <View className="items-center">
             <View className="items-center">
-              <View className="size-[70px] items-center justify-center rounded-[5px] bg-accent-900">
+              <View className="size-[70px] items-center justify-center rounded-[5px]">
                 <Image
-                  source={require('../../assets/icon.png')}
-                  className="size-11"
+                  source={require('../../assets/slicc.png')}
+                  className="size-full"
                   contentFit="contain"
                 />
               </View>
