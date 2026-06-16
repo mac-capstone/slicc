@@ -1,23 +1,46 @@
 import type { ConfigContext, ExpoConfig } from '@expo/config';
-import type { AppIconBadgeConfig } from 'app-icon-badge/types';
+import type { ConfigPlugin } from '@expo/config-plugins';
+import { withAppBuildGradle } from '@expo/config-plugins';
 
 import { Env } from './env.js';
 
-const appIconBadgeConfig: AppIconBadgeConfig = {
-  enabled: Env.APP_ENV !== 'production',
-  badges: [
-    {
-      text: Env.APP_ENV,
-      type: 'banner',
-      color: 'white',
-    },
-    {
-      text: Env.VERSION.toString(),
-      type: 'ribbon',
-      color: 'white',
-    },
-  ],
-};
+const WINDOWS_NINJA_CMAKE_BLOCK = [
+  '',
+  '        def isWindows = System.getProperty("os.name").toLowerCase().contains("windows")',
+  '        if (isWindows) {',
+  '            def ninjaPath = System.getenv("NINJA_HOME") ?: "C:\\\\ninja"',
+  '            externalNativeBuild {',
+  '                cmake {',
+  '                    arguments "-DCMAKE_MAKE_PROGRAM=${ninjaPath}\\\\ninja.exe", "-DCMAKE_OBJECT_PATH_MAX=1024"',
+  '                }',
+  '            }',
+  '        }',
+].join('\n');
+
+const withWindowsNinjaCMake: ConfigPlugin = (config) =>
+  withAppBuildGradle(config, (buildGradleConfig) => {
+    const { contents } = buildGradleConfig.modResults;
+
+    if (contents.includes('CMAKE_MAKE_PROGRAM')) {
+      return buildGradleConfig;
+    }
+
+    const marker =
+      '        buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\\"${findProperty(\'reactNativeReleaseLevel\') ?: \'stable\'}\\""';
+
+    if (!contents.includes(marker)) {
+      throw new Error(
+        'Unable to apply Windows Ninja CMake workaround: buildConfigField marker was not found.'
+      );
+    }
+
+    buildGradleConfig.modResults.contents = contents.replace(
+      marker,
+      `${marker}${WINDOWS_NINJA_CMAKE_BLOCK}`
+    );
+
+    return buildGradleConfig;
+  });
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -62,7 +85,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
-      backgroundColor: '#2E3C4B',
+      backgroundColor: '#1A1A1A',
     },
     package: Env.PACKAGE,
     googleServicesFile: './google-services.json',
@@ -76,7 +99,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-splash-screen',
       {
-        backgroundColor: '#2E3C4B',
+        backgroundColor: '#1A1A1A',
         image: './assets/splash-icon.png',
         imageWidth: 150,
       },
@@ -100,7 +123,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-secure-store',
     'expo-router',
     '@react-native-community/datetimepicker',
-    ['app-icon-badge', appIconBadgeConfig],
     ['react-native-edge-to-edge'],
     [
       'expo-location',
@@ -135,6 +157,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           'Allow $(PRODUCT_NAME) to access your photos for your profile picture.',
       },
     ],
+    // Expo accepts function plugins at runtime, but ExpoConfig only models static declarations.
+    withWindowsNinjaCMake as unknown as NonNullable<
+      ExpoConfig['plugins']
+    >[number],
   ],
   extra: {
     ...Env,
