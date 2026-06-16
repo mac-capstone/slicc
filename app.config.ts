@@ -1,7 +1,6 @@
 import type { ConfigContext, ExpoConfig } from '@expo/config';
 import type { ConfigPlugin } from '@expo/config-plugins';
 import { withAppBuildGradle } from '@expo/config-plugins';
-import type { AppIconBadgeConfig } from 'app-icon-badge/types';
 
 import { Env } from './env.js';
 
@@ -42,22 +41,6 @@ const withWindowsNinjaCMake: ConfigPlugin = (config) =>
 
     return buildGradleConfig;
   });
-
-const appIconBadgeConfig: AppIconBadgeConfig = {
-  enabled: Env.APP_ENV !== 'production',
-  badges: [
-    {
-      text: Env.APP_ENV,
-      type: 'banner',
-      color: 'white',
-    },
-    {
-      text: Env.VERSION.toString(),
-      type: 'ribbon',
-      color: 'white',
-    },
-  ],
-};
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -140,7 +123,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-secure-store',
     'expo-router',
     '@react-native-community/datetimepicker',
-    ['app-icon-badge', appIconBadgeConfig],
     ['react-native-edge-to-edge'],
     [
       'expo-location',
@@ -175,7 +157,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           'Allow $(PRODUCT_NAME) to access your photos for your profile picture.',
       },
     ],
-    withWindowsNinjaCMake,
+    // Expo accepts function plugins at runtime, but ExpoConfig only models static declarations.
+    withWindowsNinjaCMake as unknown as NonNullable<
+      ExpoConfig['plugins']
+    >[number],
   ],
   extra: {
     ...Env,
